@@ -1,0 +1,145 @@
+{
+  "schema": "tclk-upstream-drift/v1",
+  "phase": "PHASE_3A_0",
+  "generatedAt": "2026-09-03T12:10:00.000Z",
+  "statement": "Fresh drift capture against live upstream. Read-only: origin was fetched, nothing was pushed, no issue or PR was opened, and no upstream file was modified.",
+  "upstream": {
+    "remote": "https://github.com/flop-labs/tclk",
+    "branch": "main",
+    "headSha": "103a1b960c117c82473ee058b7dca1769e167125",
+    "headIsOriginMain": true,
+    "headCommitDate": "2026-09-03T15:34:07+08:00",
+    "packageName": "@flop-labs/tclk",
+    "packageVersion": "0.1.0",
+    "packageManager": "pnpm@11.25.0",
+    "checkoutUsed": ".upstream/tclk-head-lf",
+    "accessMode": "READ_ONLY"
+  },
+  "oldPin": {
+    "sha": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "commitDate": "2026-09-02T14:44:20+08:00",
+    "packageVersion": "0.1.0",
+    "checkoutUsed": ".upstream/tclk",
+    "stillPresentForABReplay": true
+  },
+  "drift": {
+    "commitsSinceOldPin": 10,
+    "filesChangedSinceOldPin": 39,
+    "commits": [
+      { "sha": "103a1b960c117c82473ee058b7dca1769e167125", "date": "2026-09-03T15:34:07+08:00", "subject": "fix: close live-wire conformance gaps (#42)", "class": "PROTOCOL_SEMANTICS_CHANGED" },
+      { "sha": "162b331df10a9c016b1bae5ff404e7cee1e43e49", "date": "2026-09-03T13:40:14+08:00", "subject": "feat: authenticate complete transcript records (#40)", "class": "REQUIRES_ADAPTATION" },
+      { "sha": "1ced9a1d1d3564d875d0b9cf3ee7ace8280dd487", "date": "2026-09-03T12:37:25+08:00", "subject": "chore: align changelog and required CI (#39)", "class": "SAFE_FOR_BLACKBOX" },
+      { "sha": "8872fab11e4ffcc7649616a493dcb2f37068c53a", "date": "2026-09-03T12:04:59+08:00", "subject": "fix(adaptor): reject an out-of-range scalar instead of reducing it (#27)", "class": "SAFE_FOR_BLACKBOX" },
+      { "sha": "563bcbfc37b113cbbb02e387be47d16396a38444", "date": "2026-09-03T12:03:50+08:00", "subject": "fix(technocore): reject malformed note metadata (#35)", "class": "SAFE_FOR_BLACKBOX" },
+      { "sha": "4b8f2c6e9f643b850e5ab459a8d3a7a728c62e4e", "date": "2026-09-03T12:02:53+08:00", "subject": "fix(examples): make the default-venue fallback unmissable, fix Windows syntax (#6) (#19)", "class": "SAFE_FOR_BLACKBOX" },
+      { "sha": "1459b78e3b981bbac67f845784c885b3b1ad85ba", "date": "2026-09-03T11:51:44+08:00", "subject": "fix(locks): close the union — an unknown lock kind verifies nothing (#15)", "class": "SAFE_FOR_BLACKBOX" },
+      { "sha": "04c7911480ce42cb31e6efbb9e66bfd9f9bad32d", "date": "2026-09-03T11:50:32+08:00", "subject": "fix(locks): reject malformed deadline inputs (#34)", "class": "SAFE_FOR_BLACKBOX" },
+      { "sha": "f3eb89cedab6570e885f661176963dc0d9e5a77d", "date": "2026-09-03T11:49:48+08:00", "subject": "fix(machine): reject a non-finite or negative clock instead of sailing past every deadline (#14)", "class": "SAFE_FOR_BLACKBOX" },
+      { "sha": "528190fe96b6b6f67a241904c5e26de35a8d8005", "date": "2026-09-03T11:45:51+08:00", "subject": "fix: validate PaperRail statements during decode (#29)", "class": "SAFE_FOR_BLACKBOX" }
+    ],
+    "newSourceFiles": [
+      "src/transcript.ts",
+      "src/rails.ts",
+      "src/frame-fields.generated.ts",
+      "schema/tclk1-frames.schema.json",
+      "scripts/generate-frame-fields.mjs",
+      "examples/audit-export.mjs",
+      "tests/live-wire-conformance.test.ts",
+      "tests/transcript.test.ts",
+      "tests/schema-conformance.test.ts"
+    ],
+    "touchedLoadBearingFiles": [
+      "src/frames.ts",
+      "src/machine.ts",
+      "src/locks.ts",
+      "src/technocore.ts",
+      "src/paper-rail.ts",
+      "src/rail.ts",
+      "src/adaptor.ts",
+      "src/index.ts",
+      "SPEC.md"
+    ]
+  },
+  "changelogUnreleased": {
+    "added": [
+      "schema-owned tclk/1 frame field contract, canonical settlement-rail registry, order-independent rail matching, CI drift check against SPEC.md",
+      "signed heartbeat frame for non-authoritative liveness while accepted or locked",
+      "hosted no-custody MCP deployment at https://tclk.technocore.chat/mcp that refuses to bind signing or payment keys and passes a caller signature through or returns the signing challenge"
+    ],
+    "changed": [
+      "foldTranscript consumes complete signed transcript records (line, room, seq, venue ts, sender, nonce, signature) and verifies signature and sender binding; tclk_read_room returns that shape with full:true for byte-exact /export; tclk_apply_transcript accepts only records and has no fallback clock (#11, #23)"
+    ],
+    "fixed": [
+      "applyFrame rejects lock when the refund window is already open (nowMs >= refundAfterMs) (#43)",
+      "reveal/refund builders carry the preceding lock's rail reference"
+    ]
+  },
+  "relevantOpenUpstreamWork": {
+    "note": "Indexed for our own risk assessment only. Nothing was opened, commented on, or modified upstream in this phase.",
+    "pullRequests": [
+      { "number": 63, "area": "hex", "title": "refuse every non-hex input, stop echoing the rejected value" },
+      { "number": 62, "area": "transcript", "title": "offer-room fallback for the deal-room binding" },
+      { "number": 60, "area": "frames", "title": "decode enforces the room-message cap the encoder already does" },
+      { "number": 59, "area": "canonicalization", "title": "published schema admits frames the decoder rejects" },
+      { "number": 58, "area": "protocol", "title": "propose tclk/2 settlement model" },
+      { "number": 56, "area": "live deal", "title": "reconcile transient failures at the operation layer, bound every attempt" },
+      { "number": 55, "area": "MCP signing", "title": "preserve exact string nonces in tclk_post_frame" },
+      { "number": 54, "area": "MCP signing", "title": "cap the venue response body" },
+      { "number": 52, "area": "transcript audit", "title": "isolate a malformed envelope in a window read" },
+      { "number": 51, "area": "receipt semantics", "title": "reject contradictory receipt rail/ref and zero adaptor witness" },
+      { "number": 45, "area": "live deal", "title": "bound each attempt at the venue, report a hang as the venue's silence" },
+      { "number": 32, "area": "state machine", "title": "bind proposed-state cancel to offer id and permit receipt" },
+      { "number": 21, "area": "rails", "title": "add EvmHashRail hash-lock evm-htlc settlement rail" },
+      { "number": 16, "area": "frames", "title": "a nested object's own type key slipped past the unknown-key check" }
+    ],
+    "issues": [
+      { "number": 61, "area": "transcript audit", "title": "SPEC §2 room binding unsatisfiable on the shared venue; foldTranscript rejects every live deal" },
+      { "number": 57, "area": "protocol", "title": "design tclk/2 as agreements, transfer attempts, verified rail observations" },
+      { "number": 48, "area": "canonicalization", "title": "pin the exact escape forms canonical JSON uses — ids depend on them" },
+      { "number": 41, "area": "state machine", "title": "make accepted-but-unlocked abandonment observable" },
+      { "number": 36, "area": "state machine", "title": "no frame carries the message the presig commits to" },
+      { "number": 26, "area": "canonicalization", "title": "independent implementation agrees on golden vectors; three spec gaps" },
+      { "number": 12, "area": "state machine", "title": "payee-opened offer assigns the secret to the party that cannot reveal it" },
+      { "number": 5, "area": "receipt semantics", "title": "what does contract name in a cancel sent while proposed" },
+      { "number": 3, "area": "live deal", "title": "cannot bootstrap when the venue is at its room cap" },
+      { "number": 2, "area": "live deal", "title": "live-deal.mjs retries 429 but not 5xx" }
+    ],
+    "materialToPhase3B": [61, 3, 2, 45, 56],
+    "reasonMaterial": "Issue #61 asserts foldTranscript rejects every live deal under the SPEC §2 room binding, and #3/#2/#45/#56 describe venue-level failure modes a single public rehearsal would hit. Phase 3B must not be scheduled until the room-binding question has an upstream answer."
+  },
+  "phase3a1Gates": {
+    "statement": "Run inside .upstream/tclk-head-lf, a clean current-head checkout with LF normalization, following the current AGENTS.md gate list.",
+    "commands": [
+      "pnpm install --frozen-lockfile",
+      "pnpm -r --include-workspace-root build",
+      "pnpm -r --include-workspace-root test"
+    ],
+    "install": "PASS",
+    "build": "PASS",
+    "tests": "PASS",
+    "testBreakdown": [
+      { "project": "root", "files": 8, "tests": 93 },
+      { "project": "mcp", "files": 6, "tests": 34 },
+      { "project": "mcp/worker", "files": 2, "tests": 31 }
+    ],
+    "testTotal": 158,
+    "failures": 0
+  },
+  "classification": {
+    "wireFormatCompatible": true,
+    "canonicalizationCompatible": true,
+    "contractIdCompatible": true,
+    "existingStateSemanticsChanged": true,
+    "changeDirection": "FAIL_CLOSED_TIGHTENING",
+    "incompatibleBreak": false,
+    "overall": "REQUIRES_ADAPTATION",
+    "blackboxRepinned": false,
+    "reason": "Frame encoding, canonical JSON, offer ids and contract ids are byte-identical across the two trees. One existing transition changed: applyFrame now refuses a lock once nowMs >= refundAfterMs (#43). That is a tightening, not a wire break, and it is fully attributed to a single upstream commit. Blackbox stays pinned at 81a8346 until the affected fixture is re-authored to a lawful lock time, so no accepted Phase 2/2.1 replay fingerprint changes under our feet."
+  },
+  "stopConditionsEvaluated": {
+    "canonicalWireFormatChangedIncompatibly": false,
+    "existingStateSemanticsChangedIncompatibly": false,
+    "currentUpstreamCleanCheckoutFailed": false,
+    "stopTriggered": false
+  }
+}

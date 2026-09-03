@@ -1,0 +1,42 @@
+{
+  "schema": "tclk-public-footprint-preview/v1",
+  "phase": "PHASE_3B_PROPOSAL",
+  "generatedAt": "2027-01-15T08:00:00.000Z",
+  "upstream": {
+    "repository": "https://github.com/flop-labs/tclk",
+    "sha": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "package": "@flop-labs/tclk@0.1.0"
+  },
+  "signed": false,
+  "posted": false,
+  "statement": "Proposed public actions for one future rehearsal. Nothing here is signed, nothing has been posted, and the preview alone does not authorise Phase 3B.",
+  "contractId": "0xb90f15587aa114822cac1bf70dd648a73bfa8a8472ad5683594cca18d8054a72",
+  "requestFingerprintOfStepOne": "5b02adf250967a3a79176339ce08a2458d8758ca72dec7b62ddea3a8e1178d45",
+  "steps": [
+    {
+      "step": 1,
+      "operation": "post_frame",
+      "room": "tclk-offers",
+      "frameType": "accept",
+      "canonicalHash": "4d1045e2455c6e9e4761b1efa7a83a122ffc9c3b9aea59aab6d49e69a71c02e4",
+      "payloadBytes": 352,
+      "public": true,
+      "posted": false
+    },
+    {
+      "step": 2,
+      "operation": "post_frame",
+      "room": "mb-p-tclk-b90f15587aa11482",
+      "frameType": "lock",
+      "canonicalHash": "8cd4cfd10ab7c9fb9523f82aeb76b7a851a28c7b3df741bb1c03073a9c998e7c",
+      "payloadBytes": 200,
+      "public": true,
+      "posted": false
+    }
+  ],
+  "remainsLocal": [
+    "the hash-lock preimage until a reveal is deliberately approved",
+    "operator approval records and airlock fingerprints",
+    "every private key, which never leaves the trusted local signer"
+  ]
+}
