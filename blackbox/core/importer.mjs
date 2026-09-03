@@ -1,0 +1,3 @@
+const MAX=1024*1024;
+const unsafe=/(^|["'\s])(?:secret|preimage|witness|privateKey|private_key|seed|mnemonic|passphrase|apiKey|token)(?=["'\s:]|$)/i;
+export function importTranscript(text) { if(typeof text!=='string'||text.length>MAX) throw new Error('blackbox: input exceeds 1 MiB'); let value;try{value=JSON.parse(text)}catch{throw new Error('blackbox: invalid JSON')}; if(!value||value.schema!=='tclk-transcript/v1'||!Array.isArray(value.lines)) throw new Error('blackbox: unsupported transcript schema'); if(unsafe.test(text)) throw new Error('blackbox: unsafe field detected'); if(value.lines.some(x=>typeof x!=='string')) throw new Error('blackbox: lines must be strings'); return value.lines; }

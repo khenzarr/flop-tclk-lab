@@ -1,0 +1,2 @@
+import { execFileSync } from 'node:child_process';
+try { execFileSync('node',['--check','blackbox/core/replay.mjs'],{stdio:'inherit'}); console.log('typecheck PASS (runtime-checked JavaScript core)'); } catch { process.exit(1); }

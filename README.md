@@ -28,4 +28,23 @@ At the captured baseline, upstream install, build, and tests passed: 13 test fil
 
 This does not prove settlement, funding, reward eligibility, testnet access, or production security. Live rehearsal requires explicit operator approval and remains unexecuted.
 
+## Phase 2: TCLK Blackbox
+
+**TCLK Blackbox — Agent Deal Flight Recorder** is an independent, local-first
+verifier/replayer. It reconstructs accepted and rejected frames against the
+pinned upstream implementation, visualizes the protocol/custody/rail lanes,
+and exports a secret-screened evidence capsule. CHAOS mode deterministically
+mutates safe fixtures to expose invariants; it is not a penetration-testing
+suite and makes no identity, payment, reward, or complete-history claims.
+
+Run the offline demo:
+
+```powershell
+pnpm demo
+```
+
+Open `blackbox/out/blackbox-demo.html`. No credentials, wallet, network, or
+Technocore write is involved. See `docs/BLACKBOX_PRODUCT_THESIS.md` and
+`docs/REPLAY_DETERMINISM.md`.
+
 See `docs/` for protocol, security, custody, runbook, and future evidence notes.

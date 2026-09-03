@@ -1,0 +1,6 @@
+{
+  "name": "tclk-blackbox",
+  "private": true,
+  "type": "module",
+  "scripts": {"test":"node --test blackbox/tests/*.test.mjs", "demo":"node blackbox/demo.mjs", "build":"node blackbox/build.mjs", "lint":"node blackbox/lint.mjs", "typecheck":"node blackbox/typecheck.mjs"}
+}

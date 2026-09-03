@@ -1,0 +1,15 @@
+import { tclk } from '../../lab/upstream.mjs';
+const P='did:key:z6Mk'+'f'.repeat(44), Q='did:key:z6Mk'+'g'.repeat(44), NOW=1800000000000, SECRET='0x'+'ab'.repeat(32);
+function base(){const lock=tclk.hashLockFromPreimage(SECRET);const offer=tclk.makeOffer({from:P,role:'payer',amount:'100',asset:'FLOP',lock:'hash',rails:['paper'],claimByMs:NOW+1000,refundAfterMs:NOW+2000,expiresMs:NOW+5000,nonce:'0102030405060708'});const accept=tclk.makeAccept(offer,{from:Q,statement:lock.hash,nonce:'1112131415161718'});const frames=[offer,accept,{type:'lock',from:P,contract:accept.contract,rail:'paper',ref:'paper-ref'}];return {offer,accept,frames,lock,nowMs:NOW};}
+const lines=f=>f.map(tclk.encodeFrame);
+export const fixtures={
+ 'happy-claim':()=>{const x=base();return {name:'Happy Claim',description:'A valid hash-lock deal reaches claim.',invariant:'Only payee reveal with the matching secret can claim.',lines:lines([...x.frames,{type:'reveal',from:Q,contract:x.accept.contract,secret:SECRET}]),nowMs:x.nowMs}},
+ 'normal-refund':()=>{const x=base();return {name:'Normal Refund',description:'The refund boundary is reached without a reveal.',invariant:'Payer refund is accepted only at/after refundAfterMs.',lines:lines([...x.frames,{type:'refund',from:P,contract:x.accept.contract}]),nowMs:x.nowMs+2000}},
+ 'cancel-before-lock':()=>{const x=base();return {name:'Cancel Before Lock',description:'The offer is cancelled before the lock frame.',invariant:'Cancel is valid only while proposed or accepted.',lines:lines([x.offer,{type:'cancel',from:P,contract:x.accept.contract}]),nowMs:x.nowMs}},
+ 'wrong-party':()=>{const x=base();return {name:'Wrong Party',description:'A payer attempts to reveal.',invariant:'Only the payee may reveal.',lines:lines([...x.frames,{type:'reveal',from:P,contract:x.accept.contract,secret:SECRET}]),nowMs:x.nowMs}},
+ 'wrong-secret':()=>{const x=base();return {name:'Wrong Secret',description:'The reveal does not open the published statement.',invariant:'A claim requires a verifying witness.',lines:lines([...x.frames,{type:'reveal',from:Q,contract:x.accept.contract,secret:'0x'+'cd'.repeat(32)}]),nowMs:x.nowMs}},
+ 'replay-attack':()=>{const x=base();return {name:'Replay Attack',description:'A lock is repeated after the contract is locked.',invariant:'A terminal or already-advanced state does not rewind.',lines:lines([...x.frames,x.frames[2]]),nowMs:x.nowMs}},
+ 'out-of-order-reveal':()=>{const x=base();return {name:'Out-of-Order Reveal',description:'Reveal arrives before lock.',invariant:'State transitions are ordered and fail closed.',lines:lines([x.offer,x.accept,{type:'reveal',from:Q,contract:x.accept.contract,secret:SECRET}]),nowMs:x.nowMs}},
+ 'mutated-canonical-frame':()=>{const x=base();const l=lines(x.frames);return {name:'Mutated Canonical Frame',description:'A payload mutation is not silently normalized.',invariant:'Canonical encoding is stable and structural validation is fail closed.',lines:[l[0].replace('"100"','"101"'),...l.slice(1)],nowMs:x.nowMs}},
+};
+export const fixtureList=Object.keys(fixtures);

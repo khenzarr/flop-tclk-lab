@@ -5,6 +5,7 @@
 # Dependencies and build output (the lab itself is dependency-free).
 node_modules/
 dist/
+blackbox/out/
 *.tsbuildinfo
 
 # Secrets. Nothing in this category may ever be committed.

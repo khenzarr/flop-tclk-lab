@@ -1,0 +1,10 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { fixtures, fixtureList } from './fixtures/index.mjs';
+import { replay } from './core/replay.mjs';
+import { makeCapsule } from './core/capsule.mjs';
+import { render } from './ui/render.mjs';
+const out=new URL('./out/',import.meta.url); await mkdir(out,{recursive:true});
+const records=fixtureList.map(id=>{const f=fixtures[id]();const r=replay(f.lines,{nowMs:f.nowMs});return {id,name:f.name,description:f.description,invariant:f.invariant,result:r,capsule:makeCapsule(r)};});
+await writeFile(new URL('blackbox-demo.html',out),render(records));
+for(const x of records) await writeFile(new URL(`${x.id}.capsule.json`,out),JSON.stringify(x.capsule,null,2)+'\n');
+console.log(`Blackbox demo: ${new URL('blackbox-demo.html',out).pathname}`); console.log(records.map(x=>`${x.id}: ${x.result.terminalState} (${x.result.steps.filter(s=>s.ok).length} accepted, ${x.result.steps.filter(s=>!s.ok).length} rejected)`).join('\n'));
