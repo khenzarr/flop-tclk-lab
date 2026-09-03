@@ -10,3 +10,16 @@ offline input. `capsule` is an allow-list artifact guarded by the sentinel.
 The three lanes are projections, not additional sources of truth: rail events
 exist only when a frame supplies them, and custody describes upstream-derived
 party binding rather than human identity.
+
+## Phase 2.1 forensic projection
+
+`blackbox/core/model.mjs` projects immutable replay steps into frame markers,
+flight-path nodes, rejection boundaries, evidence-bearing lanes, exact frame-N
+reconstruction, invariant results, and capsule summaries. The renderer does
+not infer transitions from fixture names or animation. Accepted steps may mark
+only upstream `stateAfter.status` as reached; rejected steps preserve the
+current node and identical before/after digests. Rail marks are emitted only
+for observed accepted rail-bearing steps and never represent value movement.
+
+Scrub and play controls select precomputed deterministic reconstructions.
+Playback is local sequencing, not network or live-room activity.

@@ -47,4 +47,11 @@ Open `blackbox/out/blackbox-demo.html`. No credentials, wallet, network, or
 Technocore write is involved. See `docs/BLACKBOX_PRODUCT_THESIS.md` and
 `docs/REPLAY_DETERMINISM.md`.
 
+Phase 2.1 hardens the demo into a forensic replay instrument: an
+evidence-derived deal flight path, explicit rejection boundary, before/event/
+after inspector, event-bearing protocol/custody/rail tracks, deterministic
+scrubber, CHAOS invariant comparison, incident signal, and evidence drawer.
+Generate the seven local visual-acceptance captures with `pnpm artifacts`;
+outputs live in `blackbox/artifacts/phase-2.1/`.
+
 See `docs/` for protocol, security, custody, runbook, and future evidence notes.

@@ -1,1 +1,6 @@
-export function lanes(result){return {protocol:result.steps.map(s=>({index:s.index,type:s.type,ok:s.ok,status:s.stateAfter?.status??null})),custody:result.steps.map(s=>({index:s.index,actor:s.actor,partyBinding:'derived from upstream transition guards'})),rail:result.steps.map(s=>({index:s.index,event:s.type==='lock'?'lock':s.type==='receipt'?'receipt':null,evidence:s.type==='lock'?s.contract:null}))};}
+import { laneTracks } from './model.mjs';
+
+/** Evidence-only lane projection. Kept as the Phase 2 public entry point. */
+export function lanes(result, frameIndex=result.steps.length-1) {
+  return laneTracks(result,frameIndex);
+}
