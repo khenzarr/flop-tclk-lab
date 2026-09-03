@@ -4,8 +4,27 @@ Not executed. Nothing in this document was performed. Phase 3A ends before any
 public activity. Executing this plan requires separate explicit operator approval.
 
 Sources read: `examples/live-deal.mjs`, `SPEC.md`, the MCP implementation and the
-transcript/rail changes at current upstream head
-`103a1b960c117c82473ee058b7dca1769e167125`.
+transcript/rail changes at upstream `103a1b960c117c82473ee058b7dca1769e167125`
+(upstream head when Phase 3A ran; a comparison head, not the pin).
+
+## Upstream status for this plan (Phase 3A.1)
+
+The pin is still `81a83464bd909fb5cd80de647da4e42fbae177dd`. Phase 3A.1 re-verified upstream and
+found `main` at `d48e87343200e3115e243df39e8f295f5ce2e645`, five commits ahead, so the re-pin was
+not taken and `evidence/phase3b-public-footprint-preview.json` was **not** regenerated: it is
+still generated against the pin in force and is therefore still current, not superseded.
+
+Four of those five commits tighten things a live rehearsal would hit, and they are preconditions
+for Phase 3B whenever the pin does move — each one fails closed, so a rehearsal that ignores them
+gets a refusal, not a bad post:
+
+- decode-side cap on room messages (#60);
+- narrowed published-frame schema (#59);
+- stricter hex rejection, with reasons that do not echo the offending input (#63);
+- accept-path refusals for a contradictory receipt rail/ref pair and a zero adaptor witness (#51).
+
+Phase 3B must not be executed against a pin whose semantics have not had a drift pass. Re-run
+`pnpm compat:matrix` against whatever head is current at that time first.
 
 ## Purpose
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-03T11:36:42.642Z",
+  "generatedAt": "2026-09-03T19:19:58.561Z",
   "safe": true,
   "oldPin": {
     "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
@@ -12,9 +12,9 @@
     "dir": ".upstream/tclk-head-lf"
   },
   "wireFormatCompatible": true,
-  "stateMachineCompatible": false,
+  "stateMachineCompatible": true,
   "lawfulOrderingPreserved": true,
-  "fixtureBehaviourIdentical": false,
+  "fixtureBehaviourIdentical": true,
   "provenanceFingerprintsRotated": true,
   "exportsAdded": [
     "CANONICAL_RAIL_IDS",
@@ -31,14 +31,7 @@
     "verifyTranscriptRecord"
   ],
   "exportsRemoved": [],
-  "deadlineAttributedDivergences": [
-    {
-      "fixture": "normal-refund",
-      "flippedStep": 2,
-      "frameType": "lock",
-      "reason": "refund window is already open"
-    }
-  ],
+  "deadlineAttributedDivergences": [],
   "unexplainedSurfaces": [],
   "rows": [
     {
@@ -131,70 +124,15 @@
     },
     {
       "surface": "fixture:normal-refund",
-      "verdict": "BEHAVIOUR_CHANGED",
+      "verdict": "EXPECTED_PROVENANCE",
       "differences": [
         {
-          "path": "steps[2].ok",
-          "old": true,
-          "new": false
-        },
-        {
-          "path": "steps[2].reason",
-          "old": null,
-          "new": "refund window is already open"
-        },
-        {
-          "path": "steps[2].statusAfter",
-          "old": "locked",
-          "new": "accepted"
-        },
-        {
-          "path": "steps[2].stateDigestAfter",
-          "old": "d37aa90631a377fecb9018facc579fd51491c692d3187366c10f21fa9f07c9ce",
-          "new": "681400138dba51ca2cd84a72bdce6423ff9753a50807e5902a760ea1d8b2062c"
-        },
-        {
-          "path": "steps[3].ok",
-          "old": true,
-          "new": false
-        },
-        {
-          "path": "steps[3].reason",
-          "old": null,
-          "new": "refund in status accepted"
-        },
-        {
-          "path": "steps[3].statusBefore",
-          "old": "locked",
-          "new": "accepted"
-        },
-        {
-          "path": "steps[3].statusAfter",
-          "old": "refunded",
-          "new": "accepted"
-        },
-        {
-          "path": "steps[3].stateDigestBefore",
-          "old": "d37aa90631a377fecb9018facc579fd51491c692d3187366c10f21fa9f07c9ce",
-          "new": "681400138dba51ca2cd84a72bdce6423ff9753a50807e5902a760ea1d8b2062c"
-        },
-        {
-          "path": "steps[3].stateDigestAfter",
-          "old": "5e5ba254a77c0796575db554989ac882c310eac46be70aa112945c68d37d4460",
-          "new": "681400138dba51ca2cd84a72bdce6423ff9753a50807e5902a760ea1d8b2062c"
-        },
-        {
-          "path": "steps[3].terminal",
-          "old": true,
-          "new": false
-        },
-        {
-          "path": "terminalState",
-          "old": "refunded",
-          "new": "accepted"
+          "path": "replayFingerprint",
+          "old": "0d084c4908e19f5e8fef7670d420aac0e0bf7d397f9731036a293c05d8c20e03",
+          "new": "ab0c88faa9ce0480dc872b4d1f951ccfe7b3167aa9f894353eeae6c3e10b8f32"
         }
       ],
-      "differenceCount": 17
+      "differenceCount": 1
     },
     {
       "surface": "fixture:cancel-before-lock",
@@ -269,5 +207,5 @@
       "differenceCount": 1
     }
   ],
-  "verdict": "REQUIRES_ADAPTATION"
+  "verdict": "BLACKBOX_COMPATIBLE"
 }

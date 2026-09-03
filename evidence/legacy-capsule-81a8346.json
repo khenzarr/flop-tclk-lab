@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "blackbox-evidence/v1",
+  "generatedAt": "1970-01-01T00:00:00.000Z",
+  "upstreamRepository": "https://github.com/flop-labs/tclk",
+  "upstreamSha": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+  "upstreamPackage": "@flop-labs/tclk@0.1.0",
+  "contractId": "0x9c059763d2c4b89f709adb88b034fa1c155b5b831e24604ec58a0c877091c82b",
+  "frameCount": 4,
+  "acceptedFrameCount": 4,
+  "rejectedFrameCount": 0,
+  "orderedCanonicalFrameHashes": [
+    "f8bf1b399240b6100269bc26ff946877bb675f3c8a42f5813feefd9e32b25708",
+    "50b39a0d58243d3089be2ffad388b863375949395777671009da0d6996223aae",
+    "d9cab2d7e4ed7e814f2f28c8dd8a931c8b00d6f89857aa846eaf12e9bae7ded0",
+    "e3d7ad25104c7b92ac68fbfddcf0d0056b167561d7be3ff2645b04c61e3e8644"
+  ],
+  "terminalState": "refunded",
+  "replayFingerprint": "c1a5c6ba935a7934284eb460be102a9527b8a46fed1eb6f1e562b0d53906557f",
+  "invariantChecks": {
+    "rejectionsDoNotMutate": true
+  },
+  "warnings": [],
+  "completenessLimitations": [
+    "TRANSCRIPT COMPLETE FOR PROVIDED INPUT",
+    "This is local verification evidence, not identity, reward, payment, or complete Technocore history."
+  ]
+}

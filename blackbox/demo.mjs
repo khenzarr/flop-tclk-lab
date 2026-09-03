@@ -1,11 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { fixtures, fixtureList } from './fixtures/index.mjs';
-import { replay } from './core/replay.mjs';
+import { fixtures, fixtureList, replayFixture } from './fixtures/index.mjs';
 import { makeCapsule } from './core/capsule.mjs';
 import { frameEvents, reconstruct, invariantState, chaosResult, capsuleView } from './core/model.mjs';
 import { render } from './ui/render.mjs';
 const out=new URL('./out/',import.meta.url); await mkdir(out,{recursive:true});
-const records=fixtureList.map(id=>{const f=fixtures[id](),result=replay(f.lines,{nowMs:f.nowMs}),capsule=makeCapsule(result);return {id,name:f.name,description:f.description,invariant:f.invariant,result,capsule,events:frameEvents(result),models:result.steps.map(step=>({...reconstruct(result,step.index),invariant:invariantState({invariant:f.invariant,result},step.index)})),chaos:chaosResult({name:f.name,invariant:f.invariant,result}),capsuleView:capsuleView(capsule)}});
+const records=fixtureList.map(id=>{const f=fixtures[id](),result=replayFixture(f),capsule=makeCapsule(result);return {id,name:f.name,description:f.description,invariant:f.invariant,result,capsule,events:frameEvents(result),models:result.steps.map(step=>({...reconstruct(result,step.index),invariant:invariantState({invariant:f.invariant,result},step.index)})),chaos:chaosResult({name:f.name,invariant:f.invariant,result}),capsuleView:capsuleView(capsule)}});
 await writeFile(new URL('blackbox-demo.html',out),render(records));
 for(const x of records) await writeFile(new URL(`${x.id}.capsule.json`,out),JSON.stringify(x.capsule,null,2)+'\n');
 console.log(`Blackbox demo: ${new URL('blackbox-demo.html',out).pathname}`); console.log(records.map(x=>`${x.id}: ${x.result.terminalState} (${x.result.steps.filter(s=>s.ok).length} accepted, ${x.result.steps.filter(s=>!s.ok).length} rejected)`).join('\n'));

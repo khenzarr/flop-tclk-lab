@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fixtures, fixtureList } from '../fixtures/index.mjs';
+import { fixtures, fixtureList, replayFixture } from '../fixtures/index.mjs';
 import { replay } from '../core/replay.mjs';
 import { makeCapsule } from '../core/capsule.mjs';
 import { frameEvents, reconstruct, invariantState, chaosResult, capsuleView } from '../core/model.mjs';
 import { render } from '../ui/render.mjs';
 
-const record=id=>{const f=fixtures[id]();const result=replay(f.lines,{nowMs:f.nowMs});return {id,name:f.name,invariant:f.invariant,result,capsule:makeCapsule(result)}};
+const record=id=>{const f=fixtures[id]();const result=replayFixture(f);return {id,name:f.name,invariant:f.invariant,result,capsule:makeCapsule(result)}};
 
 test('rejected frames never render state advancement and preserve before/after',()=>{
   for(const id of fixtureList){const r=record(id);for(const step of r.result.steps.filter(x=>!x.ok)){const m=reconstruct(r.result,step.index);assert.equal(m.boundary.stateAdvanced,false);assert.equal(m.boundary.stateUnchanged,true);assert.equal(m.boundary.before,m.boundary.after);assert.equal(m.path.filter(x=>x.reached).length,r.result.steps.slice(0,step.index+1).filter(x=>x.ok).length)}}

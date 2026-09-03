@@ -91,12 +91,26 @@ Load-bearing properties:
 
 Upstream drift for this phase is recorded in
 `evidence/upstream-drift-phase3a.json` and `docs/UPSTREAM_DRIFT_PHASE3A.md`.
-Current head is wire-format and canonicalization compatible with the pinned
+Upstream is wire-format and canonicalization compatible with the pinned
 baseline, but one existing transition tightened (a lock is refused once the
-refund deadline has passed), so **Blackbox stays pinned at `81a8346`** and the
-verdict is `REQUIRES_ADAPTATION`. Reproduce the A/B comparison with
+refund deadline has passed). Reproduce the A/B comparison with
 `pnpm compat:matrix <candidateDir> <candidateSha>`; see
 `docs/BLACKBOX_UPSTREAM_COMPATIBILITY.md`.
+
+## Phase 3A.1: fixture rebaseline
+
+The fixture that relied on the loosened transition has been re-authored rather than patched
+around, and fixtures now carry explicit provenance: `legacy-v1` is the frozen Phase 2 timing,
+`current-v2` is authored for the tightened deadline rule and is what the default baseline, demo
+and capsules use. Both sets reach the same terminal states under the compared commits. See
+`docs/PHASE3A1_FIXTURE_MIGRATION.md` and `docs/CROSS_PIN_REPLAY_MATRIX.md`.
+
+**Blackbox stays pinned at `81a8346`.** Re-verifying upstream during this phase found `main` had
+moved again, to `d48e873`, with four of five new commits changing protocol-observable behaviour
+that has had no drift pass here. Fingerprint lineage across baselines is recorded in
+`evidence/replay-baseline-migration.json`; the stop itself is in
+`evidence/upstream-moved-again-phase3a1.json`. Historical evidence is untouched and remains valid
+against the implementation it was pinned to.
 
 The one future public rehearsal is designed but unexecuted:
 `docs/PHASE3B_ONE_DEAL_PLAN.md`, with its exact proposed public actions in

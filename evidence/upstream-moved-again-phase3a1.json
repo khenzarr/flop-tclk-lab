@@ -1,0 +1,114 @@
+{
+  "schema": "tclk-upstream-moved-again/v1",
+  "phase": "PHASE3A1",
+  "generatedAt": "2026-09-03T19:21:00Z",
+  "safe": true,
+  "verdict": "UPSTREAM_MOVED_AGAIN",
+  "statement": "Phase 3A.1 opened by re-verifying current upstream main rather than trusting the head recorded in Phase 3A. main had moved on by five commits, and the new commits change wire-decode and state-acceptance semantics that Phase 3A never examined. Phase 3A.1 therefore stops at the re-pin decision: the fixture migration it was asked to perform is complete and committed, but the Blackbox pin does not move onto an unanalysed head.",
+  "pinInForce": {
+    "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "unchangedByThisPhase": true,
+    "note": "Still the pin. All Blackbox gates, replay evidence and airlock runs in this phase were produced against it."
+  },
+  "expectedHeadFromPhase3A": "103a1b960c117c82473ee058b7dca1769e167125",
+  "actualHead": {
+    "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "branch": "main",
+    "date": "2026-09-04T01:27:56+08:00",
+    "package": "@flop-labs/tclk",
+    "version": "0.1.0",
+    "packageManager": "pnpm@11.25.0",
+    "adoptedAsPin": false
+  },
+  "comparisonHead": {
+    "commit": "103a1b960c117c82473ee058b7dca1769e167125",
+    "role": "COMPARISON HEAD — NOT ADOPTED AS PIN",
+    "note": "The cross-pin matrix and the fingerprint lineage record replays against this commit. Recording a comparison run is not adopting a baseline; nothing in the lab reads this commit as the pin."
+  },
+  "newCommitsSinceExpectedHead": [
+    {
+      "sha": "989bf89",
+      "subject": "fix(frames): decode enforces the room-message cap the encoder already does (#60)",
+      "class": "WIRE_DECODE_TIGHTENED",
+      "protocolObservable": true,
+      "effect": "decodeFrame now rejects any tclk/1 line longer than MAX_FRAME_CHARS before parsing it. A transcript line that previously decoded can now be refused, so this is a decode-surface change the Blackbox importer sits directly on top of."
+    },
+    {
+      "sha": "a6391df",
+      "subject": "fix(schema): the published schema admitted frames the decoder rejects (#59)",
+      "class": "PUBLISHED_SCHEMA_TIGHTENED",
+      "protocolObservable": true,
+      "effect": "tclk1-frames.schema.json narrows proto to a bounded lowercase pattern, requires non-empty id/context, and requires the adaptor scalar `s` to be whole hex bytes (^0x(?:[0-9a-f]{2}){1,32}$) rather than any 1..64 hex digits. Frames the old published schema accepted are no longer schema-valid."
+    },
+    {
+      "sha": "9acc318",
+      "subject": "fix(hex): refuse every non-hex input, and stop echoing the rejected value (#63)",
+      "class": "INPUT_VALIDATION_TIGHTENED",
+      "protocolObservable": true,
+      "effect": "hex parsing refuses inputs it previously tolerated, and rejection messages no longer echo the offending value. Rejection reason strings are recorded verbatim in replay evidence, so this can move evidence bytes as well as acceptance."
+    },
+    {
+      "sha": "c728614",
+      "subject": "fix: reject contradictory receipt rail/ref and zero adaptor witness (#51)",
+      "class": "STATE_ACCEPTANCE_TIGHTENED",
+      "protocolObservable": true,
+      "effect": "a receipt whose rail contradicts its ref is now refused, and extractWitness returns null for a zero witness instead of a zero scalar. Both are new fail-closed conditions on the accept path — exactly the class of change that required the fixture migration in the first place."
+    },
+    {
+      "sha": "d48e873",
+      "subject": "fix(mcp): isolate a malformed envelope in a window read instead of failing it whole (#52)",
+      "class": "MCP_TRANSPORT_BEHAVIOUR",
+      "protocolObservable": false,
+      "effect": "a window read now isolates a malformed envelope rather than failing the whole read. Server-surface behaviour; no canonical frame semantics involved."
+    }
+  ],
+  "filesTouchedSinceExpectedHead": [
+    "src/frames.ts",
+    "src/adaptor.ts",
+    "schema/tclk1-frames.schema.json",
+    "mcp/src/server.ts",
+    "mcp/src/tools.ts",
+    "mcp/src/tool-manifest.generated.ts",
+    "mcp/tests/transport.test.ts",
+    "CHANGELOG.md"
+  ],
+  "stopRule": {
+    "instruction": "If additional wire/state semantics changed: STOP and report UPSTREAM_MOVED_AGAIN. Do not chase unknown changes blindly.",
+    "triggeredBy": ["989bf89", "a6391df", "9acc318", "c728614"],
+    "rationale": "Four of the five new commits change decode acceptance, published schema validity, or accept-path preconditions. Re-pinning onto d48e873 would mean adopting semantics no probe in this repository has yet exercised, and would rotate every replay fingerprint in the process — a silent baseline move dressed as a routine re-pin."
+  },
+  "repinDecision": {
+    "blackboxRepinSafe": false,
+    "blackboxRepinned": false,
+    "conditionsFailed": [
+      "condition 3 — all state-semantic differences are understood: the four new commits are identified but not probed",
+      "condition 4 — only known fixture timing requires adaptation: unknown until d48e873 is probed the way 103a1b9 was"
+    ],
+    "conditionsHeld": [
+      "condition 1 — gates pass at the pin in force",
+      "condition 2 — canonical wire format compatible across 81a8346 and 103a1b9",
+      "condition 5 — migrated fixtures preserve their scenario intent",
+      "condition 6 — deterministic replay passes",
+      "condition 7 — CHAOS invariants pass",
+      "condition 8 — capsule provenance correct and read-time classified",
+      "condition 9 — historical evidence readable and untouched",
+      "condition 10 — Signature Airlock compatible"
+    ]
+  },
+  "workCompletedRegardless": [
+    "the offending fixture is isolated, classified FAIL_CLOSED_SEMANTIC_TIGHTENING, and documented",
+    "fixture provenance split into legacy-v1 (frozen, as authored) and current-v2 (re-authored timing, lock strictly before refundAfterMs)",
+    "cross-pin replay matrix separating byte equivalence from semantic equivalence",
+    "replay-fingerprint lineage recorded additively; no historical fingerprint overwritten",
+    "a real old-pin capsule frozen as evidence/legacy-capsule-81a8346.json and asserted to still parse, render and classify"
+  ],
+  "liveSafety": {
+    "liveTechnocoreReads": "NONE",
+    "liveTechnocoreWrites": "NONE",
+    "realSignerAccessed": "NO",
+    "walletConnected": "NO",
+    "valueMoved": "NONE",
+    "upstreamClonesWritten": "NONE"
+  },
+  "nextRecommendedAction": "Run the Phase 3A drift probe and the cross-pin matrix against d48e873 as a fresh candidate — specifically the decode cap (#60), the narrowed schema patterns (#59), hex rejection reasons (#63) and the receipt rail/ref plus zero-witness refusals (#51) — then re-evaluate the ten re-pin conditions. Phase 3B stays closed until the pin question is settled."
+}

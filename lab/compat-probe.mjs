@@ -21,8 +21,7 @@
 
 import { createHash } from "node:crypto";
 import { tclk, baseline } from "./upstream.mjs";
-import { fixtures, fixtureList } from "../blackbox/fixtures/index.mjs";
-import { replay } from "../blackbox/core/replay.mjs";
+import { fixtureSets, replayFixture } from "../blackbox/fixtures/index.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const json = (value) => tclk.canonicalJson(value);
@@ -38,13 +37,22 @@ function sansUpstream(result) {
   return sha256(json({ ...rest, state }));
 }
 
-/** Per-fixture protocol observables. */
-function fixtureSurface(name) {
-  const fixture = fixtures[name]();
-  const result = replay(fixture.lines, { nowMs: fixture.nowMs });
+/**
+ * Per-fixture protocol observables, for one named fixture set.
+ *
+ * Each fixture is replayed with ITS OWN declared timing, through the same `replayFixture` the
+ * Blackbox itself uses — so a set's evaluation schedule is part of what is being compared,
+ * rather than something the probe re-decides.
+ */
+function fixtureSurface(set, name) {
+  const fixture = set[name]();
+  const result = replayFixture(fixture);
   return {
+    fixtureSetVersion: fixture.fixtureSetVersion,
     lineCount: fixture.lines.length,
     lineHashes: fixture.lines.map(sha256),
+    nowMs: fixture.nowMs,
+    schedule: fixture.schedule ?? null,
     steps: result.steps.map((step) => ({
       index: step.index,
       type: step.type,
@@ -67,6 +75,12 @@ function fixtureSurface(name) {
     replayFingerprintSansUpstream: sansUpstream(result),
   };
 }
+
+/** Every fixture of one named set, keyed by fixture id. */
+const surfaceSet = (setVersion) =>
+  Object.fromEntries(
+    Object.keys(fixtureSets[setVersion]).map((name) => [name, fixtureSurface(fixtureSets[setVersion], name)]),
+  );
 
 /** Canonical encoding rules the Airlock's byte freeze depends on. */
 function canonicalizationSurface() {
@@ -174,15 +188,15 @@ async function paperRailSurface() {
 /**
  * Time model of the lock → refund path.
  *
- * Blackbox replay applies one `nowMs` to a whole transcript, which is fine for outcome
- * determinism but collapses deadline ordering. This surface separates the two questions a
- * deadline change raises:
+ * A flat `nowMs` is fine for outcome determinism but collapses deadline ordering. This surface
+ * separates the two questions a deadline change raises:
  *
- *   flatClockAtRefundBoundary  lock evaluated AT refundAfterMs (what the refund fixture does)
- *   progressiveClock           lock before the window, refund at the window (what a real deal does)
+ *   flatClockAtRefundBoundary  lock evaluated AT refundAfterMs (what legacy-v1 does)
+ *   progressiveClock           lock before the window, refund at the window (what current-v2
+ *                              and any real deal does)
  *
- * If only the flat-clock row moves, the deadline rule was tightened without breaking the
- * lawful ordering — a fixture-clock adaptation, not a broken refund path.
+ * If only the flat-clock row moves, the deadline rule was tightened without breaking the lawful
+ * ordering — a fixture-clock adaptation, not a broken refund path.
  */
 function timeModelSurface() {
   const lock = tclk.hashLockFromPreimage(SECRET);
@@ -228,9 +242,12 @@ const surfaces = {
   canonicalization: canonicalizationSurface(),
   contract: contractSurface(),
   timeModel: timeModelSurface(),
-
   paperRail: await paperRailSurface(),
-  fixtures: Object.fromEntries(fixtureList.map((name) => [name, fixtureSurface(name)])),
+  // Both provenanced sets are reported. `fixtures` is the current baseline; `legacyFixtures`
+  // reproduces what the 81a8346-era artifacts were built from, so a cross-pin matrix can show
+  // the old pin still evaluating the old timing exactly as it always did.
+  fixtures: surfaceSet("current-v2"),
+  legacyFixtures: surfaceSet("legacy-v1"),
 };
 
 process.stdout.write(

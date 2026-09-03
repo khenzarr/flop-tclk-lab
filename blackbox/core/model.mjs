@@ -1,8 +1,16 @@
+import { provenanceOf } from './provenance.mjs';
+
 const TERMINAL = new Set(['claimed', 'refunded', 'cancelled']);
 const STATUS_FOR_FRAME = {offer:'proposed', accept:'accepted', lock:'locked', reveal:'claimed', refund:'refunded', cancel:'cancelled'};
 
 const upper = value => String(value ?? 'unavailable').toUpperCase();
-const short = (value, start=10, end=6) => value ? (value.length > start + end + 1 ? `${value.slice(0,start)}…${value.slice(-end)}` : value) : '—';
+// end=0 means prefix-only. Guard it explicitly: slice(-0) is slice(0) and would return the whole
+// string, which made the pin label print the short pin followed by the full sha.
+const short = (value, start=10, end=6) => {
+  if (!value) return '—';
+  if (value.length <= start + end + 1) return value;
+  return end > 0 ? `${value.slice(0,start)}…${value.slice(-end)}` : value.slice(0,start);
+};
 const stateAt = (result, index) => result.steps[Math.max(0, Math.min(index, result.steps.length - 1))]?.stateAfter ?? null;
 
 export function frameEvents(result) {
@@ -123,10 +131,22 @@ export function chaosResult(record, frameIndex=record.result.steps.length-1) {
   };
 }
 
+/**
+ * Provenance is derived here, at read time, from the sha the capsule already recorded — the
+ * capsule format is unchanged, so a capsule written under the old pin gains a correct
+ * HISTORICAL BASELINE label without one byte of it being rewritten.
+ */
 export function capsuleView(capsule) {
+  const provenance = provenanceOf(capsule.upstreamSha);
   return {
     version:'BLACKBOX EVIDENCE v1',
     upstreamSha:capsule.upstreamSha,
+    baselineClass:provenance.baselineClass,
+    evidenceValidity:provenance.evidenceValidity,
+    pinLabel:`PINNED TCLK ${short(capsule.upstreamSha, 7, 0)}`,
+    provenanceNote:provenance.isCurrentPin
+      ? 'Replayed against the current pinned implementation.'
+      : 'Replayed against an earlier pinned implementation. Valid evidence against that pin; not a claim about current upstream behaviour.',
     replayFingerprint:capsule.replayFingerprint,
     frameCount:capsule.frameCount,
     acceptedCount:capsule.acceptedFrameCount,

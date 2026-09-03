@@ -249,11 +249,215 @@ const report = {
 };
 
 
+/**
+ * Phase 3A.1 cross-pin replay matrix and replay-baseline lineage.
+ *
+ * Three questions are asked separately, because collapsing them is exactly how a deliberate
+ * fixture migration gets mistaken for a protocol break:
+ *
+ *   current-set  the current-v2 fixtures under both commits. This is the compatibility question,
+ *                and it is the one the verdict above is computed from.
+ *   legacy-set   the frozen legacy-v1 fixtures under both commits. This is the historical
+ *                question. A divergence here is EXPECTED — legacy-v1 evaluates its lock at
+ *                refundAfterMs, which current upstream correctly refuses — so it is reported
+ *                as a finding and never used to gate the verdict.
+ *   migration    legacy-v1 @ old pin versus current-v2 @ candidate. This is the lineage
+ *                question. The frames are identical; the evaluation timing is not, so the
+ *                replay fingerprint MUST differ. That is recorded as lineage, not equivalence.
+ *
+ * Byte equivalence and semantic equivalence are reported in separate columns. An intentionally
+ * re-authored fixture is allowed to break the former; nothing is allowed to break the latter
+ * without saying so out loud.
+ */
+const accepted = (f) => f.steps.filter((s) => s.ok).length;
+const outcome = (f) => `${f.terminalState} · ${accepted(f)} accepted / ${f.steps.length - accepted(f)} rejected`;
+const transcriptBytes = (f) => JSON.stringify(f.lineHashes);
+/** Protocol-observable trajectory: what happened, in order, and where it ended. */
+const trajectory = (f) =>
+  JSON.stringify({
+    sequence: f.steps.map((s) => [s.type, s.ok, s.reason, s.statusBefore, s.statusAfter, s.terminal]),
+    canonicalFrameHashes: f.steps.map((s) => s.canonicalFrameHash),
+    contracts: f.steps.map((s) => s.contract),
+    terminalState: f.terminalState,
+    finalState: f.finalState,
+  });
+/** The capsule invariant, recomputed from the probe surface rather than trusted. */
+const rejectionsDoNotMutate = (f) =>
+  f.steps.filter((s) => !s.ok).every((s) => s.stateDigestBefore === s.stateDigestAfter);
+
+function crossPinRow(fixture, a, b, kind) {
+  const transcriptEqual = transcriptBytes(a) === transcriptBytes(b);
+  const evidenceEqual = a.replayFingerprintSansUpstream === b.replayFingerprintSansUpstream;
+  const semanticEqual = trajectory(a) === trajectory(b);
+  const reason = !semanticEqual
+    ? "trajectory differs: a lock evaluated at refundAfterMs is refused under current upstream (#43)"
+    : evidenceEqual
+      ? "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
+      : "same frames and same trajectory, re-authored evaluation timing (lock strictly before refundAfterMs); replay evidence bytes differ by construction";
+  return {
+    fixture,
+    kind,
+    oldPin: outcome(a),
+    currentPin: outcome(b),
+    byteEquivalent: transcriptEqual && evidenceEqual,
+    transcriptBytesEquivalent: transcriptEqual,
+    replayEvidenceBytesEquivalent: evidenceEqual,
+    semanticallyEquivalent: semanticEqual,
+    invariantsHoldOldPin: rejectionsDoNotMutate(a),
+    invariantsHoldCurrentPin: rejectionsDoNotMutate(b),
+    oldFixtureSetVersion: a.fixtureSetVersion,
+    currentFixtureSetVersion: b.fixtureSetVersion,
+    oldNowMs: a.nowMs,
+    currentNowMs: b.nowMs,
+    oldSchedule: a.schedule,
+    currentSchedule: b.schedule,
+    oldRail: a.finalState.rail ?? null,
+    currentRail: b.finalState.rail ?? null,
+    oldReplayFingerprint: a.replayFingerprint,
+    currentReplayFingerprint: b.replayFingerprint,
+    reason,
+  };
+}
+
+const currentSetRows = fixtureNames.map((name) =>
+  crossPinRow(name, pinnedRun.surfaces.fixtures[name], candidateRun.surfaces.fixtures[name], "current-v2 across pins"),
+);
+const legacySetRows = fixtureNames.map((name) =>
+  crossPinRow(
+    name,
+    pinnedRun.surfaces.legacyFixtures[name],
+    candidateRun.surfaces.legacyFixtures[name],
+    "legacy-v1 across pins",
+  ),
+);
+const migrationRows = fixtureNames.map((name) =>
+  crossPinRow(
+    name,
+    pinnedRun.surfaces.legacyFixtures[name],
+    candidateRun.surfaces.fixtures[name],
+    "legacy-v1 @ old pin → current-v2 @ current pin",
+  ),
+);
+
+const matrix = {
+  schema: "tclk-cross-pin-replay-matrix/v1",
+  generatedAt: report.generatedAt,
+  safe: true,
+  statement:
+    "Deterministic A/B replay of the same Blackbox fixture suite against two upstream commits. " +
+    "Byte equivalence and semantic equivalence are reported separately: a fixture whose evaluation " +
+    "timing was deliberately re-authored is expected to differ in bytes and required to match in semantics.",
+  pinInForce: {
+    commit: oldSha,
+    class: "PIN IN FORCE",
+    alsoKnownAs: "the Phase 2 / 2.1 historical baseline — the same commit, and still the pin",
+    packageVersion: pinnedRun.upstream.packageVersion,
+  },
+  comparisonHead: {
+    commit: newSha,
+    class: "COMPARISON HEAD — NOT ADOPTED AS PIN",
+    adopted: false,
+    packageVersion: candidateRun.upstream.packageVersion,
+  },
+  currentFixtureSet: { fixtureSetVersion: "current-v2", rows: currentSetRows },
+  legacyFixtureSet: {
+    fixtureSetVersion: "legacy-v1",
+    expectedDivergenceUnderCurrentPin: true,
+    note:
+      "legacy-v1 is frozen historical timing. Its refund scenario evaluates the lock at refundAfterMs, " +
+      "which current upstream refuses. That divergence is the migration finding, not a regression, and it " +
+      "does not gate the verdict.",
+    rows: legacySetRows,
+  },
+  migrationLineage: { rows: migrationRows },
+  summary: {
+    currentSetSemanticallyEquivalent: currentSetRows.every((r) => r.semanticallyEquivalent),
+    currentSetByteEquivalent: currentSetRows.every((r) => r.byteEquivalent),
+    legacySetDivergingFixtures: legacySetRows.filter((r) => !r.semanticallyEquivalent).map((r) => r.fixture),
+    migratedFixtures: migrationRows.filter((r) => !r.replayEvidenceBytesEquivalent).map((r) => r.fixture),
+  },
+};
+
+/**
+ * Replay-fingerprint lineage.
+ *
+ * Old fingerprints are recorded, never replaced. The file states a relationship between two
+ * baselines; it does not claim their hashes are interchangeable, and `fingerprintsEqual` is
+ * reported per fixture so nobody has to take that on trust.
+ */
+const lineage = {
+  schema: "tclk-replay-baseline-migration/v1",
+  generatedAt: report.generatedAt,
+  safe: true,
+  statement:
+    "Lineage between Blackbox replay baselines. The published fingerprints below are the ones " +
+    "Phase 2 / 2.1 evidence was produced under and are reproduced, not rewritten. The other two " +
+    "sets are separate records: the migrated fixtures replayed under the same pin, and the same " +
+    "fixtures replayed under a comparison head that was NOT adopted. No set is presented as " +
+    "equivalent to another, and none of them replaces a published record.",
+  publishedBaseline: {
+    upstreamSha: oldSha,
+    baselineClass: "PIN IN FORCE · PUBLISHED PHASE 2 EVIDENCE",
+    fixtureSetVersion: "legacy-v1",
+    evidenceValidity: "VALID AGAINST ITS PINNED IMPLEMENTATION",
+    replayFingerprints: Object.fromEntries(
+      fixtureNames.map((name) => [name, pinnedRun.surfaces.legacyFixtures[name].replayFingerprint]),
+    ),
+  },
+  migratedUnderPinInForce: {
+    upstreamSha: oldSha,
+    baselineClass: "PIN IN FORCE · MIGRATED FIXTURE SET",
+    fixtureSetVersion: "current-v2",
+    evidenceValidity: "VALID AGAINST ITS PINNED IMPLEMENTATION",
+    replayFingerprints: Object.fromEntries(
+      fixtureNames.map((name) => [name, pinnedRun.surfaces.fixtures[name].replayFingerprint]),
+    ),
+  },
+  comparisonBaseline: {
+    upstreamSha: newSha,
+    baselineClass: "COMPARISON HEAD — NOT ADOPTED AS PIN",
+    adopted: false,
+    fixtureSetVersion: "current-v2",
+    evidenceValidity: "VALID AGAINST THE IMPLEMENTATION IT WAS REPLAYED AGAINST",
+    replayFingerprints: Object.fromEntries(
+      fixtureNames.map((name) => [name, candidateRun.surfaces.fixtures[name].replayFingerprint]),
+    ),
+  },
+  fixtures: migrationRows.map((r) => ({
+    fixture: r.fixture,
+    publishedReplayFingerprint: r.oldReplayFingerprint,
+    comparisonReplayFingerprint: r.currentReplayFingerprint,
+    fingerprintsEqual: r.oldReplayFingerprint === r.currentReplayFingerprint,
+    transcriptBytesIdentical: r.transcriptBytesEquivalent,
+    replayEvidenceBytesIdentical: r.replayEvidenceBytesEquivalent,
+    semanticallyEquivalent: r.semanticallyEquivalent,
+    timingReauthored: !r.replayEvidenceBytesEquivalent,
+    historicalTiming: { nowMs: r.oldNowMs, schedule: r.oldSchedule },
+    currentTiming: { nowMs: r.currentNowMs, schedule: r.currentSchedule },
+    reason: r.reason,
+  })),
+  rules: [
+    "No historical replay fingerprint was overwritten to produce this file.",
+    "A fingerprint binds its upstream commit, so a re-pin rotates every fingerprint by construction.",
+    "Where transcript bytes are identical and only the recorded evaluation timing differs, the change is a fixture migration, stated here rather than hidden behind a matching hash.",
+    "Historical evidence is valid evidence against its pinned implementation. It is not stale and it is not invalid.",
+  ],
+};
+
 mkdirSync(fileURLToPath(new URL("evidence/", ROOT)), { recursive: true });
 writeFileSync(
   fileURLToPath(new URL("evidence/blackbox-upstream-compat.json", ROOT)),
   JSON.stringify(report, null, 2) + "\n",
 );
+writeFileSync(
+  fileURLToPath(new URL("evidence/cross-pin-replay-matrix.json", ROOT)),
+  JSON.stringify(matrix, null, 2) + "\n",
+);
+writeFileSync(
+  fileURLToPath(new URL("evidence/replay-baseline-migration.json", ROOT)),
+  JSON.stringify(lineage, null, 2) + "\n",
+);
+
 
 console.log(
   JSON.stringify(

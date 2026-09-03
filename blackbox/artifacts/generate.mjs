@@ -1,7 +1,6 @@
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { fixtures } from '../fixtures/index.mjs';
-import { replay } from '../core/replay.mjs';
+import { fixtures, replayFixture } from '../fixtures/index.mjs';
 import { makeCapsule } from '../core/capsule.mjs';
 import { frameEvents, reconstruct, invariantState, chaosResult, capsuleView } from '../core/model.mjs';
 import { render } from '../ui/render.mjs';
@@ -17,7 +16,10 @@ const specs=[
   ['evidence-capsule-drawer','happy-claim',undefined,true]
 ];
 
-function record(id,initialFrame,initialDrawer){const f=fixtures[id](),result=replay(f.lines,{nowMs:f.nowMs}),capsule=makeCapsule(result);return {id,name:f.name,description:f.description,invariant:f.invariant,result,capsule,events:frameEvents(result),models:result.steps.map(x=>({...reconstruct(result,x.index),invariant:invariantState({invariant:f.invariant,result},x.index)})),chaos:chaosResult({name:f.name,invariant:f.invariant,result}),capsuleView:capsuleView(capsule),initialFrame,initialDrawer}}
+// None of the seven Phase 2.1 views uses the refund scenario, so the committed artifacts are
+// untouched by the fixture migration. They stay historical evidence against the pin they were
+// captured under and are NOT regenerated here (see docs/PHASE3A1_FIXTURE_MIGRATION.md).
+function record(id,initialFrame,initialDrawer){const f=fixtures[id](),result=replayFixture(f),capsule=makeCapsule(result);return {id,name:f.name,description:f.description,invariant:f.invariant,result,capsule,events:frameEvents(result),models:result.steps.map(x=>({...reconstruct(result,x.index),invariant:invariantState({invariant:f.invariant,result},x.index)})),chaos:chaosResult({name:f.name,invariant:f.invariant,result}),capsuleView:capsuleView(capsule),initialFrame,initialDrawer}}
 
 await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});
 for(const [name,id,initialFrame,initialDrawer] of specs)await writeFile(join(out,`${name}.html`),render([record(id,initialFrame,initialDrawer)]),'utf8');
