@@ -1,0 +1,50 @@
+# Pinned upstream working copy. Never vendored into this repository's history:
+# it is a clone of flop-labs/tclk, reproducible from evidence/upstream-baseline.json.
+.upstream/
+
+# Dependencies and build output (the lab itself is dependency-free).
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Secrets. Nothing in this category may ever be committed.
+.env
+.env.*
+*.pem
+*.key
+*.p8
+*.pfx
+*.jks
+id_ed25519*
+id_rsa*
+secrets.json
+*.secret
+*.seed
+seed.txt
+signing-key*
+TECHNOCORE_SIGNING_KEY*
+
+# Local logs and gate output (regenerate with scripts/verify-upstream.ps1).
+*.log
+logs/
+gate-output/
+
+# Private or machine-local evidence. Only reviewed, non-secret evidence is committed:
+# evidence/upstream-baseline.json and evidence/offline-rehearsal.json.
+evidence/local-*
+evidence/private-*
+evidence/*.local.json
+transcripts/
+*.jsonl
+api-surface.txt
+harness-out.txt
+repo-state.txt
+
+# OS / editor noise.
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.idea/
+*.swp

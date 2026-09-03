@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "repository": "https://github.com/flop-labs/tclk",
+    "branch": "main",
+    "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "packageVersion": "0.1.0"
+  },
+  "generatedAt": "2026-09-03T00:09:58.420Z",
+  "safe": true,
+  "summary": {
+    "cases": 11,
+    "passed": 11,
+    "failed": 0,
+    "observations": 0,
+    "sections": {
+      "hash-lock": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "observations": 0
+      },
+      "refund": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "observations": 0
+      },
+      "cancel": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "observations": 0
+      },
+      "fail-closed": {
+        "total": 6,
+        "passed": 6,
+        "failed": 0,
+        "observations": 0
+      },
+      "canonicalization": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "observations": 0
+      },
+      "paper-rail": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "observations": 0
+      }
+    }
+  },
+  "sections": [
+    {
+      "id": "hash-lock",
+      "title": "hash-lock",
+      "cases": [
+        {
+          "name": "offer → accept → lock → reveal → claimed",
+          "status": "pass",
+          "detail": {
+            "statuses": [
+              "proposed",
+              "accepted",
+              "locked",
+              "claimed"
+            ],
+            "receipt": true,
+            "contract": "0xe2d2e4fe65ed4ccf1554b4972bf4321a430633216051cb32070177d1ac836016",
+            "offer": "0x33a01da6d4f92fff99de08ac177965b5d951b5d2050476ed9c8ffa215b09e506"
+          }
+        }
+      ]
+    },
+    {
+      "id": "refund",
+      "title": "refund",
+      "cases": [
+        {
+          "name": "offer → accept → lock → deadline → refunded",
+          "status": "pass",
+          "detail": {
+            "statuses": [
+              "proposed",
+              "accepted",
+              "locked",
+              "refunded"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "cancel",
+      "title": "cancel",
+      "cases": [
+        {
+          "name": "cancel before lock",
+          "status": "pass",
+          "detail": {
+            "status": "cancelled"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fail-closed",
+      "title": "fail-closed",
+      "cases": [
+        {
+          "name": "wrong party",
+          "status": "pass",
+          "detail": {
+            "ok": false,
+            "reason": "only the payee reveals",
+            "statusBefore": "locked",
+            "statusAfter": "locked",
+            "stateUnchanged": true,
+            "sameStateObject": true
+          }
+        },
+        {
+          "name": "wrong secret",
+          "status": "pass",
+          "detail": {
+            "ok": false,
+            "reason": "secret does not open the statement",
+            "statusBefore": "locked",
+            "statusAfter": "locked",
+            "stateUnchanged": true,
+            "sameStateObject": true
+          }
+        },
+        {
+          "name": "replayed lock",
+          "status": "pass",
+          "detail": {
+            "ok": false,
+            "reason": "lock in status locked",
+            "statusBefore": "locked",
+            "statusAfter": "locked",
+            "stateUnchanged": true,
+            "sameStateObject": true
+          }
+        },
+        {
+          "name": "out-of-order reveal",
+          "status": "pass",
+          "detail": {
+            "ok": false,
+            "reason": "reveal in status accepted",
+            "statusBefore": "accepted",
+            "statusAfter": "accepted",
+            "stateUnchanged": true,
+            "sameStateObject": true
+          }
+        },
+        {
+          "name": "malformed and unknown fields",
+          "status": "pass",
+          "detail": {
+            "malformedDecode": null,
+            "unknownFieldRejected": true
+          }
+        },
+        {
+          "name": "mutated canonical frame",
+          "status": "pass",
+          "detail": {
+            "originalLineHash": "0x33a01da6d4f92fff99de08ac177965b5d951b5d2050476ed9c8ffa215b09e506",
+            "mutationRejected": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "canonicalization",
+      "title": "canonicalization",
+      "cases": [
+        {
+          "name": "sorted compact and ASCII escaping",
+          "status": "pass",
+          "detail": {
+            "sorted": true,
+            "compact": true,
+            "undefinedOmitted": true,
+            "nonAsciiEscaped": true,
+            "asciiLine": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "paper-rail",
+      "title": "paper-rail",
+      "cases": [
+        {
+          "name": "lock → claim → refund predicates (no value)",
+          "status": "pass",
+          "detail": {
+            "lock": true,
+            "claim": true,
+            "refund": true,
+            "valueMoved": false,
+            "worldWritableRecord": true
+          }
+        }
+      ]
+    }
+  ]
+}

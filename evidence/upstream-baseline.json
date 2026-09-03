@@ -1,0 +1,95 @@
+{
+  "$comment": "Factual, non-secret record of the upstream state this lab is pinned to. Regenerate with scripts/verify-upstream.ps1. No key material, no tokens, no private data.",
+  "repository": "https://github.com/flop-labs/tclk",
+  "branch": "main",
+  "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+  "commitShort": "81a8346",
+  "commitSubject": "fix: reject contradictory receipt outcomes (#7)",
+  "commitAuthor": "katazrofi",
+  "commitAuthorDate": "2026-09-02T06:44:20Z",
+  "commitCommitter": "GitHub",
+  "packageName": "@flop-labs/tclk",
+  "packageVersion": "0.1.0",
+  "packageManager": "pnpm@11.25.0",
+  "workspaceProjects": [
+    "@flop-labs/tclk (workspace root)",
+    "@flop-labs/tclk-mcp (mcp/)"
+  ],
+  "release": {
+    "headIsTagged": false,
+    "tagsPointingAtHead": [],
+    "latestTag": "v0.1.0",
+    "latestTagCommit": "b4ddd01fd5f2ea9f426ae716cc042d21ea50789f",
+    "note": "The pinned commit is an untagged commit on main, ahead of the v0.1.0 tag. This baseline is NOT a released version; CHANGELOG.md still carries the corresponding entries under [Unreleased]."
+  },
+  "changelogStatus": {
+    "latestReleasedVersion": "0.1.0",
+    "latestReleaseDate": "2026-09-01",
+    "unreleasedSectionPresent": true,
+    "unreleasedAdded": [
+      "Hosted no-custody MCP deployment at https://tclk.technocore.chat/mcp (Worker build; binds neither TECHNOCORE_SIGNING_KEY nor TCLK_PAYMENT_KEY and refuses to serve if either is present)."
+    ],
+    "unreleasedFixed": [
+      "SPEC.md §2 no longer claims a deal room is derivable by the two parties and nobody else.",
+      "examples/live-deal.mjs fails closed on venue refusals (single VenueError path, uncaughtException + unhandledRejection hooked, exit 1).",
+      "Receipt frames whose claimed outcome contradicts the contract's terminal state are rejected."
+    ]
+  },
+  "workingTree": {
+    "state": "clean",
+    "detachedHeadAtPinnedCommit": true,
+    "upstreamSourceModifiedByThisLab": false
+  },
+  "gates": {
+    "$comment": "Exactly the gates upstream defines in AGENTS.md and .github/workflows/ci.yml. No commands were invented; no lint/format/typecheck gate exists beyond the tsc invoked by build.",
+    "install": {
+      "command": "pnpm install --frozen-lockfile",
+      "status": "pass",
+      "exitCode": 0,
+      "durationSeconds": 76.5
+    },
+    "build": {
+      "command": "pnpm -r --include-workspace-root build",
+      "status": "pass",
+      "exitCode": 0,
+      "durationSeconds": 6.3,
+      "note": "tsc -p tsconfig.json in both workspace projects."
+    },
+    "test": {
+      "command": "pnpm -r --include-workspace-root test",
+      "status": "pass",
+      "exitCode": 0,
+      "durationSeconds": 7.8,
+      "testFilesPassed": 13,
+      "testsPassed": 124,
+      "testsFailed": 0,
+      "breakdown": [
+        { "project": "@flop-labs/tclk (root)", "suite": "vitest run", "testFiles": 5, "tests": 60 },
+        { "project": "@flop-labs/tclk-mcp", "suite": "vitest run", "testFiles": 6, "tests": 33 },
+        { "project": "@flop-labs/tclk-mcp", "suite": "vitest run --config worker/vitest.config.ts", "testFiles": 2, "tests": 31 }
+      ]
+    },
+    "otherGates": {
+      "commitMessageScan": {
+        "command": "./scripts/no-agent-trailers.sh (CI job \"commit messages carry no session links\")",
+        "appliesTo": "upstream commit history only",
+        "runOnUpstreamCloneByThisLab": false,
+        "note": "Upstream CI scans upstream commits. This lab applies the same rule to its own commit messages."
+      },
+      "lint": "none defined upstream",
+      "format": "none defined upstream",
+      "typecheck": "covered by build (tsc)"
+    }
+  },
+  "environment": {
+    "os": "Windows 11",
+    "node": "v24.18.0",
+    "packageManagerResolved": "pnpm 11.25.0 (activated with corepack prepare pnpm@11.25.0 --activate)",
+    "deviations": [
+      "Upstream CI pins actions/setup-node to Node 22; this run used the locally installed Node 24.18.0. All gates passed regardless, but the Node major differs from CI.",
+      "The locally installed pnpm was 11.20.0; the upstream-declared pnpm@11.25.0 was activated through Corepack rather than substituting npm or yarn."
+    ]
+  },
+  "capturedAt": "2026-09-02T19:25:37Z",
+  "capturedBy": "flop-tclk-lab Phase 1 (read-only verification)"
+}

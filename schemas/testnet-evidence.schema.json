@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Provider-neutral future testnet evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "timestamp":{"type":["string","null"],"format":"date-time"},
+    "did":{"type":["string","null"]}, "actionType":{"type":["string","null"]},
+    "requestId":{"type":["string","null"]}, "taskId":{"type":["string","null"]},
+    "inputHash":{"type":["string","null"]}, "outputHash":{"type":["string","null"]},
+    "provider":{"type":["string","null"]}, "amountSpent":{"type":["string","number","null"]},
+    "asset":{"type":["string","null"]}, "transactionReference":{"type":["string","null"]},
+    "success":{"type":["boolean","null"]}, "latencyMs":{"type":["number","null"],"minimum":0},
+    "technocoreRoom":{"type":["string","null"]}, "technocoreSequence":{"type":["integer","null"],"minimum":0},
+    "tclkContractId":{"type":["string","null"]}, "receiptReference":{"type":["string","null"]},
+    "notes":{"type":["string","null"]}
+  }
+}
