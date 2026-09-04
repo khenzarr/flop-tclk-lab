@@ -1,0 +1,178 @@
+{
+  "schema": "tclk-phase3b-adapter-readiness/v1",
+  "phase": "PHASE_3A3",
+  "generatedAt": "2027-01-15T08:00:00.000Z",
+  "upstream": {
+    "repository": "https://github.com/flop-labs/tclk",
+    "sha": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "package": "@flop-labs/tclk@0.1.0"
+  },
+  "adoptedPin": "d48e87343200e3115e243df39e8f295f5ce2e645",
+  "pinIsAdopted": true,
+  "canonicalSignerPublicInterface": "Signer.sign_room(room, text) -> SignedOperation(did, room, nonce, signature, text)",
+  "adapterMode": "MOCK",
+  "realCanonicalSignerAccessed": false,
+  "realSignaturePerformed": false,
+  "liveTechnocoreReads": "NONE",
+  "liveTechnocoreWrites": "NONE",
+  "valueMoved": "NONE",
+  "walletConnected": "NO",
+  "tclkHoldsKeyCustody": false,
+  "statement": "Every frame below was produced locally through the Airlock and the adapter against the MOCK test-vector signer. READY means a local courier run reached POST_ELIGIBLE with the byte freeze intact. It does not mean posted, approved for posting, or economically meaningful.",
+  "summary": {
+    "total": 6,
+    "ready": 5,
+    "blocked": 1,
+    "unknown": 0
+  },
+  "frames": [
+    {
+      "step": 1,
+      "frameType": "offer",
+      "planLabel": "offer",
+      "room": "tclk-offers",
+      "operation": "post_frame",
+      "signer": "A",
+      "readiness": "READY",
+      "reason": "couriered to POST_ELIGIBLE with the byte freeze intact; nothing posted",
+      "canonicalHash": "7804e332c79931ea036d735fd97e710270cfb03360bdbbf2f6b8a51788d4c1c1",
+      "payloadBytes": 348,
+      "custodySeal": "CS1-43DB-BF37-1BAC-57D4-63A0-3FB7",
+      "postEligible": true,
+      "posted": false,
+      "signerContacted": true,
+      "realCanonicalSignerAccessed": false,
+      "keyCustodyHeldByTclk": false,
+      "notes": [
+        "one offer only; tclk-offers is a shared venue"
+      ]
+    },
+    {
+      "step": 2,
+      "frameType": "claim",
+      "planLabel": "claim",
+      "room": null,
+      "operation": "post_frame",
+      "signer": "B",
+      "readiness": "BLOCKED",
+      "reason": "AIRLOCK_REFUSED: tclk: unknown frame type: claim",
+      "canonicalHash": null,
+      "payloadBytes": null,
+      "custodySeal": null,
+      "postEligible": false,
+      "posted": false,
+      "signerContacted": false,
+      "realCanonicalSignerAccessed": false,
+      "keyCustodyHeldByTclk": false,
+      "notes": [
+        "the plan names a claim frame; the adopted pin has no such frame type"
+      ]
+    },
+    {
+      "step": 3,
+      "frameType": "accept",
+      "planLabel": "accept",
+      "room": "tclk-offers",
+      "operation": "post_frame",
+      "signer": "B",
+      "readiness": "READY",
+      "reason": "couriered to POST_ELIGIBLE with the byte freeze intact; nothing posted",
+      "canonicalHash": "d7b7b427ee043a0825f97358c2b67e3f9b24a5c23b1bb108779db44828d3983b",
+      "payloadBytes": 352,
+      "custodySeal": "CS1-80CF-FE8B-7616-1165-F905-3A13",
+      "postEligible": true,
+      "posted": false,
+      "signerContacted": true,
+      "realCanonicalSignerAccessed": false,
+      "keyCustodyHeldByTclk": false,
+      "notes": [
+        "upstream accept is made by the offer counterparty, so it carries the plan's claim step too"
+      ]
+    },
+    {
+      "step": 4,
+      "frameType": "lock",
+      "planLabel": "lock",
+      "room": "mb-p-tclk-379d4ea39883d9dc",
+      "operation": "post_frame",
+      "signer": "A",
+      "readiness": "READY",
+      "reason": "couriered to POST_ELIGIBLE with the byte freeze intact; nothing posted",
+      "canonicalHash": "dd71224f46bf6a23c941459040161e3f15bf2cb4bce838443e3b8fc2c2ca2d29",
+      "payloadBytes": 202,
+      "custodySeal": "CS1-6055-2BF3-7174-4837-DA41-0564",
+      "postEligible": true,
+      "posted": false,
+      "signerContacted": true,
+      "realCanonicalSignerAccessed": false,
+      "keyCustodyHeldByTclk": false,
+      "notes": [
+        "must be posted while the refund window is still closed (nowMs < refundAfterMs)"
+      ]
+    },
+    {
+      "step": 5,
+      "frameType": "reveal",
+      "planLabel": "reveal",
+      "room": "mb-p-tclk-379d4ea39883d9dc",
+      "operation": "post_frame",
+      "signer": "B",
+      "readiness": "READY",
+      "reason": "couriered to POST_ELIGIBLE with the byte freeze intact; nothing posted",
+      "canonicalHash": "8bb603c239879782696d43af88adfc302a711085ad862bb4b5f897359c4ea0db",
+      "payloadBytes": 247,
+      "custodySeal": "CS1-3377-B545-4192-AC2D-6500-2E81",
+      "postEligible": true,
+      "posted": false,
+      "signerContacted": true,
+      "realCanonicalSignerAccessed": false,
+      "keyCustodyHeldByTclk": false,
+      "notes": [
+        "the reveal publishes the hash-lock preimage by design; it is not custody material"
+      ]
+    },
+    {
+      "step": 6,
+      "frameType": "receipt",
+      "planLabel": "receipt",
+      "room": "mb-p-tclk-379d4ea39883d9dc",
+      "operation": "post_frame",
+      "signer": "A",
+      "readiness": "READY",
+      "reason": "couriered to POST_ELIGIBLE with the byte freeze intact; nothing posted",
+      "canonicalHash": "b046410e90d94f2015bd95bf17a6df26ba9ede1f1148ad6c0b9cbcf77c3f693f",
+      "payloadBytes": 225,
+      "custodySeal": "CS1-08AE-C672-2DCC-F0E2-E059-9B2C",
+      "postEligible": true,
+      "posted": false,
+      "signerContacted": true,
+      "realCanonicalSignerAccessed": false,
+      "keyCustodyHeldByTclk": false,
+      "notes": [
+        "outcome is restricted to claimed|refunded|cancelled and must match the contract's terminal state"
+      ]
+    }
+  ],
+  "preview": {
+    "file": "evidence/phase3b-public-footprint-preview.json",
+    "executed": false,
+    "readAsManifest": true,
+    "schema": "tclk-public-footprint-preview/v1",
+    "declaresSigned": false,
+    "declaresPosted": false,
+    "pinMatchesAdopted": true,
+    "steps": [
+      {
+        "step": 1,
+        "frameType": "accept",
+        "coveredByThisRun": true
+      },
+      {
+        "step": 2,
+        "frameType": "lock",
+        "coveredByThisRun": true
+      }
+    ]
+  },
+  "bindingHashOfRun": "cf6c1cbfa75321c1db3c1a3137db84b451eb3863a02dbdb23246888c37417168"
+}

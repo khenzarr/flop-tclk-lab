@@ -103,13 +103,96 @@ function chamber(scenario, index) {
   </details>`;
 }
 
+const LAMP_GLYPH = { true: '\u25CF', false: '\u25CB' };
+
+/** One band of the custody-boundary surface. The middle band is drawn as the pressure door. */
+function band({ band: name, side, lamps }) {
+  const cells = lamps.map(lamp => `
+        <li class="lamp ${lamp.lit ? 'lit' : lamp.held ? 'held' : 'dark'}">
+          <span class="glyph" aria-hidden="true">${lamp.held ? '\u25A0' : LAMP_GLYPH[lamp.lit]}</span>
+          <span class="lamp-name">${esc(lamp.lamp)}</span>
+          <span class="lamp-detail">${esc(lamp.detail)}</span>
+        </li>`).join('');
+  return `
+    <section class="band ${side.toLowerCase()}" aria-label="${esc(name)}">
+      <h3>${esc(name)}</h3>
+      <ol class="lamps">${cells}
+      </ol>
+    </section>`;
+}
+
+/**
+ * The Phase 3A.3 adapter surface: three bands with the custody boundary drawn as an air-gap door,
+ * plus the custody seal and the exact limits of what it means.
+ *
+ * @param {object} surface output of dryrun.adapterSurface()
+ */
+function boundarySurface(surface) {
+  const { result, probe, toctou, bands, signerInterface } = surface;
+  const seal = result.custodySeal;
+  const events = result.events.map(event => `<li>${esc(event.code)}</li>`).join('');
+  const [airlock, boundary, publicBand] = bands;
+  return `
+<section class="adapter" aria-label="Canonical signer adapter">
+  <header class="adapter-head">
+    <div>
+      <span class="label">PHASE 3A.3 · CANONICAL SIGNER ADAPTER</span>
+      <h2>CUSTODY BOUNDARY</h2>
+      <p class="sub">The adapter is a courier. It carries approved bytes to the signer's public
+        interface and carries a signature back. It holds no key and it never posts.</p>
+    </div>
+    <div class="stamps">
+      <p class="stamp danger">PUBLIC POSTING DISABLED</p>
+      <p class="stamp">MODE ${esc(result.mode)}</p>
+      <p class="stamp">REAL SIGNER ACCESSED · NO</p>
+    </div>
+  </header>
+  <div class="bands">${band(airlock)}
+    <div class="pressure" role="separator" aria-label="Custody boundary: private key material never crosses this line">
+      <span class="pressure-text">PRIVATE KEY MATERIAL NEVER CROSSES THIS LINE</span>
+    </div>${band(boundary)}
+    <div class="pressure public" role="separator" aria-label="Public boundary: nothing is posted in this phase">
+      <span class="pressure-text">NOTHING CROSSES INTO A PUBLIC ROOM IN PHASE 3A</span>
+    </div>${band(publicBand)}
+  </div>
+
+  <div class="seal-row">
+    <div class="custody-seal">
+      <span class="label">CUSTODY SEAL</span>
+      <p class="seal-value">${esc(seal ? seal.display : 'NOT SEALED')}</p>
+      <p class="seal-means">${esc(seal ? seal.means : 'No seal: the artifacts were never bound.')}</p>
+      <ul class="findings">${(seal ? seal.doesNotMean : []).map(item =>
+    `\n        <li class="blocker">NOT ${esc(item)}</li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="seal-side">
+      <span class="label">SIGNER PUBLIC INTERFACE</span>
+      <p class="detail">${esc(signerInterface)}</p>
+      <span class="label">EVENT LOG</span>
+      <ul class="events">${events}
+      </ul>
+      <span class="label">REAL_INTERFACE_DRY_RUN</span>
+      <p class="detail">${esc(probe.dryRun.supported ? 'SUPPORTED' : 'NOT_SUPPORTED')} ·
+        ${esc(probe.dryRun.reason)} · signer contacted: ${esc(probe.signerContacted ? 'YES' : 'NO')}</p>
+      <span class="label">TOCTOU PROBE</span>
+      <p class="detail">${esc(toctou.stage)} · ${esc(toctou.findings.join(' · '))} ·
+        signer contacted: ${esc(toctou.signerContacted ? 'YES' : 'NO')}</p>
+    </div>
+  </div>
+  <p class="statement">${esc(result.statement)}</p>
+</section>`;
+}
+
 /**
  * @param {Array<object>} scenarios output of dryrun.runAll()
- * @param {{upstreamSha?: string}} [meta]
+ * @param {{upstreamSha?: string, adapter?: object}} [meta]
  */
 export function renderAirlock(scenarios, meta = {}) {
   const upstream = meta.upstreamSha ?? scenarios[0]?.request.upstream.sha ?? 'unknown';
   const eligibleCount = scenarios.filter(s => s.eligibility.postEligible).length;
+  const adapter = meta.adapter ? boundarySurface(meta.adapter) : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -137,8 +220,10 @@ export function renderAirlock(scenarios, meta = {}) {
 <p class="creed">POST ELIGIBLE is not POSTED. Eligibility is a statement about local readiness:
   the bytes were reviewed, frozen, signed outside TCLK, and verified here. Nothing has crossed the
   network, no room has been written, and no value has moved.</p>
+${adapter}
 <main id="chambers" tabindex="-1">${scenarios.map(chamber).join('\n')}
 </main>
+
 <footer>
   <p>Key custody is structurally outside this surface: the airlock hands over a challenge and
     receives a signature. It never receives a seed, a passphrase, or a decrypted key, and the
@@ -203,5 +288,43 @@ font:600 11px/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;max-he
 .clean{margin:13px 0 0;color:var(--ok);font:700 10px var(--mono)}
 .statement{margin:14px 0 0;color:var(--muted);font-size:11px;max-width:96ch}
 footer{margin-top:26px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:11px;max-width:96ch}
-@media(max-width:820px){.dual{grid-template-columns:1fr}}
+.detail{margin:0 0 4px;color:var(--muted);font:600 10px/1.5 var(--mono);overflow-wrap:anywhere}
+.adapter{border:1px solid var(--line);background:var(--panel);margin:0 0 22px;padding:17px}
+.adapter-head{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px}
+.adapter-head h2{margin:5px 0 4px;font-size:clamp(19px,2.4vw,29px);letter-spacing:-.02em}
+.bands{margin-top:16px}
+.band{border:1px solid var(--line);padding:13px 15px;background:#0c1116}
+.band h3{margin:0 0 11px;font:800 10px var(--mono);letter-spacing:.16em;color:var(--muted)}
+.band.local{border-left:3px solid var(--ok)}
+.band.boundary{border-left:3px solid var(--warn);background:#0f1013}
+.band.boundary h3{color:var(--warn)}
+.band.public{border-left:3px solid var(--bad)}
+.band.public h3{color:var(--bad)}
+.lamps{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:0;padding:0}
+.lamp{border:1px dashed var(--line);padding:10px;display:grid;gap:4px;background:#080c10}
+.lamp.lit{border-style:solid;border-color:var(--ok);background:#10211e}
+.lamp.held{border-style:solid;border-color:var(--bad);background:#1c1113}
+.lamp .glyph{font:900 12px var(--mono);color:var(--muted)}
+.lamp.lit .glyph{color:var(--ok)}.lamp.held .glyph{color:var(--bad)}
+.lamp-name{font:800 9px var(--mono);letter-spacing:.1em}
+.lamp-detail{color:var(--muted);font:600 9px/1.45 var(--mono);overflow-wrap:anywhere}
+.pressure{display:flex;align-items:center;gap:12px;margin:0;padding:11px 0;
+background:repeating-linear-gradient(135deg,#ffd16626 0 11px,transparent 11px 22px)}
+.pressure:before,.pressure:after{content:"";flex:1;border-top:3px double var(--warn)}
+.pressure-text{font:900 9px var(--mono);letter-spacing:.2em;color:var(--warn);text-align:center}
+.pressure.public:before,.pressure.public:after{border-color:var(--bad)}
+.pressure.public{background:repeating-linear-gradient(135deg,#ff716f26 0 11px,transparent 11px 22px)}
+.pressure.public .pressure-text{color:var(--bad)}
+.seal-row{display:grid;grid-template-columns:1fr 1.15fr;gap:12px;margin-top:16px}
+.custody-seal,.seal-side{border:1px solid var(--line);padding:14px;background:#0c1116;min-width:0}
+.custody-seal{border-top:2px solid var(--warn)}
+.seal-value{margin:9px 0;color:var(--warn);font:900 clamp(15px,2vw,23px) var(--mono);letter-spacing:.06em;overflow-wrap:anywhere}
+.seal-means{margin:0;font-size:11px}
+.events{list-style:none;margin:6px 0 13px;padding:0;display:grid;gap:3px}
+.events li{border-left:2px solid var(--ok);padding:5px 9px;background:#10211e;font:700 9px var(--mono);letter-spacing:.08em}
+.seal-side .label{margin-top:13px}
+.seal-side .label:first-child{margin-top:0}
+@media(max-width:820px){.dual,.seal-row{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}`;
+
+

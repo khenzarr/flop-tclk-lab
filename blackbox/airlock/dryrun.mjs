@@ -16,8 +16,12 @@ import { prepareFrame, sha256, upstreamPin } from './prepare.mjs';
 import { buildRequest, approveRequest, AirlockLedger, fingerprintRequest } from './envelope.mjs';
 import { TestVectorSigner } from './signer.mjs';
 import { buildResponse, verifyResponse, postEligibility } from './verify.mjs';
+import {
+  signFrozenAirlockRequest, MockSignerTransport, MODES, CANONICAL_SIGNER_PUBLIC_INTERFACE,
+} from './adapter.mjs';
 
 const NOW = 1800000000000;
+
 export const CREATED_AT = new Date(NOW).toISOString();
 export const SIGNED_AT = new Date(NOW + 42000).toISOString();
 const PAYER = `did:key:z6Mk${'f'.repeat(44)}`;
@@ -141,7 +145,109 @@ export const scenarioList = Object.keys(scenarios);
 export const runScenario = id => scenarios[id]();
 export const runAll = () => scenarioList.map(runScenario);
 
+// ── Canonical signer adapter (Phase 3A.3) ────────────────────────────────────────────────────
+//
+// The same opening as every scenario above, couriered through the adapter instead of handed to
+// the signer directly. MOCK carries the published test-vector signer; REAL_INTERFACE_DRY_RUN asks
+// the transport for a non-signing probe and reports NOT_SUPPORTED rather than inventing one.
+
+const ADAPTER_CLOCK = NOW + 60000;
+
+/** MOCK courier run: the one adapter path that reaches POST_ELIGIBLE, and still posts nothing. */
+export function adapterCourierRun() {
+  const { signer, request, approval, ledger } = openAirlock();
+  return signFrozenAirlockRequest({ request, approval }, {
+    mode: MODES.MOCK,
+    transport: new MockSignerTransport(signer),
+    ledger,
+    nowMs: ADAPTER_CLOCK,
+    signedAt: SIGNED_AT,
+  });
+}
+
+/** Compatibility probe against the real public interface. Requests no signature. */
+export function adapterDryRunProbe() {
+  const { signer, request, approval, ledger } = openAirlock();
+  return signFrozenAirlockRequest({ request, approval }, {
+    mode: MODES.REAL_INTERFACE_DRY_RUN,
+    transport: new MockSignerTransport(signer),
+    ledger,
+    nowMs: ADAPTER_CLOCK,
+  });
+}
+
+/** TOCTOU: the payload moves after approval. The adapter must refuse before the boundary. */
+export function adapterToctouRun() {
+  const { signer, request, approval, ledger } = openAirlock();
+  const mutatedPayload = request.canonicalPayload.replace(
+    /("statement":"0x[0-9a-f]{63})([0-9a-f])"/,
+    (_, head, last) => `${head}${last === '0' ? '1' : '0'}"`,
+  );
+  if (mutatedPayload === request.canonicalPayload) throw new Error('dryrun: TOCTOU mutation did not apply');
+  const mutated = { ...request, canonicalPayload: mutatedPayload, canonicalHash: sha256(mutatedPayload) };
+  return signFrozenAirlockRequest({ request: mutated, approval }, {
+    mode: MODES.MOCK,
+    transport: new MockSignerTransport(signer),
+    ledger,
+    nowMs: ADAPTER_CLOCK,
+    signedAt: SIGNED_AT,
+  });
+}
+
+/**
+ * The three bands the UI draws. Derived entirely from adapter output, so a lamp on the surface
+ * cannot claim more than the adapter actually returned.
+ */
+export function adapterBands(result) {
+  const seen = code => result.events.some(event => event.code === code);
+
+  const verified = result.verification?.verified === true;
+  return Object.freeze([
+    Object.freeze({
+      band: 'AIRLOCK',
+      side: 'LOCAL',
+      lamps: Object.freeze([
+        { lamp: 'PREPARED', lit: seen('PREPARED'), detail: `${result.response?.room ?? 'tclk-offers'} · post_frame` },
+        { lamp: 'REVIEWED', lit: seen('REVIEWED'), detail: 'operator approved the exact bytes' },
+        { lamp: 'BYTE FROZEN', lit: verified && result.verification.byteFreezeIntact, detail: verified ? 'freeze intact through handoff' : 'freeze not carried across the boundary' },
+      ]),
+    }),
+    Object.freeze({
+      band: 'CUSTODY BOUNDARY',
+      side: 'BOUNDARY',
+      lamps: Object.freeze([
+        { lamp: 'HANDOFF READY', lit: seen('HANDOFF_ALLOWED'), detail: `signer input ${String(result.binding?.signerInputHash ?? '').slice(0, 12) || 'not built'}` },
+        { lamp: 'SIGNER RESPONSE', lit: seen('SIGNER_RESPONSE_RECEIVED'), detail: result.response ? `${result.response.signerKind} · signature only` : 'no response accepted' },
+        { lamp: 'LOCAL VERIFY', lit: seen('LOCALLY_VERIFIED'), detail: verified ? 'signature covers the frozen bytes' : 'not verified locally' },
+      ]),
+    }),
+    Object.freeze({
+      band: 'PUBLIC BOUNDARY',
+      side: 'PUBLIC',
+      lamps: Object.freeze([
+        { lamp: 'POST ELIGIBLE', lit: result.postEligible === true, detail: result.postEligible ? 'POST_ELIGIBLE=YES · nothing posted' : 'POST_ELIGIBLE=NO' },
+        { lamp: 'PUBLIC POSTING DISABLED', lit: false, detail: 'held shut for the whole of Phase 3A', held: true },
+      ]),
+    }),
+  ]);
+}
+
+/** Everything the adapter surface needs, in one deterministic bundle. */
+export function adapterSurface() {
+  const result = adapterCourierRun();
+  const probe = adapterDryRunProbe();
+  const toctou = adapterToctouRun();
+  return Object.freeze({
+    signerInterface: CANONICAL_SIGNER_PUBLIC_INTERFACE,
+    result,
+    probe,
+    toctou,
+    bands: adapterBands(result),
+  });
+}
+
 /** The committed footprint preview: what WOULD go public, listed without signing anything. */
+
 export function footprintPreview() {
   const signer = new TestVectorSigner();
   const accept = outgoingAcceptFrame(signer.did);

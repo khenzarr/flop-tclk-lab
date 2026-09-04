@@ -6,16 +6,18 @@
 // network, no posting. Run with `pnpm airlock`.
 
 import { mkdir, writeFile } from 'node:fs/promises';
-import { runAll, footprintPreview } from './dryrun.mjs';
+import { runAll, footprintPreview, adapterSurface } from './dryrun.mjs';
 import { renderAirlock } from './render.mjs';
 
 const scenarios = runAll();
+const adapter = adapterSurface();
 
 const out = new URL('../out/', import.meta.url);
 await mkdir(out, { recursive: true });
-await writeFile(new URL('signature-airlock.html', out), renderAirlock(scenarios));
+await writeFile(new URL('signature-airlock.html', out), renderAirlock(scenarios, { adapter }));
 
 const evidence = new URL('../../evidence/', import.meta.url);
+
 await mkdir(evidence, { recursive: true });
 const preview = footprintPreview();
 await writeFile(
@@ -32,3 +34,15 @@ for (const scenario of scenarios) {
   );
 }
 console.log(`Footprint preview: ${preview.steps.length} proposed public actions, 0 performed.`);
+
+console.log(
+  `Adapter (${adapter.result.mode}): ${adapter.result.stage} · custody seal ` +
+  `${adapter.result.custodySeal.display} · POST_ELIGIBLE=${adapter.result.postEligible ? 'YES' : 'NO'} · POSTED=NO`,
+);
+console.log(
+  `Adapter (REAL_INTERFACE_DRY_RUN): ${adapter.probe.stage} · real signer contacted: ` +
+  `${adapter.probe.signerContacted ? 'YES' : 'NO'}`,
+);
+console.log(`Adapter (TOCTOU probe): ${adapter.toctou.stage} · ${adapter.toctou.findings.join(', ')}`);
+
+
