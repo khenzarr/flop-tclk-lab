@@ -3,6 +3,11 @@
 Not executed. Nothing in this document was performed. Phase 3A ends before any
 public activity. Executing this plan requires separate explicit operator approval.
 
+**Phase 3A.4 offline rehearsal signatures are NON-REUSABLE and MUST NOT be submitted during
+Phase 3B.** The synthetic rehearsal room, contract, request, canonical bytes, and any signature
+from that rehearsal are separate from the future deal and must never be copied into this plan's
+execution.
+
 Sources read: `examples/live-deal.mjs`, `SPEC.md`, the MCP implementation and the
 transcript/rail changes at upstream `103a1b960c117c82473ee058b7dca1769e167125`
 (upstream head when Phase 3A ran; a comparison head, not the pin).

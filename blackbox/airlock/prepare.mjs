@@ -28,11 +28,20 @@ export const sweep = text => text.replace(INVISIBLE, ' ').trim();
 const BOARD_TYPES = new Set(['offer', 'accept']);
 const OPERATIONS = new Set(['post_frame']);
 
+/**
+ * Phase 3A.4 offline rehearsal rooms. A dedicated, deterministic, single-use lane that exists so
+ * an offline rehearsal can be frozen and preflighted without ever naming the shared public board
+ * or a real deal room. It is not a Technocore room this lab posts to — nothing is posted at all —
+ * and by construction it can never collide with `tclk-offers` or a `dealRoom()` derivation.
+ */
+export const OFFLINE_REHEARSAL_ROOM = /^tclk-airlock-offline-[0-9a-f]{16}$/;
+
 export const upstreamPin = () => ({
   repository: baseline.repository ?? 'https://github.com/flop-labs/tclk',
   sha: baseline.commit,
   package: '@flop-labs/tclk@0.1.0',
 });
+
 
 export function deepFreeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -48,11 +57,15 @@ export function deepFreeze(value) {
  * inside custody, so it cannot be part of the bytes we freeze. See docs/SIGNATURE_AIRLOCK.md
  * "What BYTE FREEZE does not cover".
  */
-export function prepareFrame(frame, { operation = 'post_frame' } = {}) {
+export function prepareFrame(frame, { operation = 'post_frame', offlineRehearsalRoom = null } = {}) {
   if (!frame || typeof frame !== 'object' || Array.isArray(frame)) {
     throw new Error('airlock: frame must be an object');
   }
   if (!OPERATIONS.has(operation)) throw new Error(`airlock: operation '${operation}' is not permitted`);
+  if (offlineRehearsalRoom !== null && !OFFLINE_REHEARSAL_ROOM.test(offlineRehearsalRoom)) {
+    throw new Error('airlock: an offline rehearsal room must match tclk-airlock-offline-<16 hex>');
+  }
+
   const canonicalPayload = tclk.encodeFrame(frame);
   const decoded = tclk.decodeFrame(canonicalPayload);
   if (tclk.encodeFrame(decoded) !== canonicalPayload) {
@@ -65,7 +78,13 @@ export function prepareFrame(frame, { operation = 'post_frame' } = {}) {
   if (typeof signerDid !== 'string' || signerDid.length === 0) {
     throw new Error('airlock: frame names no actor DID');
   }
-  const intendedRoom = BOARD_TYPES.has(decoded.type) ? tclk.OFFER_ROOM : tclk.dealRoom(contractId);
+  // A rehearsal room, when named, REPLACES the protocol destination. That is the point: an offline
+  // rehearsal must never be addressed to the shared public board or to a real deal room, so the
+  // frozen bytes and the signed preimage both carry the dedicated lane instead.
+  const intendedRoom = offlineRehearsalRoom
+    ?? (BOARD_TYPES.has(decoded.type) ? tclk.OFFER_ROOM : tclk.dealRoom(contractId));
+  const protocolRoom = BOARD_TYPES.has(decoded.type) ? tclk.OFFER_ROOM : tclk.dealRoom(contractId);
+
   const swept = sweep(canonicalPayload);
   const sweepIsIdentity = swept === canonicalPayload;
   const warnings = [
@@ -76,12 +95,18 @@ export function prepareFrame(frame, { operation = 'post_frame' } = {}) {
   if (!sweepIsIdentity) {
     warnings.push('The venue single-line sweep would alter these bytes — the signature would cover the swept form, not this payload.');
   }
+  if (offlineRehearsalRoom !== null) {
+    warnings.push(`OFFLINE REHEARSAL LANE — the destination is the dedicated rehearsal room, not this frame's protocol room (${protocolRoom}). It is single-use and must never be reused for a real deal.`);
+  }
   return deepFreeze({
     stage: 'PREPARED',
     frameType: decoded.type,
     contractId,
     signerDid,
     intendedRoom,
+    protocolRoom,
+    offlineRehearsal: offlineRehearsalRoom !== null,
+
     intendedOperation: operation,
     canonicalPayload,
     canonicalHash: sha256(canonicalPayload),

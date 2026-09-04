@@ -2,5 +2,5 @@
   "name": "tclk-blackbox",
   "private": true,
   "type": "module",
-  "scripts": {"test":"node --test blackbox/tests/*.test.mjs", "blackbox:test":"node --test blackbox/tests/*.test.mjs", "demo":"node blackbox/demo.mjs", "airlock":"node blackbox/airlock/demo.mjs", "compat:matrix":"node lab/compat-matrix.mjs", "artifacts":"pwsh -NoProfile -File scripts/capture-blackbox-artifacts.ps1", "build":"node blackbox/build.mjs", "lint":"node blackbox/lint.mjs", "typecheck":"node blackbox/typecheck.mjs"}
+  "scripts": {"test":"node --test blackbox/tests/*.test.mjs", "blackbox:test":"node --test blackbox/tests/*.test.mjs", "demo":"node blackbox/demo.mjs", "airlock":"node blackbox/airlock/demo.mjs", "airlock:real-offline-sign":"node blackbox/airlock/real-offline-sign.mjs", "compat:matrix":"node lab/compat-matrix.mjs", "artifacts":"pwsh -NoProfile -File scripts/capture-blackbox-artifacts.ps1", "build":"node blackbox/build.mjs", "lint":"node blackbox/lint.mjs", "typecheck":"node blackbox/typecheck.mjs"}
 }
