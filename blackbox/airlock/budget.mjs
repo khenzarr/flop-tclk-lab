@@ -14,7 +14,13 @@
 //      BEFORE the signer is contacted, because a signature that fails afterwards has still been
 //      produced — decrementing on success would license unlimited retries.
 
-/** The classification vocabulary from the phase contract, in escalating order of danger. */
+/** Explicit operation modes. Durable local nonce mutation is not equivalent to network I/O. */
+export const SIGNING_MODES = Object.freeze({
+  LEGACY_COUPLED_ROOM_OPERATION: 'LEGACY_COUPLED_ROOM_OPERATION',
+  DETACHED_NETWORK_FREE_ROOM_OPERATION: 'DETACHED_NETWORK_FREE_ROOM_OPERATION',
+});
+
+/** The historical classification vocabulary remains available for old evidence and callers. */
 export const SIDE_EFFECT_CLASSES = Object.freeze([
   'SIDE_EFFECT_FREE',
   'SAFE_LOCAL_AUDIT_ONLY',
@@ -37,15 +43,56 @@ export const PROCEEDABLE_CLASSES = Object.freeze(['SIDE_EFFECT_FREE', 'SAFE_LOCA
  */
 export const AUDITED_SIGNER_SIDE_EFFECT_CLASS = 'DURABLE_NONCE_OR_PROTOCOL_STATE';
 
-/** Gate A. Returns findings; the caller stops on any finding. */
-export function gateA(sideEffectClass = AUDITED_SIGNER_SIDE_EFFECT_CLASS) {
+export const AUDITED_NONCE_EVIDENCE_SHA = '82d942936050f1ab0fb9f34db17893b89f3e064b';
+export const REVIEWED_CANONICAL_COMMIT = 'a8438f2a45695e2defdffa20a12b05633847a7b6';
+
+/**
+ * Gate A is mode-aware. `gateA(string)` is retained as a fail-closed legacy compatibility call.
+ * The detached decision is architectural eligibility only; it never authorizes real custody.
+ */
+export function gateA(input = {}) {
+  if (typeof input === 'string') input = {
+    mode: SIGNING_MODES.LEGACY_COUPLED_ROOM_OPERATION,
+    sideEffectClass: input,
+  };
+  const {
+    mode = SIGNING_MODES.LEGACY_COUPLED_ROOM_OPERATION,
+    canonicalCommit = REVIEWED_CANONICAL_COMMIT,
+    nonceEvidenceSha = AUDITED_NONCE_EVIDENCE_SHA,
+    networkCalls = mode === SIGNING_MODES.LEGACY_COUPLED_ROOM_OPERATION ? 1 : 0,
+    localNonceConsumed = mode === SIGNING_MODES.DETACHED_NETWORK_FREE_ROOM_OPERATION,
+    skippedNonceAllowed = true,
+    nonceRollbackUsed = false,
+    realCustody = false,
+    publicPostingEnabled = false,
+    detachedMethodExists = mode === SIGNING_MODES.DETACHED_NETWORK_FREE_ROOM_OPERATION,
+    transportReference = mode === SIGNING_MODES.LEGACY_COUPLED_ROOM_OPERATION,
+    sideEffectClass = mode === SIGNING_MODES.LEGACY_COUPLED_ROOM_OPERATION
+      ? (input.sideEffectClass ?? 'NETWORK_SIDE_EFFECT') : 'DURABLE_NONCE_OR_PROTOCOL_STATE',
+  } = input;
   const findings = [];
-  if (!SIDE_EFFECT_CLASSES.includes(sideEffectClass)) findings.push('SIDE_EFFECT_CLASS_UNRECOGNISED');
-  else if (!PROCEEDABLE_CLASSES.includes(sideEffectClass)) findings.push(`SIGNER_SIDE_EFFECT_${sideEffectClass}`);
+  if (!Object.values(SIGNING_MODES).includes(mode)) findings.push('MODE_UNRECOGNISED');
+  if (mode === SIGNING_MODES.LEGACY_COUPLED_ROOM_OPERATION) {
+    if (!networkCalls || !transportReference) findings.push('LEGACY_TRANSPORT_CAPABILITY_NOT_BLOCKED');
+    findings.push('LEGACY_NETWORK_SUBMISSION_PATH_BLOCKED');
+  } else if (mode === SIGNING_MODES.DETACHED_NETWORK_FREE_ROOM_OPERATION) {
+    if (canonicalCommit !== REVIEWED_CANONICAL_COMMIT) findings.push('CANONICAL_COMMIT_NOT_REVIEWED');
+    if (!detachedMethodExists) findings.push('DETACHED_METHOD_NOT_FOUND');
+    if (networkCalls !== 0 || transportReference) findings.push('DETACHED_TRANSPORT_CAPABILITY_PRESENT');
+    if (nonceEvidenceSha !== AUDITED_NONCE_EVIDENCE_SHA) findings.push('NONCE_EVIDENCE_NOT_PINNED');
+    if (!skippedNonceAllowed) findings.push('SKIPPED_NONCE_NOT_AUTHORIZED');
+    if (!localNonceConsumed) findings.push('LOCAL_NONCE_CONSUMPTION_NOT_ACKNOWLEDGED');
+    if (nonceRollbackUsed) findings.push('NONCE_ROLLBACK_FORBIDDEN');
+    if (realCustody) findings.push('REAL_CUSTODY_FORBIDDEN_IN_PHASE');
+    if (publicPostingEnabled) findings.push('PUBLIC_POSTING_ENABLED');
+  }
+  const decision = findings.length === 0 ? 'ALLOW_ARCHITECTURE' : 'REFUSE';
   return Object.freeze({
-    ok: findings.length === 0,
+    ok: decision === 'ALLOW_ARCHITECTURE', mode, canonicalCommit, nonceEvidenceSha,
+    networkCalls, localNonceConsumed, skippedNonceAllowed, nonceRollbackUsed,
+    realCustody, publicPostingEnabled, decision,
     sideEffectClass,
-    safeToInvoke: findings.length === 0,
+    safeToInvoke: decision === 'ALLOW_ARCHITECTURE',
     findings: Object.freeze(findings),
   });
 }
