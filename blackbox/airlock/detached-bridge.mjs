@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { rm } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { REVIEWED_CANONICAL_COMMIT } from './budget.mjs';
@@ -24,7 +24,7 @@ export function canonicalPython(worktree) {
   return executable;
 }
 
-function runCapturedBridge(python, args, { cwd, env, request }) {
+function runCapturedBridge(python, args, { cwd, env }) {
   return new Promise((resolveResult, reject) => {
     const child = spawn(python, args, { cwd, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
@@ -35,7 +35,7 @@ function runCapturedBridge(python, args, { cwd, env, request }) {
     child.stderr.on('data', chunk => { stderr += chunk; });
     child.on('error', reject);
     child.on('close', code => resolveResult({ code, stdout, stderr }));
-    child.stdin.end(`${request}\n`);
+    child.stdin.end();
   });
 }
 
@@ -50,11 +50,14 @@ export async function assertReviewedCanonicalWorktree(worktree = CANONICAL_WORKT
 export async function invokeFixtureDetachedBridge({ room, text, requestId = randomUUID(), worktree = CANONICAL_WORKTREE } = {}) {
   await assertReviewedCanonicalWorktree(worktree);
   const noncePath = resolve(tmpdir(), `flop-tclk-fixture-nonce-${randomUUID()}.json`);
-  const request = JSON.stringify({ schema: 'technocore-detached-sign-request/v1', room, text, requestId,
-    expectedCanonicalCommit: REVIEWED_CANONICAL_COMMIT, noncePath });
+  const requestPath = resolve(tmpdir(), `flop-tclk-detached-request-${randomUUID()}.json`);
+  const statePath = noncePath.replace('.json', '-state');
+  const request = JSON.stringify({ schema: 'technocore-detached-sign-request/v2', room, text, requestId,
+    expectedCanonicalCommit: REVIEWED_CANONICAL_COMMIT, purpose: 'DETACHED_ROOM_SIGNING' });
   try {
-    const { code, stdout, stderr } = await runCapturedBridge(canonicalPython(worktree), ['-m', 'technocore_agent.signer.detached_bridge'], {
-      cwd: worktree, env: { ...process.env, PYTHONPATH: 'src' }, request,
+    await writeFile(requestPath, request, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    const { code, stdout, stderr } = await runCapturedBridge(canonicalPython(worktree), ['-m', 'technocore_agent.signer.real_detached_sign_bridge', '--request-file', requestPath, '--custody', 'fixture', '--state', statePath], {
+      cwd: worktree, env: { ...process.env, PYTHONPATH: 'src' },
     });
     if (code !== 0 || stderr) throw new Error('canonical bridge failed without exposing child output');
     const response = JSON.parse(stdout);
@@ -62,7 +65,9 @@ export async function invokeFixtureDetachedBridge({ room, text, requestId = rand
     if (response.canonicalCommit !== REVIEWED_CANONICAL_COMMIT) throw new Error('canonical bridge provenance mismatch');
     return Object.freeze(response);
   } finally {
+    await rm(requestPath, { force: true });
     await rm(noncePath, { force: true });
     await rm(`${noncePath}.lock`, { force: true });
+    await rm(statePath, { force: true, recursive: true });
   }
 }
