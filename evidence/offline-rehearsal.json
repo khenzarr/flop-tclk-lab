@@ -3,10 +3,10 @@
   "upstream": {
     "repository": "https://github.com/flop-labs/tclk",
     "branch": "main",
-    "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
     "packageVersion": "0.1.0"
   },
-  "generatedAt": "2026-09-03T00:09:58.420Z",
+  "generatedAt": "2026-09-04T03:05:13.568Z",
   "safe": true,
   "summary": {
     "cases": 11,

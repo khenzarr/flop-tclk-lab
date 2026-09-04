@@ -4,14 +4,14 @@
   "generatedAt": "2027-01-15T08:00:00.000Z",
   "upstream": {
     "repository": "https://github.com/flop-labs/tclk",
-    "sha": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "sha": "d48e87343200e3115e243df39e8f295f5ce2e645",
     "package": "@flop-labs/tclk@0.1.0"
   },
   "signed": false,
   "posted": false,
   "statement": "Proposed public actions for one future rehearsal. Nothing here is signed, nothing has been posted, and the preview alone does not authorise Phase 3B.",
   "contractId": "0xb90f15587aa114822cac1bf70dd648a73bfa8a8472ad5683594cca18d8054a72",
-  "requestFingerprintOfStepOne": "5b02adf250967a3a79176339ce08a2458d8758ca72dec7b62ddea3a8e1178d45",
+  "requestFingerprintOfStepOne": "871de55f64d289c5de3ab97d5ea6cefc2c4c652f667f14ce911b65cf0e35cae1",
   "steps": [
     {
       "step": 1,

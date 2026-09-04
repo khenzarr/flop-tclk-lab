@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-03T19:19:58.561Z",
+  "generatedAt": "2026-09-04T02:48:35.002Z",
   "safe": true,
   "oldPin": {
-    "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
     "packageVersion": "0.1.0"
   },
   "candidate": {
-    "commit": "103a1b960c117c82473ee058b7dca1769e167125",
+    "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
     "packageVersion": "0.1.0",
-    "dir": ".upstream/tclk-head-lf"
+    "dir": ".upstream/candidates/d48e873"
   },
   "wireFormatCompatible": true,
   "stateMachineCompatible": true,
   "lawfulOrderingPreserved": true,
   "fixtureBehaviourIdentical": true,
-  "provenanceFingerprintsRotated": true,
+  "provenanceFingerprintsRotated": false,
   "exportsAdded": [
     "CANONICAL_RAIL_IDS",
     "findContractHandshake",
@@ -112,99 +112,43 @@
     },
     {
       "surface": "fixture:happy-claim",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "0090ad8f434f53fc225ce62c49a7f25bdfa6243f5a6c6a032e09a9d0251f2f49",
-          "new": "17d4a0352b3b203078cd0b998e9e22899adf6a5033bb5ad47f4b63602628c99a"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     },
     {
       "surface": "fixture:normal-refund",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "0d084c4908e19f5e8fef7670d420aac0e0bf7d397f9731036a293c05d8c20e03",
-          "new": "ab0c88faa9ce0480dc872b4d1f951ccfe7b3167aa9f894353eeae6c3e10b8f32"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     },
     {
       "surface": "fixture:cancel-before-lock",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "a062d0f586419f57eed5d136559beb06456deb534c7cec1ae8d672d28d8ac74e",
-          "new": "9eafa46d9302a98db459d98905462553fd87caa6738b0b84fb779972c96d4484"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     },
     {
       "surface": "fixture:wrong-party",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "139491c4cca4b63bb4a3f4593356c34f6b8d8cc24a093cee499a47c1aeef7c9c",
-          "new": "c083b1d0cb4fa45ed005140675284cf8754c10b44a326dd5f0d7301bb36832ad"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     },
     {
       "surface": "fixture:wrong-secret",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "8a8198defc9eccf98a201e77f39cd29fcf6e03804970bbbe29357e497a30d423",
-          "new": "eb102b876e80763b399bc1a7c1e6c9f7d9fc29cb6d5071a768e1ac1dd4cc853e"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     },
     {
       "surface": "fixture:replay-attack",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "11029a85cb5f029a89a713b67719a415beb2535467dee6f174a9d67f7687760d",
-          "new": "363881b50cf3abf424eadf9195f6da9e89009fc1a19f3112abb2fccea60488c0"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     },
     {
       "surface": "fixture:out-of-order-reveal",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "bd503f1ca98a033d76593c300f32ac724eade28f685dc60672e0cc684cea239a",
-          "new": "db0644dc6403593da2e527b08607e851d19aa55deaa9431e47e337179b240fb9"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     },
     {
       "surface": "fixture:mutated-canonical-frame",
-      "verdict": "EXPECTED_PROVENANCE",
-      "differences": [
-        {
-          "path": "replayFingerprint",
-          "old": "4f4bbfc42c62a0ad4ab7df157649ebe8b63cf4cbcf359e5ce5f1d9ad03fa59c8",
-          "new": "5175792474fadd3abd29ed6cc4d376d880263c47b77ad9545c6aa1de19df6a95"
-        }
-      ],
-      "differenceCount": 1
+      "verdict": "EQUIVALENT",
+      "differences": []
     }
   ],
   "verdict": "BLACKBOX_COMPATIBLE"

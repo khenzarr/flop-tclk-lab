@@ -38,6 +38,11 @@ export const KNOWN_PINS = Object.freeze({
     adoptedAsPin: true,
     publishedIn: 'Phase 2 replay evidence, Phase 2.1 visual artifacts, Phase 3 evidence chain',
   }),
+  'd48e87343200e3115e243df39e8f295f5ce2e645': Object.freeze({
+    fixtureSetVersion: 'current-v2',
+    adoptedAsPin: true,
+    publishedIn: 'Phase 3A.2 candidate audit and adoption',
+  }),
   '103a1b960c117c82473ee058b7dca1769e167125': Object.freeze({
     fixtureSetVersion: 'current-v2',
     adoptedAsPin: false,

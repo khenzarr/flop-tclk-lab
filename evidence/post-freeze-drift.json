@@ -1,0 +1,15 @@
+{
+  "phase": "3A.2",
+  "candidatePin": "d48e87343200e3115e243df39e8f295f5ce2e645",
+  "freezePolicy": "Candidate audit remains pinned; post-freeze upstream movement does not alter the result.",
+  "postFreezeUpstreamHead": "5cc4ab93efbc8999a3a7e1471b639deca25998ea",
+  "commitsAheadOfCandidate": 1,
+  "candidateStillAudited": true,
+  "queriedAt": "2026-09-04T04:54:00+03:00",
+  "source": "git ls-remote origin refs/heads/main",
+  "liveTechnocoreReads": "NONE",
+  "liveTechnocoreWrites": "NONE",
+  "realSignerAccessed": false,
+  "walletConnected": false,
+  "valueMoved": false
+}

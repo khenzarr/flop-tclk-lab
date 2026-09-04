@@ -1,0 +1,690 @@
+{
+  "schema": "tclk-phase3a2-candidate-audit/v1",
+  "generatedAt": "2026-09-03T20:33:52.880Z",
+  "safe": true,
+  "liveTechnocoreReads": "NONE",
+  "liveTechnocoreWrites": "NONE",
+  "realSignerAccessed": "NO",
+  "statement": "Deterministic offline probe of one frozen upstream candidate against the historical pin and the Phase 3A comparison head. Acceptance-set changes and rejection-reason changes are reported in separate columns; neither is inferred from a commit title.",
+  "pins": [
+    {
+      "label": "historical",
+      "dir": ".upstream/tclk",
+      "sha": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+      "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+      "packageVersion": "0.1.0"
+    },
+    {
+      "label": "comparison",
+      "dir": ".upstream/tclk-head",
+      "sha": "103a1b960c117c82473ee058b7dca1769e167125",
+      "commit": "103a1b960c117c82473ee058b7dca1769e167125",
+      "packageVersion": "0.1.0"
+    },
+    {
+      "label": "candidate",
+      "dir": ".upstream/candidates/d48e873",
+      "sha": "d48e87343200e3115e243df39e8f295f5ce2e645",
+      "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
+      "packageVersion": "0.1.0"
+    }
+  ],
+  "roles": {
+    "historical": "historical",
+    "comparison": "comparison",
+    "candidate": "candidate"
+  },
+  "exportsAdded": [],
+  "exportsRemoved": [],
+  "probes": {
+    "decodeCap": {
+      "capBefore": 4096,
+      "capAfter": 4096,
+      "capChanged": false,
+      "enforcedBeforeParse": true,
+      "boundary": {
+        "below": {
+          "accepted": true,
+          "reason": null,
+          "detail": "lock"
+        },
+        "at": {
+          "accepted": true,
+          "reason": null,
+          "detail": "lock"
+        },
+        "above": {
+          "accepted": false,
+          "reason": "tclk: frame exceeds the 4096-char room-message cap (4097)"
+        },
+        "aboveMalformedBody": {
+          "accepted": false,
+          "reason": "tclk: frame exceeds the 4096-char room-message cap (4097)"
+        }
+      },
+      "boundaryByPin": {
+        "historical": {
+          "capConstant": 4096,
+          "at": true,
+          "above": true,
+          "aboveReason": null,
+          "encodeRefusesOverCap": true
+        },
+        "comparison": {
+          "capConstant": 4096,
+          "at": true,
+          "above": true,
+          "aboveReason": null,
+          "encodeRefusesOverCap": true
+        },
+        "candidate": {
+          "capConstant": 4096,
+          "at": true,
+          "above": false,
+          "aboveReason": "tclk: frame exceeds the 4096-char room-message cap (4097)",
+          "encodeRefusesOverCap": true
+        }
+      },
+      "historicalPinAcceptedOverCap": true,
+      "fixturesWithinCap": true,
+      "fixtureMaxLineLength": 352,
+      "canonicalOutputChanged": false
+    },
+    "schemaPatterns": {
+      "before": {
+        "adaptorOddLengthS": {
+          "ok": true,
+          "value": null
+        },
+        "adaptorEvenLengthS": {
+          "ok": true,
+          "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "adaptorEmptyS": {
+          "ok": true,
+          "value": null
+        },
+        "jobProtoValid": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "a2a.v1",
+              "id": "job-1",
+              "context": "ctx"
+            }
+          }
+        },
+        "jobProtoUppercase": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "A2A.V1",
+              "id": "job-1"
+            }
+          }
+        },
+        "jobIdEmpty": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "a2a.v1",
+              "id": ""
+            }
+          }
+        },
+        "jobContextEmpty": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "a2a.v1",
+              "id": "job-1",
+              "context": ""
+            }
+          }
+        }
+      },
+      "after": {
+        "adaptorOddLengthS": {
+          "ok": true,
+          "value": null
+        },
+        "adaptorEvenLengthS": {
+          "ok": true,
+          "value": null
+        },
+        "adaptorEmptyS": {
+          "ok": true,
+          "value": null
+        },
+        "jobProtoValid": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "a2a.v1",
+              "id": "job-1",
+              "context": "ctx"
+            }
+          }
+        },
+        "jobProtoUppercase": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "A2A.V1",
+              "id": "job-1"
+            }
+          }
+        },
+        "jobIdEmpty": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "a2a.v1",
+              "id": ""
+            }
+          }
+        },
+        "jobContextEmpty": {
+          "accepted": true,
+          "reason": null,
+          "detail": {
+            "proto": "a2a",
+            "id": {
+              "proto": "a2a.v1",
+              "id": "job-1",
+              "context": ""
+            }
+          }
+        }
+      },
+      "runtimeAcceptanceChanged": false
+    },
+    "hex": {
+      "acceptanceChanges": [],
+      "reasonOnlyChanges": [
+        {
+          "probe": "empty",
+          "before": "tclk: hash-lock preimage must be 32 bytes, got 0",
+          "after": "tclk: expected 0x-prefixed even-length hex, got 0 chars"
+        },
+        {
+          "probe": "oddLength",
+          "before": "Expected hex value to convert, found '0xabc'",
+          "after": "tclk: expected 0x-prefixed even-length hex, got 5 chars"
+        },
+        {
+          "probe": "uppercasePrefix",
+          "before": "Expected hex value to convert, found '0Xabababababababababababababababababababababababababababababababab'",
+          "after": "tclk: expected 0x-prefixed even-length hex, got 66 chars"
+        },
+        {
+          "probe": "noPrefix",
+          "before": "Expected hex value to convert, found 'abababababababababababababababababababababababababababababababab'",
+          "after": "tclk: expected 0x-prefixed even-length hex, got 64 chars"
+        },
+        {
+          "probe": "nonHexBody",
+          "before": "Expected hex value to convert, found '0xzz'",
+          "after": "tclk: expected 0x-prefixed even-length hex, got 4 chars"
+        }
+      ],
+      "normalizationChanged": false,
+      "uppercaseAcceptanceBefore": true,
+      "uppercaseAcceptanceAfter": true,
+      "statementCaseBefore": {
+        "upper": false,
+        "lower": false
+      },
+      "statementCaseAfter": {
+        "upper": false,
+        "lower": false
+      }
+    },
+    "receipts": {
+      "before": {
+        "contractRail": "paper",
+        "contractRailRef": "paper-ref",
+        "lineCount": 4,
+        "bareReceipt": {
+          "accepted": true,
+          "reason": null
+        },
+        "matchingRailAndRef": {
+          "accepted": true,
+          "reason": null
+        },
+        "mismatchedRail": {
+          "accepted": true,
+          "reason": null
+        },
+        "mismatchedRef": {
+          "accepted": true,
+          "reason": null
+        },
+        "contradictoryOutcome": {
+          "accepted": false,
+          "reason": "receipt outcome refunded does not match claimed"
+        }
+      },
+      "after": {
+        "contractRail": "paper",
+        "contractRailRef": "paper-ref",
+        "lineCount": 4,
+        "bareReceipt": {
+          "accepted": true,
+          "reason": null
+        },
+        "matchingRailAndRef": {
+          "accepted": true,
+          "reason": null
+        },
+        "mismatchedRail": {
+          "accepted": false,
+          "reason": "receipt rail x402 does not match contract rail paper"
+        },
+        "mismatchedRef": {
+          "accepted": false,
+          "reason": "receipt ref does not match contract railRef"
+        },
+        "contradictoryOutcome": {
+          "accepted": false,
+          "reason": "receipt outcome refunded does not match claimed"
+        }
+      },
+      "changed": true
+    },
+    "zeroWitness": {
+      "before": {
+        "available": true,
+        "identicalScalars": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "adaptZeroWitness": null
+      },
+      "after": {
+        "available": true,
+        "identicalScalars": null,
+        "adaptZeroWitness": null
+      },
+      "changed": true
+    }
+  },
+  "wire": {
+    "rows": [
+      {
+        "from": "historical",
+        "to": "comparison",
+        "canonicalLinesIdentical": true,
+        "legacyCanonicalLinesIdentical": true,
+        "offerIdIdentical": true,
+        "contractIdIdentical": true,
+        "canonicalJsonIdentical": true,
+        "prefixIdentical": true,
+        "versionIdentical": true,
+        "domainIdentical": true
+      },
+      {
+        "from": "comparison",
+        "to": "candidate",
+        "canonicalLinesIdentical": true,
+        "legacyCanonicalLinesIdentical": true,
+        "offerIdIdentical": true,
+        "contractIdIdentical": true,
+        "canonicalJsonIdentical": true,
+        "prefixIdentical": true,
+        "versionIdentical": true,
+        "domainIdentical": true
+      }
+    ],
+    "compatible": true
+  },
+  "currentV2": {
+    "rows": [
+      {
+        "fixture": "happy-claim",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 4,
+          "rejected": 0,
+          "terminalState": "claimed",
+          "rail": "paper",
+          "reasons": []
+        },
+        "candidate": {
+          "accepted": 4,
+          "rejected": 0,
+          "terminalState": "claimed",
+          "rail": "paper",
+          "reasons": []
+        },
+        "invariantsHold": true
+      },
+      {
+        "fixture": "normal-refund",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 4,
+          "rejected": 0,
+          "terminalState": "refunded",
+          "rail": "paper",
+          "reasons": []
+        },
+        "candidate": {
+          "accepted": 4,
+          "rejected": 0,
+          "terminalState": "refunded",
+          "rail": "paper",
+          "reasons": []
+        },
+        "invariantsHold": true
+      },
+      {
+        "fixture": "cancel-before-lock",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 2,
+          "rejected": 0,
+          "terminalState": "cancelled",
+          "rail": null,
+          "reasons": []
+        },
+        "candidate": {
+          "accepted": 2,
+          "rejected": 0,
+          "terminalState": "cancelled",
+          "rail": null,
+          "reasons": []
+        },
+        "invariantsHold": true
+      },
+      {
+        "fixture": "wrong-party",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 3,
+          "rejected": 1,
+          "terminalState": "locked",
+          "rail": "paper",
+          "reasons": [
+            "only the payee reveals"
+          ]
+        },
+        "candidate": {
+          "accepted": 3,
+          "rejected": 1,
+          "terminalState": "locked",
+          "rail": "paper",
+          "reasons": [
+            "only the payee reveals"
+          ]
+        },
+        "invariantsHold": true
+      },
+      {
+        "fixture": "wrong-secret",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 3,
+          "rejected": 1,
+          "terminalState": "locked",
+          "rail": "paper",
+          "reasons": [
+            "secret does not open the statement"
+          ]
+        },
+        "candidate": {
+          "accepted": 3,
+          "rejected": 1,
+          "terminalState": "locked",
+          "rail": "paper",
+          "reasons": [
+            "secret does not open the statement"
+          ]
+        },
+        "invariantsHold": true
+      },
+      {
+        "fixture": "replay-attack",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 3,
+          "rejected": 1,
+          "terminalState": "locked",
+          "rail": "paper",
+          "reasons": [
+            "lock in status locked"
+          ]
+        },
+        "candidate": {
+          "accepted": 3,
+          "rejected": 1,
+          "terminalState": "locked",
+          "rail": "paper",
+          "reasons": [
+            "lock in status locked"
+          ]
+        },
+        "invariantsHold": true
+      },
+      {
+        "fixture": "out-of-order-reveal",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 2,
+          "rejected": 1,
+          "terminalState": "accepted",
+          "rail": null,
+          "reasons": [
+            "reveal in status accepted"
+          ]
+        },
+        "candidate": {
+          "accepted": 2,
+          "rejected": 1,
+          "terminalState": "accepted",
+          "rail": null,
+          "reasons": [
+            "reveal in status accepted"
+          ]
+        },
+        "invariantsHold": true
+      },
+      {
+        "fixture": "mutated-canonical-frame",
+        "transcriptBytesIdentical": true,
+        "semanticallyEquivalent": true,
+        "reasonTextIdentical": true,
+        "evidenceBytesIdentical": true,
+        "comparison": {
+          "accepted": 1,
+          "rejected": 2,
+          "terminalState": "proposed",
+          "rail": null,
+          "reasons": [
+            "tclk: offer id mismatch (expected 0xa66f354a67337c7b737f67846ab1c25253ef5f2fcbdf052854d83ab00dab1d85)",
+            "lock in status proposed"
+          ]
+        },
+        "candidate": {
+          "accepted": 1,
+          "rejected": 2,
+          "terminalState": "proposed",
+          "rail": null,
+          "reasons": [
+            "tclk: offer id mismatch (expected 0xa66f354a67337c7b737f67846ab1c25253ef5f2fcbdf052854d83ab00dab1d85)",
+            "lock in status proposed"
+          ]
+        },
+        "invariantsHold": true
+      }
+    ],
+    "semanticallyEquivalent": true,
+    "reasonTextStable": true,
+    "invariantsHold": true
+  },
+  "historicalFrameCompatibility": {
+    "rows": [
+      {
+        "fixture": "happy-claim",
+        "validUnderHistoricalPin": true,
+        "framesDecode": true,
+        "framesValidate": true,
+        "refusedLines": [],
+        "refusedUnderHistoricalPin": [],
+        "historicalTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"reveal\",true,null,null,true]],\"terminalState\":\"claimed\",\"rail\":\"paper\"}",
+        "candidateTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"reveal\",true,null,null,true]],\"terminalState\":\"claimed\",\"rail\":\"paper\"}",
+        "trajectoryPreserved": true,
+        "classification": "STILL_VALID",
+        "note": null
+      },
+      {
+        "fixture": "normal-refund",
+        "validUnderHistoricalPin": true,
+        "framesDecode": true,
+        "framesValidate": true,
+        "refusedLines": [],
+        "refusedUnderHistoricalPin": [],
+        "historicalTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"refund\",true,null,null,true]],\"terminalState\":\"refunded\",\"rail\":\"paper\"}",
+        "candidateTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",false,null,null,false],[\"refund\",false,null,null,false]],\"terminalState\":\"accepted\",\"rail\":null}",
+        "trajectoryPreserved": false,
+        "classification": "NOW_FAILS_CLOSED_AT_APPLY",
+        "note": "frames remain decodable and structurally valid; the legacy evaluation timing is what current upstream refuses (#43), which is the known Phase 3A.1 migration finding, not a wire break"
+      },
+      {
+        "fixture": "cancel-before-lock",
+        "validUnderHistoricalPin": true,
+        "framesDecode": true,
+        "framesValidate": true,
+        "refusedLines": [],
+        "refusedUnderHistoricalPin": [],
+        "historicalTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"cancel\",true,null,null,true]],\"terminalState\":\"cancelled\",\"rail\":null}",
+        "candidateTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"cancel\",true,null,null,true]],\"terminalState\":\"cancelled\",\"rail\":null}",
+        "trajectoryPreserved": true,
+        "classification": "STILL_VALID",
+        "note": null
+      },
+      {
+        "fixture": "wrong-party",
+        "validUnderHistoricalPin": true,
+        "framesDecode": true,
+        "framesValidate": true,
+        "refusedLines": [],
+        "refusedUnderHistoricalPin": [],
+        "historicalTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"reveal\",false,null,null,false]],\"terminalState\":\"locked\",\"rail\":\"paper\"}",
+        "candidateTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"reveal\",false,null,null,false]],\"terminalState\":\"locked\",\"rail\":\"paper\"}",
+        "trajectoryPreserved": true,
+        "classification": "STILL_VALID",
+        "note": null
+      },
+      {
+        "fixture": "wrong-secret",
+        "validUnderHistoricalPin": true,
+        "framesDecode": true,
+        "framesValidate": true,
+        "refusedLines": [],
+        "refusedUnderHistoricalPin": [],
+        "historicalTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"reveal\",false,null,null,false]],\"terminalState\":\"locked\",\"rail\":\"paper\"}",
+        "candidateTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"reveal\",false,null,null,false]],\"terminalState\":\"locked\",\"rail\":\"paper\"}",
+        "trajectoryPreserved": true,
+        "classification": "STILL_VALID",
+        "note": null
+      },
+      {
+        "fixture": "replay-attack",
+        "validUnderHistoricalPin": true,
+        "framesDecode": true,
+        "framesValidate": true,
+        "refusedLines": [],
+        "refusedUnderHistoricalPin": [],
+        "historicalTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"lock\",false,null,null,false]],\"terminalState\":\"locked\",\"rail\":\"paper\"}",
+        "candidateTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"lock\",true,null,null,false],[\"lock\",false,null,null,false]],\"terminalState\":\"locked\",\"rail\":\"paper\"}",
+        "trajectoryPreserved": true,
+        "classification": "STILL_VALID",
+        "note": null
+      },
+      {
+        "fixture": "out-of-order-reveal",
+        "validUnderHistoricalPin": true,
+        "framesDecode": true,
+        "framesValidate": true,
+        "refusedLines": [],
+        "refusedUnderHistoricalPin": [],
+        "historicalTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"reveal\",false,null,null,false]],\"terminalState\":\"accepted\",\"rail\":null}",
+        "candidateTrajectory": "{\"sequence\":[[\"offer\",true,null,null,false],[\"accept\",true,null,null,false],[\"reveal\",false,null,null,false]],\"terminalState\":\"accepted\",\"rail\":null}",
+        "trajectoryPreserved": true,
+        "classification": "STILL_VALID",
+        "note": null
+      },
+      {
+        "fixture": "mutated-canonical-frame",
+        "validUnderHistoricalPin": false,
+        "framesDecode": false,
+        "framesValidate": false,
+        "refusedLines": [
+          {
+            "index": 0,
+            "reason": "tclk: offer id mismatch (expected 0xa66f354a67337c7b737f67846ab1c25253ef5f2fcbdf052854d83ab00dab1d85)"
+          }
+        ],
+        "refusedUnderHistoricalPin": [
+          {
+            "index": 0,
+            "reason": "tclk: offer id mismatch (expected 0xa66f354a67337c7b737f67846ab1c25253ef5f2fcbdf052854d83ab00dab1d85)"
+          }
+        ],
+        "historicalTrajectory": "{\"sequence\":[[null,false,null,null,false],[\"accept\",true,null,null,false],[\"lock\",false,null,null,false]],\"terminalState\":\"proposed\",\"rail\":null}",
+        "candidateTrajectory": "{\"sequence\":[[null,false,null,null,false],[\"accept\",true,null,null,false],[\"lock\",false,null,null,false]],\"terminalState\":\"proposed\",\"rail\":null}",
+        "trajectoryPreserved": true,
+        "classification": "NOT_APPLICABLE",
+        "note": "adversarial by construction: this fixture carries a deliberately tampered line that the historical pin refused as well, so it cannot demonstrate a regression in accepted frames"
+      }
+    ],
+    "classifications": [
+      "STILL_VALID",
+      "NOW_FAILS_CLOSED_AT_APPLY",
+      "NOT_APPLICABLE"
+    ]
+  },
+  "verdict": {
+    "wireFormatCompatible": true,
+    "currentV2SemanticallyEquivalent": true,
+    "currentV2ReasonTextStable": true,
+    "noExportsRemoved": true,
+    "invariantsHold": true,
+    "historicalWireBreak": false,
+    "rejectionReasonModelRequired": false
+  }
+}

@@ -2,11 +2,11 @@
   "$comment": "Factual, non-secret record of the upstream state this lab is pinned to. Regenerate with scripts/verify-upstream.ps1. No key material, no tokens, no private data.",
   "repository": "https://github.com/flop-labs/tclk",
   "branch": "main",
-  "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
-  "commitShort": "81a8346",
-  "commitSubject": "fix: reject contradictory receipt outcomes (#7)",
+  "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
+  "commitShort": "d48e873",
+  "commitSubject": "fix(mcp): isolate a malformed envelope in a window read instead of failing it whole (#52)",
   "commitAuthor": "katazrofi",
-  "commitAuthorDate": "2026-09-02T06:44:20Z",
+  "commitAuthorDate": "2026-09-03T08:21:14Z",
   "commitCommitter": "GitHub",
   "packageName": "@flop-labs/tclk",
   "packageVersion": "0.1.0",
@@ -64,9 +64,24 @@
       "testsPassed": 124,
       "testsFailed": 0,
       "breakdown": [
-        { "project": "@flop-labs/tclk (root)", "suite": "vitest run", "testFiles": 5, "tests": 60 },
-        { "project": "@flop-labs/tclk-mcp", "suite": "vitest run", "testFiles": 6, "tests": 33 },
-        { "project": "@flop-labs/tclk-mcp", "suite": "vitest run --config worker/vitest.config.ts", "testFiles": 2, "tests": 31 }
+        {
+          "project": "@flop-labs/tclk (root)",
+          "suite": "vitest run",
+          "testFiles": 5,
+          "tests": 60
+        },
+        {
+          "project": "@flop-labs/tclk-mcp",
+          "suite": "vitest run",
+          "testFiles": 6,
+          "tests": 33
+        },
+        {
+          "project": "@flop-labs/tclk-mcp",
+          "suite": "vitest run --config worker/vitest.config.ts",
+          "testFiles": 2,
+          "tests": 31
+        }
       ]
     },
     "otherGates": {
@@ -84,12 +99,12 @@
   "environment": {
     "os": "Windows 11",
     "node": "v24.18.0",
-    "packageManagerResolved": "pnpm 11.25.0 (activated with corepack prepare pnpm@11.25.0 --activate)",
+    "packageManagerResolved": "pnpm 11.25.0 (activated with Corepack for candidate audit)",
     "deviations": [
-      "Upstream CI pins actions/setup-node to Node 22; this run used the locally installed Node 24.18.0. All gates passed regardless, but the Node major differs from CI.",
-      "The locally installed pnpm was 11.20.0; the upstream-declared pnpm@11.25.0 was activated through Corepack rather than substituting npm or yarn."
+      "Upstream CI pins actions/setup-node to Node 22; this run used locally installed Node 24.18.0.",
+      "Candidate declared pnpm@11.25.0; effective audit pnpm was activated with Corepack."
     ]
   },
-  "capturedAt": "2026-09-02T19:25:37Z",
-  "capturedBy": "flop-tclk-lab Phase 1 (read-only verification)"
+  "capturedAt": "2026-09-04T05:27:00+03:00",
+  "capturedBy": "flop-tclk-lab Phase 3A.2 candidate adoption (offline, read-only upstream audit)"
 }

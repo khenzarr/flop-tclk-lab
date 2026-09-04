@@ -1,16 +1,16 @@
 {
   "schema": "tclk-cross-pin-replay-matrix/v1",
-  "generatedAt": "2026-09-03T19:19:58.561Z",
+  "generatedAt": "2026-09-04T02:48:35.002Z",
   "safe": true,
   "statement": "Deterministic A/B replay of the same Blackbox fixture suite against two upstream commits. Byte equivalence and semantic equivalence are reported separately: a fixture whose evaluation timing was deliberately re-authored is expected to differ in bytes and required to match in semantics.",
   "pinInForce": {
-    "commit": "81a83464bd909fb5cd80de647da4e42fbae177dd",
+    "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
     "class": "PIN IN FORCE",
     "alsoKnownAs": "the Phase 2 / 2.1 historical baseline — the same commit, and still the pin",
     "packageVersion": "0.1.0"
   },
   "comparisonHead": {
-    "commit": "103a1b960c117c82473ee058b7dca1769e167125",
+    "commit": "d48e87343200e3115e243df39e8f295f5ce2e645",
     "class": "COMPARISON HEAD — NOT ADOPTED AS PIN",
     "adopted": false,
     "packageVersion": "0.1.0"
@@ -37,8 +37,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "0090ad8f434f53fc225ce62c49a7f25bdfa6243f5a6c6a032e09a9d0251f2f49",
-        "currentReplayFingerprint": "17d4a0352b3b203078cd0b998e9e22899adf6a5033bb5ad47f4b63602628c99a",
+        "oldReplayFingerprint": "e7dc43973d807b884a40a1361f21b315321a39624891ccf967461488a5ba817a",
+        "currentReplayFingerprint": "e7dc43973d807b884a40a1361f21b315321a39624891ccf967461488a5ba817a",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -70,8 +70,8 @@
         ],
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "0d084c4908e19f5e8fef7670d420aac0e0bf7d397f9731036a293c05d8c20e03",
-        "currentReplayFingerprint": "ab0c88faa9ce0480dc872b4d1f951ccfe7b3167aa9f894353eeae6c3e10b8f32",
+        "oldReplayFingerprint": "f028da79af9d5cad82f6cd45424b84a86866512435b32815bc8e62318683d71c",
+        "currentReplayFingerprint": "f028da79af9d5cad82f6cd45424b84a86866512435b32815bc8e62318683d71c",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -93,8 +93,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "a062d0f586419f57eed5d136559beb06456deb534c7cec1ae8d672d28d8ac74e",
-        "currentReplayFingerprint": "9eafa46d9302a98db459d98905462553fd87caa6738b0b84fb779972c96d4484",
+        "oldReplayFingerprint": "7cbb7a0cef3b2856cc58bb4c931a215fc4e6b97c3f745d04b3a10d1d61dba5f0",
+        "currentReplayFingerprint": "7cbb7a0cef3b2856cc58bb4c931a215fc4e6b97c3f745d04b3a10d1d61dba5f0",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -116,8 +116,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "139491c4cca4b63bb4a3f4593356c34f6b8d8cc24a093cee499a47c1aeef7c9c",
-        "currentReplayFingerprint": "c083b1d0cb4fa45ed005140675284cf8754c10b44a326dd5f0d7301bb36832ad",
+        "oldReplayFingerprint": "2087318ec58a3a8ebec31f537ccf6dccf26f694b70eac9ca696f61aca49206f8",
+        "currentReplayFingerprint": "2087318ec58a3a8ebec31f537ccf6dccf26f694b70eac9ca696f61aca49206f8",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -139,8 +139,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "8a8198defc9eccf98a201e77f39cd29fcf6e03804970bbbe29357e497a30d423",
-        "currentReplayFingerprint": "eb102b876e80763b399bc1a7c1e6c9f7d9fc29cb6d5071a768e1ac1dd4cc853e",
+        "oldReplayFingerprint": "e726bac56800ce6b920edff4d518987e7597962c103a9aab98f9a4b5cd10fb96",
+        "currentReplayFingerprint": "e726bac56800ce6b920edff4d518987e7597962c103a9aab98f9a4b5cd10fb96",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -162,8 +162,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "11029a85cb5f029a89a713b67719a415beb2535467dee6f174a9d67f7687760d",
-        "currentReplayFingerprint": "363881b50cf3abf424eadf9195f6da9e89009fc1a19f3112abb2fccea60488c0",
+        "oldReplayFingerprint": "1d70e493e81c96e808c5e7987bc40801c2d2295e0d1924d78b39279fff1c5596",
+        "currentReplayFingerprint": "1d70e493e81c96e808c5e7987bc40801c2d2295e0d1924d78b39279fff1c5596",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -185,8 +185,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "bd503f1ca98a033d76593c300f32ac724eade28f685dc60672e0cc684cea239a",
-        "currentReplayFingerprint": "db0644dc6403593da2e527b08607e851d19aa55deaa9431e47e337179b240fb9",
+        "oldReplayFingerprint": "d6b22271fdcfbc35f9951bb86f84f99b8cecea69385dc78b465e50cf9de21514",
+        "currentReplayFingerprint": "d6b22271fdcfbc35f9951bb86f84f99b8cecea69385dc78b465e50cf9de21514",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -208,8 +208,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "4f4bbfc42c62a0ad4ab7df157649ebe8b63cf4cbcf359e5ce5f1d9ad03fa59c8",
-        "currentReplayFingerprint": "5175792474fadd3abd29ed6cc4d376d880263c47b77ad9545c6aa1de19df6a95",
+        "oldReplayFingerprint": "5c13b78f6b22f07edd31ca842c93bbf32e2a96cc71da5f13609f992d90ac1093",
+        "currentReplayFingerprint": "5c13b78f6b22f07edd31ca842c93bbf32e2a96cc71da5f13609f992d90ac1093",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       }
     ]
@@ -238,8 +238,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "0090ad8f434f53fc225ce62c49a7f25bdfa6243f5a6c6a032e09a9d0251f2f49",
-        "currentReplayFingerprint": "17d4a0352b3b203078cd0b998e9e22899adf6a5033bb5ad47f4b63602628c99a",
+        "oldReplayFingerprint": "e7dc43973d807b884a40a1361f21b315321a39624891ccf967461488a5ba817a",
+        "currentReplayFingerprint": "e7dc43973d807b884a40a1361f21b315321a39624891ccf967461488a5ba817a",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -261,8 +261,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": null,
-        "oldReplayFingerprint": "c1a5c6ba935a7934284eb460be102a9527b8a46fed1eb6f1e562b0d53906557f",
-        "currentReplayFingerprint": "90b0238ad76420051a08d1df584094b3f0df07327207e354ac3a17337fc2fc2e",
+        "oldReplayFingerprint": "a8bafdd3db4e30144af4236b31888f220db2a10ed4eb6bf7b17ab3f0d038dbde",
+        "currentReplayFingerprint": "a430704503842f0076b497ae49bbe17164c1c83bb0f795e6efd48a50b51ec6a1",
         "reason": "trajectory differs: a lock evaluated at refundAfterMs is refused under current upstream (#43)"
       },
       {
@@ -284,8 +284,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "a062d0f586419f57eed5d136559beb06456deb534c7cec1ae8d672d28d8ac74e",
-        "currentReplayFingerprint": "9eafa46d9302a98db459d98905462553fd87caa6738b0b84fb779972c96d4484",
+        "oldReplayFingerprint": "7cbb7a0cef3b2856cc58bb4c931a215fc4e6b97c3f745d04b3a10d1d61dba5f0",
+        "currentReplayFingerprint": "7cbb7a0cef3b2856cc58bb4c931a215fc4e6b97c3f745d04b3a10d1d61dba5f0",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -307,8 +307,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "139491c4cca4b63bb4a3f4593356c34f6b8d8cc24a093cee499a47c1aeef7c9c",
-        "currentReplayFingerprint": "c083b1d0cb4fa45ed005140675284cf8754c10b44a326dd5f0d7301bb36832ad",
+        "oldReplayFingerprint": "2087318ec58a3a8ebec31f537ccf6dccf26f694b70eac9ca696f61aca49206f8",
+        "currentReplayFingerprint": "2087318ec58a3a8ebec31f537ccf6dccf26f694b70eac9ca696f61aca49206f8",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -330,8 +330,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "8a8198defc9eccf98a201e77f39cd29fcf6e03804970bbbe29357e497a30d423",
-        "currentReplayFingerprint": "eb102b876e80763b399bc1a7c1e6c9f7d9fc29cb6d5071a768e1ac1dd4cc853e",
+        "oldReplayFingerprint": "e726bac56800ce6b920edff4d518987e7597962c103a9aab98f9a4b5cd10fb96",
+        "currentReplayFingerprint": "e726bac56800ce6b920edff4d518987e7597962c103a9aab98f9a4b5cd10fb96",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -353,8 +353,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "11029a85cb5f029a89a713b67719a415beb2535467dee6f174a9d67f7687760d",
-        "currentReplayFingerprint": "363881b50cf3abf424eadf9195f6da9e89009fc1a19f3112abb2fccea60488c0",
+        "oldReplayFingerprint": "1d70e493e81c96e808c5e7987bc40801c2d2295e0d1924d78b39279fff1c5596",
+        "currentReplayFingerprint": "1d70e493e81c96e808c5e7987bc40801c2d2295e0d1924d78b39279fff1c5596",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -376,8 +376,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "bd503f1ca98a033d76593c300f32ac724eade28f685dc60672e0cc684cea239a",
-        "currentReplayFingerprint": "db0644dc6403593da2e527b08607e851d19aa55deaa9431e47e337179b240fb9",
+        "oldReplayFingerprint": "d6b22271fdcfbc35f9951bb86f84f99b8cecea69385dc78b465e50cf9de21514",
+        "currentReplayFingerprint": "d6b22271fdcfbc35f9951bb86f84f99b8cecea69385dc78b465e50cf9de21514",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -399,8 +399,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "4f4bbfc42c62a0ad4ab7df157649ebe8b63cf4cbcf359e5ce5f1d9ad03fa59c8",
-        "currentReplayFingerprint": "5175792474fadd3abd29ed6cc4d376d880263c47b77ad9545c6aa1de19df6a95",
+        "oldReplayFingerprint": "5c13b78f6b22f07edd31ca842c93bbf32e2a96cc71da5f13609f992d90ac1093",
+        "currentReplayFingerprint": "5c13b78f6b22f07edd31ca842c93bbf32e2a96cc71da5f13609f992d90ac1093",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       }
     ]
@@ -426,8 +426,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "0090ad8f434f53fc225ce62c49a7f25bdfa6243f5a6c6a032e09a9d0251f2f49",
-        "currentReplayFingerprint": "17d4a0352b3b203078cd0b998e9e22899adf6a5033bb5ad47f4b63602628c99a",
+        "oldReplayFingerprint": "e7dc43973d807b884a40a1361f21b315321a39624891ccf967461488a5ba817a",
+        "currentReplayFingerprint": "e7dc43973d807b884a40a1361f21b315321a39624891ccf967461488a5ba817a",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -454,8 +454,8 @@
         ],
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "c1a5c6ba935a7934284eb460be102a9527b8a46fed1eb6f1e562b0d53906557f",
-        "currentReplayFingerprint": "ab0c88faa9ce0480dc872b4d1f951ccfe7b3167aa9f894353eeae6c3e10b8f32",
+        "oldReplayFingerprint": "a8bafdd3db4e30144af4236b31888f220db2a10ed4eb6bf7b17ab3f0d038dbde",
+        "currentReplayFingerprint": "f028da79af9d5cad82f6cd45424b84a86866512435b32815bc8e62318683d71c",
         "reason": "same frames and same trajectory, re-authored evaluation timing (lock strictly before refundAfterMs); replay evidence bytes differ by construction"
       },
       {
@@ -477,8 +477,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "a062d0f586419f57eed5d136559beb06456deb534c7cec1ae8d672d28d8ac74e",
-        "currentReplayFingerprint": "9eafa46d9302a98db459d98905462553fd87caa6738b0b84fb779972c96d4484",
+        "oldReplayFingerprint": "7cbb7a0cef3b2856cc58bb4c931a215fc4e6b97c3f745d04b3a10d1d61dba5f0",
+        "currentReplayFingerprint": "7cbb7a0cef3b2856cc58bb4c931a215fc4e6b97c3f745d04b3a10d1d61dba5f0",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -500,8 +500,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "139491c4cca4b63bb4a3f4593356c34f6b8d8cc24a093cee499a47c1aeef7c9c",
-        "currentReplayFingerprint": "c083b1d0cb4fa45ed005140675284cf8754c10b44a326dd5f0d7301bb36832ad",
+        "oldReplayFingerprint": "2087318ec58a3a8ebec31f537ccf6dccf26f694b70eac9ca696f61aca49206f8",
+        "currentReplayFingerprint": "2087318ec58a3a8ebec31f537ccf6dccf26f694b70eac9ca696f61aca49206f8",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -523,8 +523,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "8a8198defc9eccf98a201e77f39cd29fcf6e03804970bbbe29357e497a30d423",
-        "currentReplayFingerprint": "eb102b876e80763b399bc1a7c1e6c9f7d9fc29cb6d5071a768e1ac1dd4cc853e",
+        "oldReplayFingerprint": "e726bac56800ce6b920edff4d518987e7597962c103a9aab98f9a4b5cd10fb96",
+        "currentReplayFingerprint": "e726bac56800ce6b920edff4d518987e7597962c103a9aab98f9a4b5cd10fb96",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -546,8 +546,8 @@
         "currentSchedule": null,
         "oldRail": "paper",
         "currentRail": "paper",
-        "oldReplayFingerprint": "11029a85cb5f029a89a713b67719a415beb2535467dee6f174a9d67f7687760d",
-        "currentReplayFingerprint": "363881b50cf3abf424eadf9195f6da9e89009fc1a19f3112abb2fccea60488c0",
+        "oldReplayFingerprint": "1d70e493e81c96e808c5e7987bc40801c2d2295e0d1924d78b39279fff1c5596",
+        "currentReplayFingerprint": "1d70e493e81c96e808c5e7987bc40801c2d2295e0d1924d78b39279fff1c5596",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -569,8 +569,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "bd503f1ca98a033d76593c300f32ac724eade28f685dc60672e0cc684cea239a",
-        "currentReplayFingerprint": "db0644dc6403593da2e527b08607e851d19aa55deaa9431e47e337179b240fb9",
+        "oldReplayFingerprint": "d6b22271fdcfbc35f9951bb86f84f99b8cecea69385dc78b465e50cf9de21514",
+        "currentReplayFingerprint": "d6b22271fdcfbc35f9951bb86f84f99b8cecea69385dc78b465e50cf9de21514",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       },
       {
@@ -592,8 +592,8 @@
         "currentSchedule": null,
         "oldRail": null,
         "currentRail": null,
-        "oldReplayFingerprint": "4f4bbfc42c62a0ad4ab7df157649ebe8b63cf4cbcf359e5ce5f1d9ad03fa59c8",
-        "currentReplayFingerprint": "5175792474fadd3abd29ed6cc4d376d880263c47b77ad9545c6aa1de19df6a95",
+        "oldReplayFingerprint": "5c13b78f6b22f07edd31ca842c93bbf32e2a96cc71da5f13609f992d90ac1093",
+        "currentReplayFingerprint": "5c13b78f6b22f07edd31ca842c93bbf32e2a96cc71da5f13609f992d90ac1093",
         "reason": "same frames, same evaluation timing, same trajectory; only the provenance-bound fingerprint rotates with the pin"
       }
     ]
