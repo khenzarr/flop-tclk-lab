@@ -9,7 +9,7 @@
 //
 // The canonical Windows-local Technocore agent owns custody. Its public surface is
 //
-//     Signer.sign_room(room, text) -> SignedOperation(did, room, nonce, signature, text)
+//     Signer.sign_room_detached(room, text) -> SignedOperation(did, room, nonce, signature, text)
 //
 // so the adapter's whole job is: translate an already-approved, BYTE-FROZEN airlock request into
 // exactly those two public arguments, take back a signature-only result, bind it to the request
@@ -37,7 +37,7 @@ export const ADOPTED_UPSTREAM_PIN = 'd48e87343200e3115e243df39e8f295f5ce2e645';
 
 /** The public interface this adapter targets. Audited read-only; never invoked in this phase. */
 export const CANONICAL_SIGNER_PUBLIC_INTERFACE =
-  'Signer.sign_room(room, text) -> SignedOperation(did, room, nonce, signature, text)';
+  'Signer.sign_room_detached(room, text) -> SignedOperation(did, room, nonce, signature, text)';
 
 export const MODES = Object.freeze({ MOCK: 'MOCK', REAL_INTERFACE_DRY_RUN: 'REAL_INTERFACE_DRY_RUN' });
 
@@ -125,7 +125,7 @@ export class MockSignerTransport {
     });
   }
 
-  /** `sign_room(room, text)` — the two public arguments, plus binding references it echoes back. */
+  /** `sign_room_detached(room, text)` — sign only; no submit capability exists here. */
   signRoom({ room, text, requestId, signerDid, canonicalHash }) {
     return this.#signer.signApprovedChallenge({
       requestId, canonicalPayload: text, canonicalHash, signerDid, room,
@@ -158,7 +158,7 @@ export function dryRunSupport(transport) {
  */
 export function signerChallenge(approval) {
   const challenge = {
-    interfaceShape: 'sign_room(room, text)',
+    interfaceShape: 'sign_room_detached(room, text)',
     room: approval.intendedRoom,
     text: approval.frozenPayload,
     requestId: approval.requestId,
@@ -490,6 +490,9 @@ export function signFrozenAirlockRequest(frozen, options = {}) {
     stage: postEligible ? 'POST_ELIGIBLE' : 'REFUSED',
     signerInterface: CANONICAL_SIGNER_PUBLIC_INTERFACE,
     signerContacted: true,
+    resultClass: 'DETACHED_SIGNED_OPERATION',
+    networkSubmitted: false,
+    localNonceConsumed: true,
     realCanonicalSignerAccessed: false,
     realSignaturePerformed: false,
     postEligible,

@@ -3,42 +3,45 @@
 ## Decision
 
 ```text
-NONCE_SEMANTICS=UNKNOWN
-BLACKBOX_ADAPTER_COMPATIBILITY=BLOCKED
-DETACHED_CUSTODY_CHALLENGE=DESIGN-ONLY / NOT INVOKED
-DETACHED_ROOM_OPERATION=BLOCKED
-LIVE_ONLY_SIGNING=EXISTING CANONICAL BEHAVIOR ONLY
+NONCE_SEMANTICS=STRICTLY_INCREASING
+NONCE_SCOPE=PER_DID_PER_ROOM
+SKIPPED_NONCE_ALLOWED=YES
+BLACKBOX_ADAPTER_COMPATIBILITY=FIXTURE-ONLY DETACHED SURFACE
+DETACHED_CUSTODY_CHALLENGE=NOT INVOKED
+DETACHED_ROOM_OPERATION=IMPLEMENTED FOR FIXTURE TESTS; REAL CUSTODY NOT INVOKED
+LIVE_ONLY_SIGNING=EXISTING CANONICAL BEHAVIOR PRESERVED
 ```
 
-The Phase 3A.3 adapter must not claim `POST_ELIGIBLE` for a new surface. It
-may continue to exercise sanitized mock and dry-run boundaries, but it must
-not call the canonical signer, unwrap custody, reserve a real nonce, or send
-transport traffic.
+The Phase 3A.3 adapter now labels its fixture result
+`DETACHED_SIGNED_OPERATION`, with `NETWORK_SUBMITTED=false` and
+`LOCAL_NONCE_CONSUMED=true`. It still does not call the canonical signer,
+unwrap custody, reserve a real nonce, or send transport traffic.
 
 ## Proposed future challenge boundary
 
-A future canonical implementation may expose a clearly named,
-non-postable `sign_detached_challenge` operation. It must:
+A canonical implementation exposes a clearly named, non-postable
+`sign_room_detached(room, text)` operation. It must:
 
 - accept approved, byte-frozen challenge bytes;
 - use the existing protected custody path only;
 - sign a separately specified domain-separated preimage;
-- have no `NonceStore` dependency and no `TechnocoreTransport` dependency;
+- reserve and consume the existing local room nonce, without a
+  `TechnocoreTransport` dependency;
 - return public verification material only; and
 - be impossible for the adapter to reinterpret as a Technocore room operation.
 
-This phase intentionally does not choose an encoding or invoke it. A
-cryptographically valid signature is not a Technocore operation signature.
+The exact room preimage is `room|nonce|clean_text(text)`. A cryptographically
+valid detached signature is not evidence of submission or server acceptance.
 
 ## Phase 3A.4 replacement plan
 
-`Phase 3A.4R = BLOCKED_PENDING_AUTHORITATIVE_NONCE_SEMANTICS`.
+`Phase 3A.4R = OPERATOR-ONLY PLAN; NOT EXECUTED`.
 
-If server evidence later proves a safe detached room nonce rule, reassess for
-one real detached room signature with no POST. Otherwise implement and review
-the domain-separated custody challenge first, then run one real challenge
-with no POST. Either test must state that it proves custody integration and
-local verification only; it does not prove venue acceptance, replay behavior,
-or transport delivery.
+The official server rule permits any nonce greater than the last nonce found in
+bounded recent room history. Therefore a locally reserved but unposted nonce is
+not server-visible and a later larger nonce remains eligible. This does not
+provide permanent replay protection or globally durable server nonce state.
+The operator-only run must use a synthetic room, exactly one signature, no
+transport, no persistence, and new approval for every retry.
 
 No Phase 3B work or real signature is authorized by this document.

@@ -93,7 +93,7 @@ test('the adapter declares itself a courier and disclaims every authority it mus
   for (const secret of ['a private key', 'a seed', 'a passphrase', 'a decrypted key']) {
     assert.ok(TRUST_MODEL.neverHolds.includes(secret));
   }
-  assert.match(CANONICAL_SIGNER_PUBLIC_INTERFACE, /sign_room\(room, text\)/);
+  assert.match(CANONICAL_SIGNER_PUBLIC_INTERFACE, /sign_room_detached\(room, text\)/);
 });
 
 // ── Translation: two public arguments, nothing more ──────────────────────────────────────────
@@ -117,6 +117,9 @@ test('a valid frozen request reaches POST_ELIGIBLE and returns only signature-sh
   assertNothingEscaped(result);
   assert.equal(result.stage, 'POST_ELIGIBLE');
   assert.equal(result.postEligible, true);
+  assert.equal(result.resultClass, 'DETACHED_SIGNED_OPERATION');
+  assert.equal(result.networkSubmitted, false);
+  assert.equal(result.localNonceConsumed, true);
   assert.deepEqual(result.findings, []);
   assert.equal(transport.calls, 1);
   assert.deepEqual(result.events.map(e => e.code), [
@@ -126,6 +129,13 @@ test('a valid frozen request reaches POST_ELIGIBLE and returns only signature-sh
     'canonicalHash', 'nonce', 'requestId', 'responseFingerprint', 'room', 'schema',
     'signature', 'signedAt', 'signerDid', 'signerKind',
   ]);
+});
+
+test('the detached result has no submit-capable transport path', () => {
+  const { result, transport } = run(open());
+  assert.equal(typeof transport.submit, 'undefined');
+  assert.equal(result.posted, false);
+  assert.equal(result.networkSubmitted, false);
 });
 
 test('the returned signature verifies over the exact frozen bytes, room and reserved nonce', () => {
