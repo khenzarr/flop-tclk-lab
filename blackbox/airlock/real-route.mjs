@@ -10,7 +10,16 @@
 // and by its automated proof. Approval is never accepted from argv, environment, a file, or a
 // previous run: the phrase is derived from the frozen request and typed into a terminal this
 // process owns. A second, independent human confirmation happens inside the canonical child.
-import { gateA, SIGNING_MODES, REVIEWED_CANONICAL_COMMIT } from './budget.mjs';
+// PHASE 3A.10.4 additions:
+//   * the Phase 3A4R4 REAL path is CLOSED in source. Real custody now refuses here, before the
+//     approval prompt, the canonical child, custody, the nonce, and signing;
+//   * the surviving fixture path spends a DURABLE one-shot attempt budget immediately before the
+//     signer boundary, so "one attempt" now means one attempt per machine, not one per process.
+import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
+import { assertPhase3a4r4RealPathClosed, gateA, SIGNING_MODES, REVIEWED_CANONICAL_COMMIT } from './budget.mjs';
+import { acquireOneShotAttempt, BUDGET_ROOT } from './attempt-budget.mjs';
 import { prepareFrame } from './prepare.mjs';
 import { buildRequest } from './envelope.mjs';
 import { assertNonReuse, buildRehearsalAccept, phase3bFootprint } from './rehearsal.mjs';
@@ -52,6 +61,7 @@ function displayReview({ request, review }, log) {
   log(`\nAPPROVAL CODE\n${approvalCode(request)}`);
   log('\nBYTE FREEZE\nPASS\nPHASE 3B REUSE\nNO\nNETWORK SUBMISSION\nDISABLED'
     + '\nLOCAL NONCE\nONE WILL BE CONSUMED\nMAX REAL SIGNATURES\n1\nRETRY\nDISABLED'
+    + '\nREAL EXECUTION BUDGET\nDURABLE — ONE ATTEMPT PER MACHINE, NOT PER PROCESS'
     + '\nHUMAN CHECKPOINTS\n2 — THIS TERMINAL, THEN THE CANONICAL CHILD');
 }
 
@@ -70,9 +80,16 @@ export async function runDetachedSigningRoute({
   preflightOnly = false,
   createdAt = undefined,
   recheckMetadata = null,
+  budgetRoot = null,
 } = {}) {
   // 1. Nothing at all happens unless a human owns this terminal.
   requireInteractiveOperatorTerminal(streams);
+
+  // 2. PHASE 3A.10.4 RETIREMENT. The real Phase 3A4R4 path is closed in source and refuses here —
+  // before the approval prompt, the canonical child, custody, the nonce, and signing. Fixture
+  // custody continues, so end-to-end validation of this exact control flow is preserved.
+  assertPhase3a4r4RealPathClosed({ custody, purpose: ROUTE_PURPOSE });
+
   const route = prepareRealRoute(createdAt ? { createdAt } : {});
   const { request, review } = route;
   const architecture = gateA({ mode: SIGNING_MODES.DETACHED_NETWORK_FREE_ROOM_OPERATION, realCustody: false });
@@ -83,7 +100,7 @@ export async function runDetachedSigningRoute({
     return Object.freeze({ stopped: 'PREFLIGHT_ONLY', requestId: request.requestId, verified: false, posted: false });
   }
 
-  // 2. First human checkpoint: a phrase derived from these exact frozen bytes.
+  // 3. First human checkpoint: a phrase derived from these exact frozen bytes.
   const approve = approvalProvider ?? (frozen => promptHumanOperator(frozen, streams));
   const approval = await approve(request);
   if (!approval.ok) {
@@ -92,11 +109,11 @@ export async function runDetachedSigningRoute({
       : 'WRONG_APPROVAL_CODE: no custody was attempted');
   }
 
-  // 3. Post-approval TOCTOU recheck: approval binds to what was reviewed, or it is void.
+  // 4. Post-approval TOCTOU recheck: approval binds to what was reviewed, or it is void.
   const unchanged = recheckApprovalBinding(request, review, recheckMetadata ?? route.metadata);
   if (!unchanged.ok) throw new Error(`APPROVAL_INVALIDATED: ${unchanged.findings.join(',')}`);
 
-  // 4. Authorization gate. Real custody is refused here unless a live human approved in step 2.
+  // 5. Authorization gate. Real custody is refused here unless a live human approved in step 3.
   const authorized = gateA({
     mode: SIGNING_MODES.DETACHED_NETWORK_FREE_ROOM_OPERATION,
     realCustody: custody === 'real', humanApproved: true,
@@ -106,12 +123,30 @@ export async function runDetachedSigningRoute({
     + '\nThe canonical child asks for its own confirmation, and any credential prompt is typed'
     + '\ndirectly into that child. This process never sees it.');
 
-  // 5. Protected-custody handoff. stdout of the child is captured, never echoed.
+  // 6. DURABLE ONE-SHOT BUDGET, spent immediately before the irreversible signer boundary and
+  // never rolled back afterwards. This is the cross-process fix: a second invocation cannot
+  // acquire the same budget, where the old process-local permit book handed every fresh process a
+  // fresh permit. Refusal throws, so it cannot be ignored into a second signature.
+  //
+  // Real custody would use the machine-wide durable root, but real custody can no longer reach
+  // this line at all. Fixture custody must stay repeatable for CI, so its default root is a
+  // throwaway per-process directory; tests pass an explicit root to prove the durable semantics.
+  const attemptRoot = budgetRoot ?? (custody === 'real'
+    ? BUDGET_ROOT
+    : resolve(tmpdir(), `tclk-fixture-attempt-budget-${process.pid}-${randomUUID()}`));
+  const attempt = acquireOneShotAttempt({
+    purpose: ROUTE_PURPOSE,
+    operationClass: custody === 'real' ? 'REAL_DETACHED_ROOM_SIGNATURE' : 'FIXTURE_DETACHED_ROOM_SIGNATURE',
+    subject: request.requestFingerprint,
+  }, { root: attemptRoot });
+  log(`\nREAL EXECUTION BUDGET\nSPENT — ${attempt.budgetId.slice(0, 16)} (durable, never rolled back)`);
+
+  // 7. Protected-custody handoff. stdout of the child is captured, never echoed.
   const operation = await bridge({
     room: review.room, text: request.canonicalPayload, requestId: request.requestId, custody,
   });
 
-  // 6. Local cryptographic verification over the approved bytes. The returned DID is the custody
+  // 8. Local cryptographic verification over the approved bytes. The returned DID is the custody
   // identity, so it is verified for self-consistency and is not compared to the synthetic frame
   // author; room, text, provenance, and custody mode are all bound.
   const bound = operation.room === review.room
@@ -122,7 +157,7 @@ export async function runDetachedSigningRoute({
     && verifyEd25519(operation.did, canonicalMessage(operation.room, operation.nonce, operation.text), operation.signature);
   if (!verified) throw new Error('REFUSED: the returned operation did not verify against the approved bytes');
 
-  // 7. STOP. No submission surface exists on this route, so there is nothing to decline.
+  // 9. STOP. No submission surface exists on this route, so there is nothing to decline.
   log('\nLOCAL VERIFICATION\nPASS'
     + `\n\nSIGNER DID\n${operation.did}`
     + `\n\nROOM\n${operation.room}`
@@ -136,5 +171,6 @@ export async function runDetachedSigningRoute({
     custodyMode: operation.custodyMode, canonicalCommit: operation.canonicalCommit,
     approvalCode: approvalCode(request), signatureLength: operation.signature.length,
     verified: true, postEligible: true, posted: false, submitted: false, transportObjects: 0,
+    oneShotBudgetSpent: true, budgetId: attempt.budgetId,
   });
 }

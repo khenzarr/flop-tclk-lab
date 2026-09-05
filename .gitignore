@@ -25,6 +25,12 @@ seed.txt
 signing-key*
 TECHNOCORE_SIGNING_KEY*
 
+# Durable one-shot attempt-budget state (blackbox/airlock/attempt-budget.mjs). Machine-local spend
+# records, never authorization and never secret. Committing them would move a machine's spend state
+# into shared history, where a clone would arrive pre-spent and a revert could appear to un-spend a
+# budget. Phase 3A4R4's closure does NOT depend on this state: it is closed in source.
+blackbox/state/
+
 # Local logs and gate output (regenerate with scripts/verify-upstream.ps1).
 *.log
 logs/

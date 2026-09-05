@@ -1,0 +1,52 @@
+{
+  "schema": "tclk-blackbox-security-finding/v1",
+  "recordClass": "SANITIZED_OPERATOR_EXECUTION_FINDING",
+  "notServerEvidence": true,
+  "phase": "PHASE3A.10.4",
+  "subjectPhase": "PHASE3A4R4",
+  "finding": "CROSS_PROCESS_REAL_SIGNATURE_BUDGET_BYPASS",
+  "severity": "HIGH",
+  "summary": "MAX_REAL_SIGNATURES=1 was a process-local permit book. It prevented a second signature inside one invocation, but it did not prevent the operator from restarting the command, so each fresh process handed itself a fresh permit.",
+  "observedRealSignatureAttempts": 2,
+  "observedRuns": [
+    {
+      "run": 1,
+      "localNonceConsumed": 1,
+      "localVerification": "PASS",
+      "posted": false,
+      "transportObjects": 0,
+      "networkSubmission": "NONE"
+    },
+    {
+      "run": 2,
+      "localNonceConsumed": 2,
+      "localVerification": "PASS",
+      "posted": false,
+      "transportObjects": 0,
+      "networkSubmission": "NONE"
+    }
+  ],
+  "localNoncesObservedConsumed": [1, 2],
+  "technocoreSubmissionReported": false,
+  "publicSubmissions": 0,
+  "rawSignaturesAvailable": false,
+  "rawSignaturesPersisted": false,
+  "signedOperationsPersisted": false,
+  "cryptographicSigningProof": "PASS",
+  "crossProcessOneShotBudget": "FAILED",
+  "defectLocation": "BLACKBOX_EXECUTION_BUDGET_PERSISTENCE",
+  "canonicalSigningSemanticsAffected": false,
+  "remediation": {
+    "oldBudgetScope": "PROCESS_LOCAL",
+    "newBudgetScope": "DURABLE_MACHINE_WIDE_PER_OPERATION_IDENTITY",
+    "durablePrimitive": "blackbox/airlock/attempt-budget.mjs",
+    "phase3a4r4RealPath": "CLOSED_IN_SOURCE",
+    "budgetContainsSecrets": false
+  },
+  "limitations": [
+    "Based on sanitized operator execution evidence only.",
+    "No raw signature, SignedOperation, preimage, or credential was requested, produced, or persisted for this record.",
+    "Nonce counts and verification outcomes are as reported by the human operator; they are not re-derived from signer state.",
+    "This record is not Technocore server evidence and asserts nothing about any public or server-side state."
+  ]
+}

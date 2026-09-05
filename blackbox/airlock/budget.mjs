@@ -115,15 +115,80 @@ export function gateA(input = {}) {
   });
 }
 
+/**
+ * PHASE 3A.10.4 — THE PHASE 3A4R4 REAL COMMAND IS RETIRED IN SOURCE.
+ *
+ * Historical truth, sanitized, recorded here because it is the reason for the closure:
+ * `pnpm airlock:real-detached-sign` was executed by the human operator TWICE, in two separate
+ * process invocations, and the process-local budget below could not see across that boundary.
+ *
+ *   REAL_SIGNATURE_ATTEMPTS_OBSERVED = 2
+ *   LOCAL_NONCES_OBSERVED_CONSUMED   = 1, then 2
+ *   LOCAL_VERIFICATION               = PASS for both operator-reported runs
+ *   PUBLIC_SUBMISSIONS               = 0 (TRANSPORT_OBJECTS=0, NETWORK_SUBMISSION=NONE)
+ *
+ * Phase 3A4R4's cryptographic purpose is achieved, so its real path is closed permanently and
+ * unconditionally at source level rather than by durable state: a source constant cannot be
+ * cleared by deleting a local file. The durable one-shot primitive in ./attempt-budget.mjs is the
+ * mechanism for FUTURE high-risk operations; this constant is the retirement of this one.
+ *
+ * Phase 3B must NOT revive this command. It gets its own separately reviewed operation path, its
+ * own budget identity, and its own approval.
+ */
+export const PHASE3A4R4_CLOSURE = Object.freeze({
+  phase: 'PHASE3A4R4',
+  purpose: 'PHASE3A4R4_REAL_PROTECTED_CUSTODY_PROOF',
+  state: 'CLOSED',
+  finding: 'CROSS_PROCESS_REAL_SIGNATURE_BUDGET_BYPASS',
+  realSignatureAttemptsObserved: 2,
+  localNoncesObservedConsumed: Object.freeze([1, 2]),
+  publicSubmissionsObserved: 0,
+  rawSignaturesPersisted: false,
+  reason: 'REAL_EXECUTION_BUDGET_EXHAUSTED',
+  evidenceBasis: 'SANITIZED_OPERATOR_EXECUTION_REPORT',
+  reopenable: false,
+  successor: 'PHASE3B_SEPARATELY_REVIEWED_OPERATION_PATH',
+});
+
+/**
+ * The single fail-closed gate for the retired Phase 3A4R4 real path.
+ *
+ * Called before operator approval, before the canonical child, before custody, before the nonce,
+ * and before signing. There is no argument, environment variable, flag, or state file that makes
+ * it pass: it throws whenever real custody is requested for this purpose.
+ */
+export function assertPhase3a4r4RealPathClosed({ custody = 'real', purpose = PHASE3A4R4_CLOSURE.purpose } = {}) {
+  if (custody !== 'real') return Object.freeze({ closed: true, applies: false, custody });
+  throw new Error(
+    'PHASE3A4R4_CLOSED\nREAL_EXECUTION_BUDGET_EXHAUSTED\n'
+    + `PURPOSE ${purpose}\n`
+    + `FINDING ${PHASE3A4R4_CLOSURE.finding}\n`
+    + `HISTORICAL_REAL_SIGNATURE_ATTEMPTS ${PHASE3A4R4_CLOSURE.realSignatureAttemptsObserved}\n`
+    + `HISTORICAL_LOCAL_NONCES_OBSERVED ${PHASE3A4R4_CLOSURE.localNoncesObservedConsumed.join(',')}\n`
+    + 'HISTORICAL_PUBLIC_SUBMISSIONS 0\n'
+    + 'The Phase 3A4R4 real detached-signing proof is retired. Its real path is closed in source '
+    + 'and cannot be reopened by a flag, an environment variable, or by deleting local state. '
+    + 'Fixture validation remains available. Real Phase 3B signing requires a separately reviewed '
+    + 'Phase 3B operation path, not this command.',
+  );
+}
+
 export const MAX_REAL_SIGNATURES = 1;
 
 /**
- * A process-local permit book for real canonical signer invocations.
+ * A PROCESS-LOCAL permit book for real canonical signer invocations.
  *
- * Deliberately not persisted: a durable counter would be a durable-state mutation of exactly the
- * kind this phase is auditing, and a fresh process is already a fresh explicit operator decision.
- * The guard's job is to stop a loop or a retry inside one run, and to make a second attempt an
- * error rather than an accident.
+ * SCOPE, STATED PRECISELY, BECAUSE IT WAS ONCE OVERSTATED: this class counts inside ONE process.
+ * It stops a loop or a retry within a single run. It does NOT and never did stop an operator from
+ * running the command again, because a new process starts with `#consumed = 0`.
+ *
+ * Phase 3A.10.4 recorded that exact bypass as CROSS_PROCESS_REAL_SIGNATURE_BUDGET_BYPASS after two
+ * separate operator invocations each acquired a fresh limit of 1. The earlier reasoning here — that
+ * "a fresh process is already a fresh explicit operator decision" — is the assumption that failed:
+ * relaunching a command is far too cheap to be treated as a deliberate second authorization.
+ *
+ * Cross-process one-shot enforcement therefore lives in ./attempt-budget.mjs, which is durable.
+ * This class is retained as the in-process layer only; it is not a one-shot guarantee on its own.
  */
 export class RealSignatureBudget {
   #limit;
