@@ -44,7 +44,7 @@ export const PROCEEDABLE_CLASSES = Object.freeze(['SIDE_EFFECT_FREE', 'SAFE_LOCA
 export const AUDITED_SIGNER_SIDE_EFFECT_CLASS = 'DURABLE_NONCE_OR_PROTOCOL_STATE';
 
 export const AUDITED_NONCE_EVIDENCE_SHA = '82d942936050f1ab0fb9f34db17893b89f3e064b';
-export const REVIEWED_CANONICAL_COMMIT = '51fa1c7ef32349d46a1f4908e65194d28ea3267e';
+export const REVIEWED_CANONICAL_COMMIT = 'a1c7d9ae31e2e5c11387dde91ff4945d25ceea10';
 
 /**
  * Gate A is mode-aware. `gateA(string)` is retained as a fail-closed legacy compatibility call.
