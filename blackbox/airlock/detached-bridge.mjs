@@ -12,7 +12,7 @@ import { REVIEWED_CANONICAL_COMMIT } from './budget.mjs';
 
 const execFileAsync = promisify(execFile);
 const BLACKBOX_ROOT = fileURLToPath(new URL('../', import.meta.url));
-export const CANONICAL_WORKTREE = resolve(BLACKBOX_ROOT, '..', '..', 'technocore-agent-canonical-detached-signing', 'local-agent');
+export const CANONICAL_WORKTREE = resolve(BLACKBOX_ROOT, '..', '..', 'technocore-agent-canonical-human-execution', 'local-agent');
 
 export function canonicalPython(worktree) {
   const candidates = process.platform === 'win32'
