@@ -1,0 +1,94 @@
+{
+  "schema": "tclk-blackbox/phase3b-counterparty-identity/v1",
+  "phase": "3B.C1",
+  "createdAt": "2026-09-05T16:56:52Z",
+  "blackboxCommit": "6cdbc01745871ababfecb7890796c32b6450a24a",
+  "canonicalCustodyCommit": "124d621dd8c68b04bed79744ab332e8305093d02",
+  "adoptedTclkCommit": "d48e87343200e3115e243df39e8f295f5ce2e645",
+
+  "didA": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
+  "didB": null,
+  "didAKeyFingerprint": "abbce62f4278eb8fa870ca96f1580ffa229aa97a5041c21fe9e74f02d2d141f4",
+  "didBKeyFingerprint": null,
+  "didAKeyFingerprintAlgorithm": "sha256(did:key string)",
+
+  "didBCreated": false,
+  "distinctDid": false,
+  "distinctDidCheck": "NOT_APPLICABLE_DID_B_NOT_CREATED",
+  "sameHumanOperator": true,
+  "independentHumanCounterparty": false,
+
+  "custodyModel": "canonical-local-agent DPAPIKeyProvider, Ed25519 private key protected per-file by Windows DPAPI under a TrustedPaths state root; key never leaves the local machine and is never exported",
+  "identitySelectionModel": "ROOT_SCOPED_INTERNAL_PRIMITIVE",
+  "multiIdentitySupported": "YES_AT_CUSTODY_PRIMITIVE_LEVEL",
+  "productionMultiIdentityEnrollmentPath": "NOT_REVIEWED",
+  "secondCustodyImplementationRequired": false,
+  "humanActionRequired": true,
+
+  "didACustodyNamespace": "%LOCALAPPDATA%\\TechnocoreAgent",
+  "didBCustodyNamespace": null,
+  "didBCustodyNamespaceProposed": "reviewed named-profile namespace under %LOCALAPPDATA%, to be fixed by the Phase 3B.C1a reviewed enrollment entrypoint",
+
+  "roleA": "offer.from / payer / lock / refund",
+  "roleB": "accept.from / payee / reveal",
+  "roleAssignmentStatus": "FROZEN_DESIGN_UNBOUND_IDENTITY",
+  "roleBasis": "adopted TCLK d48e873 dist/frames.js enforces accept.from != offer.from; dist/machine.js restricts lock and refund to the payer and reveal to the payee",
+
+  "didAUnchanged": true,
+  "didAUnchangedMethod": "sha256 of opaque identity.dpapi ciphertext plus size/mtime, and of nonces.json, operator.json and local-install.json, compared before and after; DPAPI protect() is randomized so any rewrite changes the ciphertext digest",
+  "didAPrivateKeyAccessed": false,
+
+  "custodyIsolationProbe": {
+    "harness": "lab/custody-isolation-probe.py",
+    "storage": "throwaway temp directory, removed after the run",
+    "identitiesCreated": "two disposable fixture keys, no operator enrollment",
+    "distinctDid": true,
+    "distinctProtectedBlob": true,
+    "namespaceIsolated": true,
+    "reopenPreservesDid": true,
+    "reopenPreservesBlobBytes": true,
+    "nonceLedgerCreated": false,
+    "result": "PASS"
+  },
+
+  "privateKeyExported": false,
+  "privateKeyPrinted": false,
+  "credentialVisibleToCline": false,
+  "credentialVisibleToNode": false,
+
+  "technocoreWrites": 0,
+  "technocoreReads": 0,
+  "realSignatures": 0,
+  "realNoncesConsumed": 0,
+  "transportCalls": 0,
+  "networkCalls": 0,
+  "submissionCalls": 0,
+  "publicActions": 0,
+
+  "paperRailClassification": "UNSIGNED_RAIL_OBSERVATION",
+
+  "limitations": [
+    "DID B does not exist. This manifest records an enrollment design and a custody-capability finding, not a second enrolled identity.",
+    "The custody primitives (DPAPIKeyProvider, TrustedPaths.under, canonical_did) accept any state root and were proved isolated using throwaway fixture keys. The shipped enrollment CLI local_init.main() pins the state root to %LOCALAPPDATA%\\TechnocoreAgent and refuses any other root.",
+    "The operator declined to bypass that CLI guard by invoking initialize_local_identity() directly. There is therefore no reviewed production path to enrol a second identity, and Phase 3B.C1 stops before creating DID B.",
+    "Role assignment is frozen as a design decision only. Neither role is bound to a key, because only one identity exists.",
+    "Two distinct DIDs would prove cryptographic role separation only. They would remain ONE human operator: not two humans, not two organizations, not two economic counterparties, not two wallet owners, not evidence of payment, and not FLOP eligibility.",
+    "The fixture isolation probe used real Windows DPAPI but disposable keys with no operator credential. It demonstrates namespace separation, not that an enrolled second identity is safe to operate.",
+    "No signature was produced for any identity in this phase. A DID is derived from public-key material only; possession of a working signing path for DID B is unproven and belongs to a later phase."
+  ],
+
+  "reviewedEnrollmentEntrypointRequirements": [
+    "reuse the existing DPAPIKeyProvider and initialize_local_identity primitives without modification",
+    "leave the default canonical identity path and its single-root guard intact",
+    "require an explicit named identity/profile argument",
+    "constrain the storage root to a reviewed namespace under %LOCALAPPDATA%",
+    "refuse path traversal and arbitrary filesystem roots",
+    "refuse to write into or adjacent to an existing identity's files",
+    "require interactive human credential entry",
+    "never expose the passphrase or private key to Cline or Node",
+    "perform no signing, nonce reservation, transport, or network activity"
+  ],
+
+  "nextRecommendedAction": "Phase 3B.C1a — review and land a narrow, human-only multi-identity enrollment entrypoint in canonical, then re-run Phase 3B.C1 to enrol DID B",
+  "finalStatus": "TCLK_PHASE3BC1_HUMAN_ENROLLMENT_REQUIRED"
+}
