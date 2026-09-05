@@ -1,0 +1,165 @@
+{
+  "schema": "tclk-blackbox/phase3b1-pin-build-integrity/v1",
+  "phase": "3B.1",
+  "outcome": "FREEZE_GATE_FAILED_BEFORE_ANY_MANIFEST_WAS_FROZEN",
+  "createdAt": "2026-09-05T20:40:00Z",
+
+  "blackboxBaselineCommit": "6503ceaa54b94a34f7356f670b96c2baff515990",
+  "canonicalSigningCommit": "124d621dd8c68b04bed79744ab332e8305093d02",
+  "canonicalEnrollmentCommit": "3675aeacdb73656285c4253b6d6d8d937afe25d6",
+  "adoptedTclkPin": "d48e87343200e3115e243df39e8f295f5ce2e645",
+  "technocoreEvidenceCommit": "82d942936050f1ab0fb9f34db17893b89f3e064b",
+
+  "finding": {
+    "title": "The lab executes a stale local build, not the adopted TCLK pin",
+    "probe": "lab/pin-build-integrity.mjs",
+    "probeIsReadOnly": true,
+    "summary": "lab/upstream.mjs verifies the upstream clone's HEAD against evidence/upstream-baseline.json and then imports .upstream/tclk/dist/index.js. The SHA check covers the clone; the import resolves a build artifact. Upstream gitignores dist/, so nothing ties the two together. The clone is exactly on the pin while dist/ is the compiled output of a commit before upstream 103a1b960c117c82473ee058b7dca1769e167125 ('fix: close live-wire conformance gaps', #42), which is an ancestor of the pin.",
+    "pinnedSourceMatchesPhase3b0Conclusions": true,
+    "executedArtifactMatchesPin": false,
+    "verdict": "STALE_BUILD__EXECUTED_PROTOCOL_IS_NOT_THE_PIN"
+  },
+
+  "probeObservations": {
+    "pin": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "cloneHead": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "cloneOnPin": true,
+    "labResolvesProtocolFrom": "dist/index.js",
+    "distGitignoredUpstream": true,
+    "distCoveredByAnyShaCheck": false,
+    "pinnedSourceMachineCases": ["accept", "cancel", "heartbeat", "lock", "offer", "receipt", "refund", "reveal"],
+    "builtArtifactMachineCases": ["accept", "cancel", "lock", "offer", "receipt", "refund", "reveal"],
+    "machineCasesMatch": false,
+    "modulesMissingFromBuiltArtifact": ["frame-fields.generated", "rails", "transcript"],
+    "modulesMissingFromPinnedSource": [],
+    "pinnedSourceExportsMakeHeartbeat": true,
+    "builtArtifactExportsMakeHeartbeat": false,
+    "pinnedSourceUsesGeneratedFieldTable": true,
+    "builtArtifactHasGeneratedFieldTable": false,
+    "builtArtifactMtime": "2026-09-03T02:55:14.060Z",
+    "pinnedSourceMtime": "2026-09-04T02:48:26.199Z",
+    "frameFieldDeltaCount": 10,
+    "frameFieldDeltas": [
+      { "frame": "accept", "delta": "required_DIFFERS", "built": "from,ref,statement,contract,nonce", "pinnedSource": "type,from,ref,statement,contract,nonce" },
+      { "frame": "cancel", "delta": "required_DIFFERS", "built": "from,contract", "pinnedSource": "type,from,contract" },
+      { "frame": "heartbeat", "delta": "ABSENT_FROM_BUILT_ARTIFACT" },
+      { "frame": "lock", "delta": "required_DIFFERS", "built": "from,contract,rail,ref", "pinnedSource": "type,from,contract,rail,ref" },
+      { "frame": "offer", "delta": "required_DIFFERS", "built": "from,role,amount,asset,lock,rails,claimByMs,refundAfterMs,expiresMs,nonce,id", "pinnedSource": "type,from,role,amount,asset,lock,rails,claimByMs,refundAfterMs,expiresMs,nonce,id" },
+      { "frame": "receipt", "delta": "required_DIFFERS", "built": "from,contract,outcome", "pinnedSource": "type,from,contract,outcome" },
+      { "frame": "refund", "delta": "allowed_DIFFERS", "built": "type,from,contract,reason", "pinnedSource": "type,from,contract,ref,reason" },
+      { "frame": "refund", "delta": "required_DIFFERS", "built": "from,contract", "pinnedSource": "type,from,contract" },
+      { "frame": "reveal", "delta": "allowed_DIFFERS", "built": "type,from,contract,secret", "pinnedSource": "type,from,contract,ref,secret" },
+      { "frame": "reveal", "delta": "required_DIFFERS", "built": "from,contract,secret", "pinnedSource": "type,from,contract,secret" }
+    ]
+  },
+
+  "blastRadius": {
+    "modulesResolvingProtocolThroughTheBuiltArtifact": 13,
+    "modules": [
+      "blackbox/airlock/dryrun.mjs",
+      "blackbox/airlock/prepare.mjs",
+      "blackbox/airlock/rehearsal.mjs",
+      "blackbox/core/provenance.mjs",
+      "blackbox/core/replay.mjs",
+      "blackbox/tests/provenance.test.mjs",
+      "blackbox/fixtures/index.mjs",
+      "lab/adapter-readiness.mjs",
+      "lab/candidate-probe.mjs",
+      "lab/compat-probe.mjs",
+      "lab/freeze-legacy-capsule.mjs",
+      "lab/run-rehearsal.mjs",
+      "lab/upstream.mjs"
+    ],
+    "consequence": "Every canonical frame, state transition, replay trajectory and hash this lab has produced under the d48e873 label came out of the stale artifact, not out of the pinned sources."
+  },
+
+  "phase3b1DeliverablesWithheld": {
+    "reason": "Parts 7, 8, 10, 15, 16 and 18 all require byte-exact behaviour of the adopted TCLK implementation. Producing them against an artifact of unknown provenance would mint hashes that look authoritative and are not.",
+    "withheld": [
+      "docs/PHASE3B_EXACT_MANIFEST.md frozen canonical payload templates",
+      "evidence/phase3b-exact-manifest.json",
+      "CANONICAL_FRAME_HASH values",
+      "TEMPLATE_HASH values",
+      "PHASE3B_MANIFEST_ROOT",
+      "PHASE3B_EXECUTION_ID",
+      "two-DID fixture trajectory PASS claim",
+      "one-DID negative control PASS claim"
+    ],
+    "notWithheld": [
+      "the pinned-source protocol reconfirmation (Part 1), which was read from src/ at the pin and agrees with Phase 3B.0",
+      "the provenance-role correction (Part 17)",
+      "the read-only integrity probe and its regression assertion"
+    ]
+  },
+
+  "part1Reconfirmation": {
+    "readFrom": "pinned sources at d48e873 (src/frames.ts, src/machine.ts, src/frame-fields.generated.ts), not from docs and not from the built artifact",
+    "frameSet": ["offer", "accept", "lock", "reveal", "refund", "cancel", "receipt", "heartbeat"],
+    "separateClaimFrame": false,
+    "minimalStateChangingSequence": ["offer", "accept", "lock", "reveal"],
+    "pinnedSequenceReconfirmed": true,
+    "note": "src/frames.ts also carries 'job' and 'presig' type literals, but src/machine.ts dispatches on exactly the eight frames above, so the state-changing frame set is unchanged from Phase 3B.0."
+  },
+
+  "provenanceCorrection": {
+    "part": 17,
+    "incorrectClaimInPhase3bC1bReportText": "CANONICAL_ENROLLMENT_SHA=124d621dd8c68b04bed79744ab332e8305093d02",
+    "correctSigningCommit": "124d621dd8c68b04bed79744ab332e8305093d02",
+    "correctEnrollmentCommit": "3675aeacdb73656285c4253b6d6d8d937afe25d6",
+    "artifactsAlreadyCorrect": [
+      "evidence/phase3b-counterparty-identity.json",
+      "docs/PHASE3BC1B_HUMAN_ENROLLMENT.md"
+    ],
+    "defectWasReportTextOnly": true,
+    "historicalCommitsRewritten": false,
+    "regressionAssertion": "blackbox/tests/phase3b1.test.mjs pins the two provenance roles to distinct, exact SHAs and fails if they are ever conflated.",
+    "appliedAt": "2026-09-05T20:40:00Z"
+  },
+
+  "didBSigningRoute": {
+    "classification": "ENROLLED_BUT_SIGNING_ROUTE_UNPROVEN",
+    "carriedFrom": "evidence/phase3b-counterparty-identity.json",
+    "reAuditedInPhase3b1": false,
+    "reAuditNote": "Part 14 was not re-proved from canonical signer source in this phase: the phase halted at the pin-build gate before reaching it. The prior recorded model is identitySelectionModel=ROOT_SCOPED_INTERNAL_PRIMITIVE with a reviewed named-profile ENROLLMENT entrypoint and no proven named-profile SIGNING entrypoint.",
+    "gapClassification": "NARROW_PROFILE_SELECTOR_REQUIRED_UNCONFIRMED"
+  },
+
+  "remediationOrder": [
+    "Human decides how the pin is to be made executable: rebuild .upstream/tclk from the pinned commit, or consume the pin's sources directly instead of dist/.",
+    "Make dist/ provenance checkable rather than assumed: lab/upstream.mjs must fail closed when the artifact does not correspond to the verified clone HEAD.",
+    "Re-run the existing Blackbox suite against the corrected artifact and record which previously recorded hashes and trajectories move.",
+    "Only then re-attempt the Phase 3B.1 exact manifest freeze."
+  ],
+
+  "safety": {
+    "realCanonicalKeyAccessed": false,
+    "realSignaturePerformed": false,
+    "realNonceConsumed": false,
+    "transportObjects": 0,
+    "networkCalls": 0,
+    "submissionCalls": 0,
+    "liveTechnocoreReads": "NONE",
+    "liveTechnocoreWrites": "NONE",
+    "publicActions": 0,
+    "posted": false,
+    "valueMoved": false,
+    "budgetsAcquired": 0,
+    "upstreamCloneModified": false,
+    "canonicalReposModified": false,
+    "phase3aArtifactReuse": false
+  },
+
+  "limitations": [
+    "This artifact records why the Phase 3B.1 freeze did not happen. It is not a frozen manifest and contains no canonical frame hash, no template hash and no manifest root.",
+    "The probe compares the pinned sources against the built artifact by static text analysis. It establishes non-correspondence, which is sufficient to block a byte-exact freeze; it does not enumerate every behavioural difference, and the observed frame-field deltas are a lower bound.",
+    "The probe deliberately does not import the built artifact, so it cannot report differences that exist only in runtime behaviour.",
+    "No claim is made here about which of the previously recorded Blackbox hashes are wrong. That requires a rebuild and a re-run, which is a human decision because it changes recorded evidence."
+  ],
+
+  "readyForPhase3b2Prep": false,
+  "readyForFirstPublicWrite": false,
+  "nextRecommendedAction": "Human: decide the pin-build remediation, then re-run Phase 3B.1 from Part 1.",
+  "blockReason": "PIN_BUILD_PROVENANCE",
+  "blockReasonNote": "Not TCLK_PHASE3B1_PROTOCOL_MISMATCH: the pinned protocol sources still agree with the Phase 3B.0 conclusions. What mismatches is the locally built artifact the lab executes.",
+  "finalStatus": "BLOCKED"
+}
