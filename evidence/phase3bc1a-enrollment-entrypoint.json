@@ -1,0 +1,125 @@
+{
+  "schema": "tclk-blackbox/phase3bc1a-enrollment-entrypoint/v1",
+  "phase": "3B.C1a",
+  "createdAt": "2026-09-05T17:45:00Z",
+  "blackboxBaselineCommit": "71f2b1d7c7d221eb595d5c3bbe768e6354d889aa",
+  "canonicalOldSha": "124d621dd8c68b04bed79744ab332e8305093d02",
+  "canonicalNewSha": "3675aeacdb73656285c4253b6d6d8d937afe25d6",
+  "canonicalBranch": "feat/named-local-identities",
+
+  "defaultIdentityPathChanged": false,
+  "defaultRootGuardChanged": false,
+  "defaultIdentityPath": "%LOCALAPPDATA%\\TechnocoreAgent",
+
+  "namedProfileEntrypoint": "technocore_agent.service.profile_init:main",
+  "consoleScript": "technocore-agent-profile-init",
+  "profileArgument": "--profile <name>",
+  "profileValidation": "^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$ plus a reserved-name denylist",
+  "profileValidationLength": "3..64",
+  "reservedProfileNames": [
+    "default", "primary", "identity", "identities", "technocoreagent",
+    "con", "prn", "aux", "nul",
+    "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+    "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"
+  ],
+  "additionalIdentityParent": "%LOCALAPPDATA%\\TechnocoreAgent\\identities",
+  "additionalIdentityRoot": "%LOCALAPPDATA%\\TechnocoreAgent\\identities\\<profile>",
+  "pathSuppliedByHuman": false,
+  "arbitraryRootAllowed": false,
+  "pathTraversalAllowed": false,
+  "profileRootContainment": "PASS",
+  "containmentMethod": "resolve() then require the root to be a direct child of the identities parent, reject reparse points on the chain, and reject equality with the default root",
+  "defaultRootCollision": "REFUSED",
+
+  "existingProfileSemantics": "ALREADY_ENROLLED",
+  "existingProfileOverwritten": false,
+  "existingProfileRotated": false,
+  "keyRotationFeature": "OUT_OF_SCOPE",
+
+  "ttyRequired": true,
+  "ttyCheck": "stdin.isatty() and stdout.isatty(), evaluated before any custody construction",
+  "manualConfirmation": "CREATE IDENTITY <CODE>, code derived from profile name plus derived root, non-secret, printed on screen only",
+  "confirmationIsAuthentication": false,
+  "cliApprovalBypass": "NONE",
+  "envApprovalBypass": "NONE",
+
+  "credentialVisibleToNode": false,
+  "credentialVisibleToCline": false,
+  "credentialInArgv": false,
+  "credentialInEnv": false,
+  "credentialSource": "existing protected in-process prompt inside the canonical Python process",
+
+  "secondCustodyImplementation": false,
+  "existingDpapiProviderReused": true,
+  "initializeLocalIdentityReused": true,
+  "trustedPathsReused": true,
+  "canonicalDidReused": true,
+
+  "multiIdentityEnrollmentFixtureE2E": "PASS",
+  "fixtureDistinctDids": true,
+  "fixtureStorageSeparation": true,
+  "fixtureStorageOverlap": false,
+  "fixtureCredential": "throwaway fixture passphrase inside the canonical test process only",
+  "fixtureRoots": "throwaway LOCALAPPDATA redirected to a temporary directory, removed after each test",
+
+  "realDidBCreated": false,
+  "realSignaturePerformed": false,
+  "realNonceConsumed": false,
+  "signingCalls": 0,
+  "nonceReservations": 0,
+  "transportObjects": 0,
+  "networkCalls": 0,
+  "submissionCalls": 0,
+  "technocoreReads": 0,
+  "technocoreWrites": 0,
+  "publicActions": 0,
+  "nonceLedgerAfterFixtureEnrollment": "ABSENT",
+
+  "privateKeyExported": false,
+  "privateKeyPrinted": false,
+  "successOutputFields": ["PROFILE", "PUBLIC DID", "PUBLIC KEY FINGERPRINT", "CUSTODY ROOT", "ENROLLED"],
+
+  "didA": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
+  "didAUnchanged": true,
+  "didAIdentityBlobSha256": "8bffdfbc0f13249747c4a7874d71bcf4ebd6d997b7f2fdb4e0014a8bf6634e41",
+  "didAUnchangedMethod": "sha256 of the opaque identity.dpapi ciphertext plus size/mtime, and of local-install.json, operator.json and nonces.json, captured before source work and re-compared after; DPAPI protect() is randomized so any rewrite changes the ciphertext digest",
+  "didAPrivateKeyAccessed": false,
+  "didADecryptedForComparison": false,
+
+  "canonicalScopeReviewed": [
+    "local-agent/src/technocore_agent/service/profile_init.py (new)",
+    "local-agent/tests/test_profile_init.py (new)",
+    "local-agent/pyproject.toml (one console-script line added)"
+  ],
+  "canonicalUnchangedSurfaces": [
+    "service/local_init.py default root logic and single-root guard",
+    "DPAPI storage format",
+    "private-key representation",
+    "signing preimage",
+    "SignedOperation",
+    "NonceStore semantics",
+    "sign_room_detached",
+    "execute_room",
+    "Technocore transport",
+    "submission behavior"
+  ],
+  "canonicalEnrollmentDiffReview": "PASS",
+
+  "humanEnrollmentRunbook": "docs/PHASE3BC1B_HUMAN_ENROLLMENT.md",
+  "futureHumanCommand": "technocore-agent-profile-init --profile phase3b-counterparty-b",
+  "futureHumanCommandExecuted": false,
+  "clineRanRealEnrollment": false,
+
+  "limitations": [
+    "DID B still does not exist. This phase landed and validated an enrollment entrypoint; it did not enrol anything real.",
+    "The fixture E2E used real Windows DPAPI with throwaway keys under a redirected LOCALAPPDATA. It proves namespace and DID separation, not that an enrolled second identity is safe to operate.",
+    "The TTY gate is a human-presence interlock. It stops unattended automation, not a determined local attacker already running as the same Windows user.",
+    "The confirmation phrase is a non-secret derived code. It prevents a mistyped or copy-pasted enrollment; it authenticates nobody.",
+    "No signature exists for any additional profile. A working signing path for a future DID B remains unproven and belongs to a later phase.",
+    "Two DIDs on this machine would remain ONE human operator: not two humans, not two organizations, not two economic counterparties, not evidence of payment, and not FLOP eligibility."
+  ],
+
+  "readyForHumanDidBEnrollment": true,
+  "nextRecommendedAction": "Human runs docs/PHASE3BC1B_HUMAN_ENROLLMENT.md in a normal PowerShell window, reports only the public DID and fingerprint, then Phase 3B.C1 is re-run to record DID B",
+  "finalStatus": "TCLK_PHASE3BC1A_ENROLLMENT_ENTRYPOINT_READY"
+}
