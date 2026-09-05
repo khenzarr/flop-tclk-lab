@@ -60,12 +60,22 @@ test('approval TOCTOU check catches payload, room, canonical commit, and TCLK mu
 });
 
 test('real operator entrypoint refuses a non-TTY test-runner invocation before custody', async () => {
-  const child = spawn(process.execPath, ['blackbox/airlock/real-detached-sign.mjs', '--approve'], { stdio: ['pipe', 'pipe', 'pipe'] });
-  let output = '';
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', chunk => { output += chunk; });
-  const code = await new Promise(resolve => child.on('close', resolve));
-  assert.notEqual(code, 0);
-  assert.match(output, /INTERACTIVE_TTY_REQUIRED/);
-  assert.doesNotMatch(output, /signature\s*:/i);
+  // Phase 3A.10.3: `--approve` is now refused as an unsupported option before the TTY gate is even
+  // reached, so both refusals are asserted. A test runner cannot get past either one.
+  const run = args => new Promise(resolve => {
+    const child = spawn(process.execPath, ['blackbox/airlock/real-detached-sign.mjs', ...args], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let output = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', chunk => { output += chunk; });
+    child.on('close', code => resolve({ code, output }));
+  });
+
+  const cliApproval = await run(['--approve']);
+  assert.notEqual(cliApproval.code, 0);
+  assert.match(cliApproval.output, /approval cannot be supplied by CLI/);
+
+  const nonTty = await run([]);
+  assert.notEqual(nonTty.code, 0);
+  assert.match(nonTty.output, /INTERACTIVE_TTY_REQUIRED/);
+  assert.doesNotMatch(nonTty.output, /signature\s*:/i);
 });

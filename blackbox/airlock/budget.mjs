@@ -44,11 +44,26 @@ export const PROCEEDABLE_CLASSES = Object.freeze(['SIDE_EFFECT_FREE', 'SAFE_LOCA
 export const AUDITED_SIGNER_SIDE_EFFECT_CLASS = 'DURABLE_NONCE_OR_PROTOCOL_STATE';
 
 export const AUDITED_NONCE_EVIDENCE_SHA = '82d942936050f1ab0fb9f34db17893b89f3e064b';
-export const REVIEWED_CANONICAL_COMMIT = 'a1c7d9ae31e2e5c11387dde91ff4945d25ceea10';
+
+/**
+ * Exact reviewed canonical signer commit. Provenance is pinned to this SHA alone: never to a
+ * branch name, a tag, or "whatever HEAD happens to be".
+ *
+ * PRE_ENABLEMENT_CANONICAL_COMMIT is the earlier reviewed checkpoint, in which the canonical
+ * bridge refused real custody unconditionally. REVIEWED_CANONICAL_COMMIT is the reviewed
+ * human-gated checkpoint: real custody is reachable in source only behind the canonical child's
+ * own interactive operator confirmation. Both are retained so the transition stays auditable.
+ */
+export const PRE_ENABLEMENT_CANONICAL_COMMIT = 'a1c7d9ae31e2e5c11387dde91ff4945d25ceea10';
+export const REVIEWED_CANONICAL_COMMIT = '124d621dd8c68b04bed79744ab332e8305093d02';
 
 /**
  * Gate A is mode-aware. `gateA(string)` is retained as a fail-closed legacy compatibility call.
- * The detached decision is architectural eligibility only; it never authorizes real custody.
+ *
+ * The detached decision is architectural eligibility. It is not an authorization: real custody
+ * additionally requires `humanApproved`, which a caller may pass only after a live interactive
+ * operator confirmation in this same process. Nothing readable from argv, environment, a file, or
+ * a previous run sets it, and the default is false.
  */
 export function gateA(input = {}) {
   if (typeof input === 'string') input = {
@@ -64,6 +79,7 @@ export function gateA(input = {}) {
     skippedNonceAllowed = true,
     nonceRollbackUsed = false,
     realCustody = false,
+    humanApproved = false,
     publicPostingEnabled = false,
     detachedMethodExists = mode === SIGNING_MODES.DETACHED_NETWORK_FREE_ROOM_OPERATION,
     transportReference = mode === SIGNING_MODES.LEGACY_COUPLED_ROOM_OPERATION,
@@ -83,14 +99,16 @@ export function gateA(input = {}) {
     if (!skippedNonceAllowed) findings.push('SKIPPED_NONCE_NOT_AUTHORIZED');
     if (!localNonceConsumed) findings.push('LOCAL_NONCE_CONSUMPTION_NOT_ACKNOWLEDGED');
     if (nonceRollbackUsed) findings.push('NONCE_ROLLBACK_FORBIDDEN');
-    if (realCustody) findings.push('REAL_CUSTODY_FORBIDDEN_IN_PHASE');
+    // PHASE 3A.10.3. Real custody became architecturally eligible, never automatic: without a live
+    // human approval taken in this same process it is still refused, and refusal is the default.
+    if (realCustody && !humanApproved) findings.push('REAL_CUSTODY_REQUIRES_HUMAN_APPROVAL');
     if (publicPostingEnabled) findings.push('PUBLIC_POSTING_ENABLED');
   }
   const decision = findings.length === 0 ? 'ALLOW_ARCHITECTURE' : 'REFUSE';
   return Object.freeze({
     ok: decision === 'ALLOW_ARCHITECTURE', mode, canonicalCommit, nonceEvidenceSha,
     networkCalls, localNonceConsumed, skippedNonceAllowed, nonceRollbackUsed,
-    realCustody, publicPostingEnabled, decision,
+    realCustody, humanApproved, publicPostingEnabled, decision,
     sideEffectClass,
     safeToInvoke: decision === 'ALLOW_ARCHITECTURE',
     findings: Object.freeze(findings),
