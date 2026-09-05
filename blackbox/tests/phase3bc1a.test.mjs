@@ -42,7 +42,7 @@ test('manifest pins both canonical SHAs and the blackbox baseline', () => {
   assert.equal(manifest.canonicalBranch, 'feat/named-local-identities');
   assert.equal(manifest.blackboxBaselineCommit, '71f2b1d7c7d221eb595d5c3bbe768e6354d889aa');
   // The reviewed Phase 3B.C1 baseline is the parent of this phase's canonical work.
-  assert.equal(c1.canonicalCustodyCommit, OLD_CANONICAL);
+  assert.equal(c1.canonicalSigningCommit, OLD_CANONICAL);
 });
 
 test('the default identity path and its root guard are recorded unchanged', () => {
@@ -173,7 +173,10 @@ test('fixture E2E proves storage and DID separation without real enrollment', ()
   assert.match(manifest.fixtureRoots, /throwaway/i);
   assert.match(manifest.fixtureCredential, /fixture/i);
   assert.equal(manifest.realDidBCreated, false);
-  assert.equal(c1.didBCreated, false, 'Phase 3B.C1 must still record DID B as absent');
+  // Phase 3B.C1a itself never enrolled DID B. The human operator did that afterwards, in a normal
+  // terminal, using the reviewed entrypoint — which is what Phase 3B.C1b verified.
+  assert.equal(c1.didBEnrolledByCline, false, 'DID B must never be recorded as enrolled by Cline');
+  assert.match(c1.didBEnrolledBy, /HUMAN_OPERATOR/);
 });
 
 test('enrollment has no signing, nonce, transport or network side effect', () => {

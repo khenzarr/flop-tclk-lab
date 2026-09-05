@@ -2,17 +2,17 @@
 
 **Read this before writing any capsule, README, changelog or marketing text about Phase 3B.**
 
-The planned Phase 3B rehearsal uses **two distinct cryptographic DIDs controlled by one human
-operator**. That is the whole claim. It exists because the adopted TCLK state machine enforces
-DID-role separation: a single DID cannot legally occupy both sides of a deal.
+Phase 3B uses **two distinct cryptographic DIDs controlled by one human operator**. That is the
+whole claim. It exists because the adopted TCLK state machine enforces DID-role separation: a single
+DID cannot legally occupy both sides of a deal.
 
 It **does NOT demonstrate two independent humans**, two organizations, two economic counterparties,
 two wallet owners, a payment, a settlement, or FLOP eligibility.
 
 | Claim | Status |
 | --- | --- |
-| Two distinct `did:key` identifiers | Intended, satisfies the machine's role separation |
-| Two independently protected local keys | Intended, DPAPI-protected under separate state roots |
+| Two distinct `did:key` identifiers | **VERIFIED** — satisfies the machine's role separation |
+| Two independently protected local keys | **VERIFIED** — DPAPI-protected under separate state roots |
 | Two humans | **NO** — one operator, one machine, one Windows account |
 | Two organizations | **NO** |
 | Independent economic counterparty | **NO** |
@@ -21,27 +21,143 @@ two wallet owners, a payment, a settlement, or FLOP eligibility.
 | FLOP eligibility | **NO** |
 
 `sameHumanOperator=true` and `independentHumanCounterparty=false` are recorded in
-`evidence/phase3b-counterparty-identity.json` and asserted by `blackbox/tests/phase3bc1.test.mjs`.
-Those assertions exist specifically so future edits cannot quietly upgrade the claim.
+`evidence/phase3b-counterparty-identity.json` and asserted by `blackbox/tests/phase3bc1.test.mjs`
+and `blackbox/tests/phase3bc1b.test.mjs`. Those assertions exist specifically so future edits cannot
+quietly upgrade the claim.
+
+## ONE HUMAN OPERATOR — TWO DISTINCT CRYPTOGRAPHIC DIDS
+
+That sentence is the ceiling of the claim. Two keys existing on one Windows account under one
+operator's control is a **protocol-role** fact, not a counterparty fact.
 
 ## Current state of Phase 3B.C1
 
-**DID B does not exist.** Phase 3B.C1 stopped before creating it.
+**DID B is enrolled and verified.** Phase 3B.C1 is closed.
 
 | Field | Value |
 | --- | --- |
 | `DID_A` | `did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi` |
-| `DID_B` | not created |
-| `MULTI_IDENTITY_SUPPORTED` | `YES_AT_CUSTODY_PRIMITIVE_LEVEL` |
+| `DID_A_KEY_FINGERPRINT` | `abbce62f4278eb8fa870ca96f1580ffa229aa97a5041c21fe9e74f02d2d141f4` |
+| `DID_B` | `did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW` |
+| `DID_B_KEY_FINGERPRINT` | `a177dcc27339c364b84844997ec1222ba928f7933d895c83736ec861cb98ee7e` |
+| `DID_B_PROFILE` | `phase3b-counterparty-b` |
+| `MULTI_IDENTITY_SUPPORTED` | `YES_REVIEWED_NAMED_PROFILE_ENTRYPOINT` |
 | `EXISTING_IDENTITY_SELECTION_MODEL` | `ROOT_SCOPED_INTERNAL_PRIMITIVE` |
-| `PRODUCTION_MULTI_IDENTITY_ENROLLMENT_PATH` | `NOT_REVIEWED` |
+| `PRODUCTION_MULTI_IDENTITY_ENROLLMENT_PATH` | `REVIEWED_PHASE3BC1A` |
 | `SECOND_CUSTODY_IMPLEMENTATION_REQUIRED` | `NO` |
-| `HUMAN_ACTION_REQUIRED` | `YES` |
-| `FINAL_STATUS` | `TCLK_PHASE3BC1_HUMAN_ENROLLMENT_REQUIRED` |
+| `HUMAN_ACTION_REQUIRED` | `NO` (enrollment already performed by the operator) |
+| `FINAL_STATUS` | `TCLK_PHASE3BC1_COUNTERPARTY_VERIFIED` |
 
-### What the audit found
+Both fingerprints are `sha256` of the public `did:key` string. Neither is derived from, and neither
+reveals, private key material.
 
-The canonical custody primitives at `124d621` are already root-scoped and identity-agnostic:
+### How DID B was created
+
+The operator ran the Phase 3B.C1a reviewed named-profile entrypoint from a normal PowerShell
+terminal — `technocore-agent-profile-init --profile phase3b-counterparty-b` — and entered the
+credential interactively. Cline never saw the passphrase, never invoked the entrypoint, and never
+held custody material.
+
+### How DID B was verified
+
+`lab/identity-fingerprint.mjs --profile phase3b-counterparty-b --pair`, using public metadata only:
+
+- the directory listing of the profile root;
+- the public `public_did` field from `local-install.json`;
+- a locally recomputed `sha256` of that public DID, compared against the operator-reported
+  fingerprint — the expectation is checked, never trusted;
+- the **opaque** `sha256` of `identity.dpapi`, treated as ciphertext.
+
+`identity.dpapi` was never unprotected. No private key, seed, passphrase or DPAPI plaintext was
+read, derived, compared, exported, printed or logged.
+
+```
+PROFILE_EXISTS=YES
+DID_B_MATCH=YES
+PUBLIC_FINGERPRINT_MATCH=YES
+DID_A_UNCHANGED=YES
+DISTINCT_DID_CHECK=PASS
+PUBLIC_KEY_FINGERPRINT_DISTINCT=PASS
+STORAGE_SEPARATION=PASS
+```
+
+### Distinctness rests on public DIDs
+
+`canonical_did(key)` derives the `did:key` from public-key material, so two different `did:key`
+values are two different keypairs. The two `identity.dpapi` ciphertext digests differ as well, but
+that alone proves nothing — DPAPI `protect()` is randomized, so distinct ciphertext is expected even
+for identical plaintext. The ciphertext digests corroborate that two separate protected blobs exist;
+the DIDs carry the cryptographic distinctness claim.
+
+### Storage separation
+
+| Identity | Custody root | Nonce ledger |
+| --- | --- | --- |
+| DID A | `%LOCALAPPDATA%\TechnocoreAgent` | present (pre-existing) |
+| DID B | `%LOCALAPPDATA%\TechnocoreAgent\identities\phase3b-counterparty-b` | **absent** |
+
+- zero overlapping custody file paths between the two roots;
+- DID B has its own `identity.dpapi`;
+- DID A's tracked digests are byte-identical to the values recorded in Phase 3B.C1a;
+- enrollment created **no** nonce ledger for DID B, so it reserved no nonce;
+- DID B's root contains no `operations.json`, `drafts.json`, `approvals.json` or `evidence.jsonl`,
+  so no signing, drafting, approval or submission artifact exists for it.
+
+Storage separation was observed at one instant from paths and digests. It is not a live tamper
+guarantee and must be re-checked before any public write.
+
+## Frozen role binding
+
+Roles are now **bound to keys** as protocol role assignment.
+
+| Identity | Role |
+| --- | --- |
+| DID A | `offer.from` / payer / lock / refund |
+| DID B | `accept.from` / payee / reveal |
+
+`ROLE_BINDING_FROZEN=YES`
+
+Derived from the adopted TCLK pin `d48e873`: `dist/frames.js` rejects an accept whose `from` equals
+`offer.from`; `dist/machine.js` restricts `lock` and `refund` to the payer and `reveal` to the payee.
+Putting the refund path on DID A is deliberate — DID A is the identity with the already-proven
+detached-signing route and durable one-shot budget.
+
+Role binding proves **only** that the state machine's DID-role separation is satisfiable. It does
+not prove two humans, two organizations, independent economic counterparties, wallet ownership,
+payment, settlement, or FLOP eligibility.
+
+Any future Phase 3B sequence must preserve `offer.from != accept.from` and every payer/payee
+restriction.
+
+## DID B has no signing proof
+
+No signature was produced for DID B, and none is required to close Phase 3B.C1:
+
+```
+DID_B_OFFLINE_SIGNATURE_REQUIRED=NO
+```
+
+A `did:key` is derived from public-key material alone, so possession of a working DID B **signing**
+path is unproven. If a future public write requires DID B to sign, that signing path must be
+reviewed as part of the Phase 3B execution path with its own durable one-shot operation budget.
+
+## DID A is untouched
+
+DID A was never rotated, regenerated, migrated, re-passphrased or rewritten. Verification used
+public metadata and opaque ciphertext digests only:
+
+- `sha256` of `identity.dpapi` **as ciphertext**, plus its size and mtime. `protect()` is randomized,
+  so any rewrite of the blob changes its digest — the check detects exactly the failure it guards.
+- `sha256` of `nonces.json`, `operator.json` and `local-install.json`.
+- the public `public_did` field from `local-install.json`.
+
+DID A's blob digest still equals the value recorded before the human enrollment
+(`8bffdfbc…`), and its public DID is unchanged. The blob was never unprotected. No private key,
+seed, passphrase or DPAPI plaintext was read, derived, exported, printed or logged.
+
+## What the earlier audit found
+
+The canonical custody primitives are root-scoped and identity-agnostic:
 
 - `TrustedPaths.under(root)` derives every state file — `identity.dpapi`, `nonces.json`,
   `operations.json`, `drafts.json`, `approvals.json`, `evidence.jsonl`, `operator.json` — from a
@@ -55,70 +171,11 @@ The canonical custody primitives at `124d621` are already root-scoped and identi
 fixture keys** in a temp directory that was deleted afterwards: distinct DIDs, distinct ciphertext
 blobs, zero overlapping paths, reopen-is-stable, and no nonce ledger created.
 
-### Why it stopped
-
-The shipped enrollment CLI, `local_init.main()`, pins the state root:
-
-```
-if args.state.resolve() != expected:
-    parser.error("local state must be exactly ...")
-```
-
-The library function `initialize_local_identity(state_root, ...)` accepts any root; only the argparse
-wrapper refuses one. Enrolling DID B by calling that function directly would have bypassed an
-intentional CLI safety boundary. **The operator declined that bypass, and the decision stands:**
-custody capability at the primitive level is not the same thing as a reviewed production enrollment
-path, and Phase 3B.C1 was not authorized to create one.
-
-No canonical code was modified. No second custody implementation was written.
-
-### Required follow-up (Phase 3B.C1a)
-
-A narrow, separately reviewed, human-only multi-identity enrollment entrypoint that:
-
-- reuses `DPAPIKeyProvider` and `initialize_local_identity` unchanged;
-- leaves the default canonical identity path and its single-root guard intact;
-- requires an explicit named identity/profile;
-- constrains the storage root to a reviewed namespace under `%LOCALAPPDATA%`;
-- refuses path traversal and arbitrary filesystem roots;
-- refuses to write into or adjacent to an existing identity's files;
-- requires interactive human credential entry;
-- never exposes the passphrase or private key to Cline or Node;
-- performs no signing, no nonce reservation, no transport, no network activity.
-
-Only after that lands should Phase 3B.C1 be re-run to enrol DID B.
-
-## Frozen role design
-
-Roles are frozen as a **design decision only**. Neither role is bound to a key, because only one
-identity exists.
-
-| Identity | Role |
-| --- | --- |
-| DID A | `offer.from` / payer / lock / refund |
-| DID B | `accept.from` / payee / reveal |
-
-Derived from the adopted TCLK pin `d48e873`: `dist/frames.js` rejects an accept whose `from` equals
-`offer.from`; `dist/machine.js` restricts `lock` and `refund` to the payer and `reveal` to the payee.
-Putting the refund path on DID A is deliberate — DID A is the identity with the already-proven
-detached-signing route and durable one-shot budget.
-
-Any future Phase 3B sequence must preserve `offer.from != accept.from` and every payer/payee
-restriction.
-
-## DID A is untouched
-
-DID A was never rotated, regenerated, migrated, re-passphrased or rewritten. Verification used
-public metadata and opaque ciphertext digests only:
-
-- `sha256` of `identity.dpapi` **as ciphertext**, plus its size and mtime. `protect()` is randomized,
-  so any rewrite of the blob changes its digest — the check detects exactly the failure it guards.
-- `sha256` of `nonces.json`, `operator.json` and `local-install.json`.
-- the public `public_did` field from `local-install.json`.
-
-The blob was never unprotected. No private key, seed, passphrase or DPAPI plaintext was read,
-derived, exported, printed or logged. `lab/identity-fingerprint.mjs --compare` reported
-`UNCHANGED=YES` after all probing.
+Phase 3B.C1 originally stopped short of creating DID B because the shipped enrollment CLI,
+`local_init.main()`, pins the state root and the operator declined to bypass that guard by calling
+`initialize_local_identity()` directly. Phase 3B.C1a landed the reviewed named-profile entrypoint
+instead, which is what enrolled DID B. No canonical safety guard was bypassed and no second custody
+implementation was written.
 
 ## PaperRail trust rule
 
@@ -135,7 +192,7 @@ They must **never** be used as proof of authorship, party identity, payment, set
 protocol intent. Anyone can write them; nothing binds them to a key. They are observations of a
 public scratch surface, nothing more.
 
-PaperRail itself was not modified in this phase.
+Enrolling DID B changes nothing here. PaperRail itself was not modified in this phase.
 
 ## Safety envelope actually held
 
@@ -150,17 +207,17 @@ SUBMISSION_CALLS=0
 PUBLIC_ACTIONS=0
 PRIVATE_KEY_EXPORTED=NO
 PRIVATE_KEY_PRINTED=NO
+DPAPI_PLAINTEXT_READ=NO
 CREDENTIAL_VISIBLE_TO_CLINE=NO
 CREDENTIAL_VISIBLE_TO_NODE=NO
 ```
 
-No signature was produced for any identity. A DID is derived from public key material alone, so a
-working signing path for a future DID B remains unproven and belongs to a later phase with its own
-durable one-shot budget.
+No signature was produced for either identity. Neither private key was unlocked. No passphrase was
+requested. No nonce ledger was read or altered.
 
 ## Custody state is never committed
 
-All real custody state lives under `%LOCALAPPDATA%\TechnocoreAgent`, outside this repository. No
-protected blob, operator verifier, nonce ledger or credential is tracked by git, and none belongs in
-`.env`. Phase 3B.C1 committed documentation, evidence metadata, tests and two read-only/fixture-only
-lab probes.
+All real custody state lives under `%LOCALAPPDATA%\TechnocoreAgent`, outside this repository — DID
+B's profile root included. No protected blob, operator verifier, nonce ledger or credential is
+tracked by git, and none belongs in `.env`. Phase 3B.C1 committed documentation, evidence metadata,
+tests and read-only/fixture-only lab probes.

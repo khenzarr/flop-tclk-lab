@@ -1,4 +1,4 @@
-// PHASE 3B.C1 — COUNTERPARTY IDENTITY MANIFEST + SAFE FINGERPRINT TOOL.
+// PHASE 3B.C1 / 3B.C1b — COUNTERPARTY IDENTITY MANIFEST + SAFE FINGERPRINT TOOL.
 //
 // Pure metadata assertions over the committed manifest, plus fixture-only exercises of the
 // fingerprint helper against throwaway directories under the OS temporary directory.
@@ -21,6 +21,7 @@ const trustDoc = readFileSync(TRUST_DOC_PATH, 'utf8');
 const trustProse = trustDoc.replace(/\s+/g, ' ');
 
 const DID_A = 'did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi';
+const DID_B = 'did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW';
 
 const ROOTS = [];
 function freshRoot() {
@@ -33,11 +34,13 @@ process.on('exit', () => {
 });
 
 test('manifest pins the reviewed baselines and phase', () => {
-  assert.equal(manifest.schema, 'tclk-blackbox/phase3b-counterparty-identity/v1');
-  assert.equal(manifest.phase, '3B.C1');
-  assert.equal(manifest.canonicalCustodyCommit, '124d621dd8c68b04bed79744ab332e8305093d02');
+  assert.equal(manifest.schema, 'tclk-blackbox/phase3b-counterparty-identity/v2');
+  assert.equal(manifest.phase, '3B.C1b');
+  assert.equal(manifest.canonicalSigningCommit, '124d621dd8c68b04bed79744ab332e8305093d02');
+  assert.equal(manifest.canonicalEnrollmentCommit, '3675aeacdb73656285c4253b6d6d8d937afe25d6');
   assert.equal(manifest.adoptedTclkCommit, 'd48e87343200e3115e243df39e8f295f5ce2e645');
   assert.match(manifest.createdAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  assert.match(manifest.verifiedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
 });
 
 test('DID A is recorded unchanged and its fingerprint is derived from public metadata', () => {
@@ -48,21 +51,23 @@ test('DID A is recorded unchanged and its fingerprint is derived from public met
   assert.equal(manifest.didACustodyNamespace, '%LOCALAPPDATA%\\TechnocoreAgent');
 });
 
-test('DID B is honestly recorded as not created', () => {
-  assert.equal(manifest.didBCreated, false);
-  assert.equal(manifest.didB, null);
-  assert.equal(manifest.didBKeyFingerprint, null);
-  assert.equal(manifest.didBCustodyNamespace, null);
-  assert.equal(manifest.distinctDid, false);
-  assert.equal(manifest.distinctDidCheck, 'NOT_APPLICABLE_DID_B_NOT_CREATED');
-  assert.equal(manifest.finalStatus, 'TCLK_PHASE3BC1_HUMAN_ENROLLMENT_REQUIRED');
-  assert.equal(manifest.humanActionRequired, true);
+test('DID B is recorded as enrolled, distinct and verified from public metadata', () => {
+  assert.equal(manifest.didBCreated, true);
+  assert.equal(manifest.didB, DID_B);
+  assert.equal(manifest.didBKeyFingerprint, sha256Hex(DID_B));
+  assert.equal(manifest.didBCustodyNamespace,
+    '%LOCALAPPDATA%\\TechnocoreAgent\\identities\\phase3b-counterparty-b');
+  assert.equal(manifest.distinctDid, true);
+  assert.equal(manifest.distinctDidCheck, 'PASS');
+  assert.equal(manifest.finalStatus, 'TCLK_PHASE3BC1_COUNTERPARTY_VERIFIED');
+  assert.equal(manifest.humanActionRequired, false);
+  assert.equal(manifest.phase3bC1Closed, true);
 });
 
-test('custody capability is separated from a reviewed production enrollment path', () => {
-  assert.equal(manifest.multiIdentitySupported, 'YES_AT_CUSTODY_PRIMITIVE_LEVEL');
+test('custody capability now has a reviewed production enrollment path', () => {
+  assert.equal(manifest.multiIdentitySupported, 'YES_REVIEWED_NAMED_PROFILE_ENTRYPOINT');
   assert.equal(manifest.identitySelectionModel, 'ROOT_SCOPED_INTERNAL_PRIMITIVE');
-  assert.equal(manifest.productionMultiIdentityEnrollmentPath, 'NOT_REVIEWED');
+  assert.equal(manifest.productionMultiIdentityEnrollmentPath, 'REVIEWED_PHASE3BC1A');
   assert.equal(manifest.secondCustodyImplementationRequired, false);
   assert.equal(manifest.custodyIsolationProbe.result, 'PASS');
   assert.equal(manifest.custodyIsolationProbe.namespaceIsolated, true);
@@ -80,7 +85,9 @@ test('frozen roles are complementary and match the pinned TCLK guards', () => {
   assert.ok(!/lock/.test(manifest.roleB));
   assert.match(manifest.roleB, /reveal/);
   assert.ok(!/reveal/.test(manifest.roleA));
-  assert.equal(manifest.roleAssignmentStatus, 'FROZEN_DESIGN_UNBOUND_IDENTITY');
+  assert.equal(manifest.roleAssignmentStatus, 'FROZEN_PROTOCOL_ROLE_BINDING');
+  assert.equal(manifest.roleBindingFrozen, true);
+  assert.equal(manifest.roleBindingProvesEconomicIndependence, false);
 });
 
 test('trust model refuses to overclaim independence', () => {
@@ -105,8 +112,10 @@ test('all public-action and secret-exposure counters are zero or false', () => {
 test('manifest carries no secret-bearing fields', () => {
   // Keys that merely assert a secret was NOT handled are safe; keys that could carry one are not.
   const NEGATIVE_ASSERTIONS = new Set([
-    'privateKeyExported', 'privateKeyPrinted', 'didAPrivateKeyAccessed',
+    'privateKeyExported', 'privateKeyPrinted', 'didAPrivateKeyAccessed', 'didBPrivateKeyAccessed',
     'credentialVisibleToCline', 'credentialVisibleToNode', 'realSignatures',
+    'realSignaturesDuringEnrollment', 'didBSigningArtifacts', 'didBSigningProofExists',
+    'didBOfflineSignatureRequired', 'dpapiPlaintextRead', 'privateKeyBytesCompared',
   ]);
   const secretish = /private_?key|passphrase|\bseeds?\b|plaintext|unprotected|keyBlob|signature|secret|credential/i;
   const strings = [];
@@ -121,8 +130,12 @@ test('manifest carries no secret-bearing fields', () => {
   walk(manifest);
   assert.equal(Object.hasOwn(manifest, 'signature'), false);
 
-  // No value may carry key-shaped material. The only long token allowed is the public fingerprint.
-  const allowedLongTokens = new Set([manifest.didAKeyFingerprint]);
+  // No value may carry key-shaped material. Only public fingerprints and opaque ciphertext
+  // digests are allowed to be long tokens.
+  const allowedLongTokens = new Set([
+    manifest.didAKeyFingerprint, manifest.didBKeyFingerprint,
+    manifest.didAIdentityBlobSha256, manifest.didBProtectedBlobSha256,
+  ]);
   for (const value of strings) {
     for (const token of value.match(/[A-Za-z0-9+/=]{60,}/g) ?? []) {
       assert.ok(allowedLongTokens.has(token), `unexpected long token in manifest: ${token.slice(0, 12)}…`);
