@@ -1,0 +1,369 @@
+{
+  "schema": "tclk-blackbox/phase3b-public-footprint-plan/v1",
+  "phase": "3B.0",
+  "kind": "design-and-audit-only",
+  "generatedBy": "phase 3b.0 public footprint design; no signing, no network, no live technocore",
+  "provenance": {
+    "blackboxSha": "24e0b01b3ed112896b580c04b19b805eefd32e0c",
+    "canonicalSha": "124d621dd8c68b04bed79744ab332e8305093d02",
+    "adoptedTclkPin": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "technocoreEvidenceSha": "82d942936050f1ab0fb9f34db17893b89f3e064b",
+    "canonicalDid": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
+    "worktreesClean": true,
+    "newerUpstreamConsulted": false
+  },
+  "safety": {
+    "realCanonicalKeyAccessed": false,
+    "realSignaturePerformed": false,
+    "realNonceConsumed": false,
+    "liveTechnocoreReads": 0,
+    "liveTechnocoreWrites": 0,
+    "submissionCalls": 0,
+    "transportCalls": 0,
+    "networkCalls": 0,
+    "posted": false,
+    "publicActions": 0,
+    "valueMoved": false,
+    "walletConnected": false,
+    "secretsInThisArtifact": false
+  },
+  "frameSet": {
+    "adopted": ["offer", "accept", "lock", "reveal", "refund", "cancel", "receipt", "heartbeat"],
+    "separateClaimFrame": false,
+    "claimSemantics": "accept mints the statement; reveal.secret effects the claim; claimed is a status, not a frame",
+    "terminalStatuses": ["claimed", "refunded", "cancelled"],
+    "envelope": {
+      "version": "tclk/1",
+      "wirePrefix": "tclk1 ",
+      "signingDomain": "FLOP::tclk::v1",
+      "maxFrameChars": 4096
+    },
+    "requiredFields": {
+      "offer": ["type", "from", "role", "amount", "asset", "lock", "rails", "claimByMs", "refundAfterMs", "expiresMs", "nonce", "id"],
+      "accept": ["type", "from", "ref", "statement", "contract", "nonce"],
+      "lock": ["type", "from", "contract", "rail", "ref"],
+      "reveal": ["type", "from", "contract", "secret"],
+      "refund": ["type", "from", "contract"],
+      "cancel": ["type", "from", "contract"],
+      "receipt": ["type", "from", "contract", "outcome"],
+      "heartbeat": ["type", "from", "contract", "nonce"]
+    },
+    "optionalFields": {
+      "offer": ["paymentKey", "job"],
+      "accept": ["paymentKey"],
+      "lock": ["presig"],
+      "reveal": ["ref"],
+      "refund": ["ref", "reason"],
+      "cancel": ["reason"],
+      "receipt": ["rail", "ref"],
+      "heartbeat": ["note"]
+    }
+  },
+  "minimalHappyPath": {
+    "sequence": ["offer", "accept", "lock", "reveal"],
+    "signedRoomWrites": 4,
+    "unsignedKvNoteWrites": 2,
+    "totalPublicWrites": 6,
+    "classification": {
+      "offer": "MANDATORY",
+      "accept": "MANDATORY",
+      "lock": "MANDATORY",
+      "reveal": "MANDATORY_TERMINAL",
+      "receipt": "OPTIONAL_POST_TERMINAL",
+      "heartbeat": "OPTIONAL_NON_TRANSITION",
+      "refund": "ALTERNATIVE_TERMINAL",
+      "cancel": "ALTERNATIVE_TERMINAL"
+    },
+    "receiptProtocolRequired": false,
+    "claimTransitionOccursInside": "reveal"
+  },
+  "partyModel": {
+    "verdict": "DISTINCT_DIDS_REQUIRED",
+    "requiredParties": 2,
+    "singleCanonicalDidSufficient": false,
+    "secondRealDidRequired": true,
+    "secondKeyCreatedInThisPhase": false,
+    "enforcementAtPin": [
+      "accept.from === state.offer.from -> reject: cannot accept own offer",
+      "lock.from !== state.payerDid -> reject: only the payer locks",
+      "reveal.from !== state.payeeDid -> reject: only the payee reveals"
+    ],
+    "roleAudit": {
+      "offerCreator": "single DID allowed",
+      "acceptingParty": "refused for the offerer",
+      "locker": "payer only",
+      "revealer": "payee only",
+      "receiptIssuer": "any party (isParty)"
+    },
+    "oneDidOutcome": "transcript halts permanently at proposed; only the offer can ever be published"
+  },
+  "roomTopology": {
+    "sharedDiscoveryRoomRequired": true,
+    "sharedDiscoveryRoom": "tclk-offers",
+    "sharedDiscoveryRoomUsedFor": ["offer", "accept"],
+    "dedicatedDealRoomSupported": true,
+    "dedicatedDealRoomRule": "mb-p-tclk-<contract id chars 2..18>",
+    "dedicatedDealRoomUsedFor": ["lock", "reveal"],
+    "dealRoomDeterministicFromContractId": true,
+    "dealRoomRefusesUnsignedLane": true,
+    "venueRoomGrammar": "^[a-z0-9][a-z0-9_-]{0,47}$",
+    "kvNotes": {
+      "paperRecord": "ns=tclk-paper-<id[2..4]>, key=<id[4..18]>",
+      "stateNote": "ns=tclk-<id[2..4]>, key=<id[4..18]>",
+      "signed": false,
+      "worldWritable": true
+    },
+    "whyOfferCannotMoveToDealRoom": "the contract id is only computable after the accept, so discovery and accept must land where the offerer listens",
+    "globalRoomSpam": "none; exactly two writes touch the shared room"
+  },
+  "publicWrites": [
+    {
+      "write": 1,
+      "frame": "offer",
+      "room": "tclk-offers",
+      "roomKnownNow": true,
+      "signerRole": "party A / payer",
+      "signerDidKnownNow": false,
+      "publicFields": ["type", "from", "role", "amount", "asset", "lock", "rails", "claimByMs", "refundAfterMs", "expiresMs", "nonce", "id"],
+      "hashOrCommitmentFields": ["id"],
+      "timingFields": ["claimByMs", "refundAfterMs", "expiresMs"],
+      "linkageIds": ["id"],
+      "potentiallySensitive": ["signer DID becomes publicly linkable to the deal"],
+      "stateBefore": null,
+      "stateAfterIfAccepted": "proposed",
+      "paperRail": true,
+      "valueMoved": false,
+      "safe": true
+    },
+    {
+      "write": 2,
+      "frame": "accept",
+      "room": "tclk-offers",
+      "roomKnownNow": true,
+      "signerRole": "party B / payee",
+      "signerDidKnownNow": false,
+      "publicFields": ["type", "from", "ref", "statement", "contract", "nonce"],
+      "hashOrCommitmentFields": ["statement", "contract"],
+      "timingFields": [],
+      "linkageIds": ["ref", "contract"],
+      "potentiallySensitive": ["statement commits to the preimage; preimage itself stays private until write 4"],
+      "stateBefore": "proposed",
+      "stateAfterIfAccepted": "accepted",
+      "paperRail": true,
+      "valueMoved": false,
+      "safe": true
+    },
+    {
+      "write": 3,
+      "frame": "lock",
+      "room": "mb-p-tclk-<contract[2..18]>",
+      "roomKnownNow": false,
+      "signerRole": "party A / payer",
+      "signerDidKnownNow": false,
+      "publicFields": ["type", "from", "contract", "rail", "ref"],
+      "hashOrCommitmentFields": [],
+      "timingFields": [],
+      "linkageIds": ["contract", "ref"],
+      "precondition": "rejected if now >= offer.refundAfterMs",
+      "stateBefore": "accepted",
+      "stateAfterIfAccepted": "locked",
+      "sideEffect": "one unsigned PaperRail note write: tclkpaper1 locked ...",
+      "paperRail": true,
+      "valueMoved": false,
+      "safe": true
+    },
+    {
+      "write": 4,
+      "frame": "reveal",
+      "room": "mb-p-tclk-<contract[2..18]>",
+      "roomKnownNow": false,
+      "signerRole": "party B / payee",
+      "signerDidKnownNow": false,
+      "publicFields": ["type", "from", "contract", "ref", "secret"],
+      "hashOrCommitmentFields": [],
+      "timingFields": [],
+      "linkageIds": ["contract", "ref"],
+      "precondition": "rejected if now >= offer.refundAfterMs",
+      "publishesPreimage": true,
+      "preimageValueInThisArtifact": null,
+      "stateBefore": "locked",
+      "stateAfterIfAccepted": "claimed",
+      "terminal": true,
+      "sideEffect": "one unsigned PaperRail note write advancing the record to claimed",
+      "paperRail": true,
+      "valueMoved": false,
+      "safe": "yes by protocol design, and only after write 3"
+    }
+  ],
+  "totals": {
+    "plannedPublicWrites": 6,
+    "plannedSignedRoomWrites": 4,
+    "plannedRealSignatures": 4,
+    "signaturesPerParty": { "A": ["offer", "lock"], "B": ["accept", "reveal"] },
+    "maxInitialSubmissionAttempts": 4,
+    "automaticSecondAttempts": 0,
+    "reconciliationReadsDescribedOnly": true,
+    "publicDidExposure": "both party DIDs in both rooms, permanently linkable to the contract id",
+    "publicSecretExposure": "reveal preimage only, at write 4 only, by design",
+    "phase3aArtifactReuse": "NONE"
+  },
+  "paperRail": {
+    "rail": "paper",
+    "recordPrefix": "tclkpaper1",
+    "valueMoved": false,
+    "paymentProof": "NONE",
+    "settlementClaimAllowed": false,
+    "railHoldsFunds": false,
+    "railRecordsWorldWritable": true,
+    "verifyLockMeaning": "a string is present in a namespace a stranger could have written",
+    "proves": [
+      "four frames were signed by two keys",
+      "frames were accepted into named public rooms in order",
+      "state machine advanced proposed -> accepted -> locked -> claimed",
+      "the transcript replays deterministically at a pinned commit"
+    ],
+    "doesNotProve": [
+      "real payment",
+      "token settlement",
+      "wallet transfer",
+      "FLOP reward",
+      "economic finality",
+      "human identity",
+      "wallet ownership",
+      "reputation",
+      "contribution quality",
+      "FLOP eligibility"
+    ]
+  },
+  "identifierMatrix": [
+    { "identifier": "execution id p3b-<utc>-<8hex>", "creation": "FROZEN_NOW (rule)", "public": false, "persistence": "evidence capsule", "reuse": "one execution only" },
+    { "identifier": "offer nonce and offer id", "creation": "GENERATED_AT_EXECUTION", "public": true, "persistence": "public room", "reuse": "never" },
+    { "identifier": "contract id", "creation": "GENERATED_AT_EXECUTION (derived)", "public": true, "persistence": "rooms and both KV keys", "reuse": "never" },
+    { "identifier": "deal room name", "creation": "GENERATED_AT_EXECUTION (derived)", "public": true, "persistence": "venue", "reuse": "never" },
+    { "identifier": "request id p3b-w<N>-<8hex>", "creation": "GENERATED_AT_EXECUTION", "public": false, "persistence": "local ledger", "reuse": "one write only" },
+    { "identifier": "budget identities", "creation": "FROZEN_NOW (naming rule)", "public": false, "persistence": "attempt-budget root", "reuse": "single-use, never recycled" },
+    { "identifier": "evidence capsule id p3b0-footprint-<sha>", "creation": "FROZEN_NOW", "public": false, "persistence": "evidence/", "reuse": "append-only" },
+    { "identifier": "reveal preimage", "creation": "GENERATED_AT_EXECUTION", "public": "becomes public at write 4", "persistence": "never in source control", "reuse": "single use" }
+  ],
+  "budgetModel": {
+    "verdict": "BOTH",
+    "primitive": "blackbox/airlock/attempt-budget.mjs",
+    "newBudgetSubsystem": false,
+    "retiredPathRevived": false,
+    "retiredPath": "pnpm airlock:real-detached-sign",
+    "identities": [
+      "p3b-deal-<execId>",
+      "p3b-sign-w1..w4-<execId>",
+      "p3b-submit-w1..w4-<execId>",
+      "p3b-reconcile-w1..w4-<execId>"
+    ],
+    "distinctOneShotIdentities": 11,
+    "signAndSubmitSeparate": true,
+    "rationale": [
+      "splitting sign from submit makes SIGNED != SUBMITTED enforceable",
+      "per-write identities stop an uncertain write from bricking later safe progress",
+      "a spent submit budget is never topped up",
+      "uncertain outcomes route to the reconcile identity, never back to submit",
+      "retry after proven absence requires a fresh identity under a new execution id"
+    ]
+  },
+  "frameLifecycleStateMachine": {
+    "states": ["PLANNED", "AIRLOCK_APPROVED", "SIGNED", "SUBMIT_ATTEMPTED", "ACK_RECEIVED", "OBSERVED_PUBLIC", "ACCEPTED_BY_MACHINE", "REJECTED", "SUBMISSION_UNCERTAIN", "RECONCILING", "PROVEN_ABSENT", "ABORTED"],
+    "happyPath": ["PLANNED", "AIRLOCK_APPROVED", "SIGNED", "SUBMIT_ATTEMPTED", "ACK_RECEIVED", "OBSERVED_PUBLIC", "ACCEPTED_BY_MACHINE"],
+    "terminalPerWrite": ["ACCEPTED_BY_MACHINE", "REJECTED", "ABORTED"],
+    "perWriteInstance": true,
+    "invariants": [
+      "SIGNED does not imply SUBMITTED",
+      "ACK_RECEIVED does not imply OBSERVED_PUBLIC",
+      "OBSERVED_PUBLIC requires Technocore evidence",
+      "SUBMISSION_UNCERTAIN may only advance to RECONCILING",
+      "no automatic retry is reachable",
+      "PROVEN_ABSENT does not authorize automatic retry",
+      "OBSERVED != COMPLETE"
+    ]
+  },
+  "nonceReconciliation": {
+    "model": { "strictlyIncreasing": true, "scope": "PER_DID_PER_ROOM", "skippedNoncesAllowed": true, "enforcement": "bounded recent room history" },
+    "permanentReplayProtectionClaimed": false,
+    "reserveBeforeSign": true,
+    "durableRecordBeforeSubmit": ["room", "did", "nonce", "canonicalTextHash"],
+    "frameIdentityTriple": ["room", "signedNonce", "canonicalLine"],
+    "seqIsVenueAssigned": true,
+    "neverIdentifyBy": ["nonce alone", "observed seq"],
+    "absenceVerdict": "PROVEN_ABSENT_WITHIN_BOUNDED_WINDOW",
+    "burnedNonceAcceptable": true,
+    "reuseUncertainNonce": false,
+    "seqGapMeaning": "missing sequence positions in that room only; does not imply a lost TCLK frame and does not imply one-message-per-sequence semantics",
+    "liveReadsThisPhase": 0
+  },
+  "writeTransportSurface": {
+    "tclkPinShipsTransport": false,
+    "pinTransportEvidence": "no fetch, no node:http/https, no timeout, no retry in .upstream/tclk/src",
+    "externalTransport": "local-agent/src/technocore_agent/policy/transport.py TechnocoreTransport at canonical 124d621d",
+    "writeMethod": "POST",
+    "writePath": "https://technocore.chat/r/<url-encoded room>?format=json",
+    "requestBody": ["did", "sig", "nonce", "text"],
+    "readPath": "GET https://technocore.chat/r/<room>?format=json&limit=200&n=<clock>",
+    "responseShape": { "room": "string", "posted": ["seq", "ts", "from", "nonce", "text"], "messages": "array" },
+    "receiptAcceptedOnlyIf": "echoes submitted did, text and nonce, and its seq also appears in messages",
+    "originLocked": "https://technocore.chat",
+    "redirectsRefused": true,
+    "timeoutSeconds": { "default": 15, "min": 1, "max": 30 },
+    "responseCapBytes": 1048576,
+    "errorClasses": {
+      "accepted": "2xx with verified receipt",
+      "rejected": "definite 4xx, or room name failing the venue grammar before any socket",
+      "unknown": ["408", "425", "429", "5xx", "2xx with unverifiable receipt", "OSError", "TimeoutError", "URLError", "ValueError"]
+    },
+    "automaticRetries": "NONE in the write path; one request per submit() call",
+    "callerSideLoopForbidden": true,
+    "idempotencySupport": "NO server-side idempotency key; dedup relies on the signed per-DID-per-room nonce plus the durable local OperationStore record"
+  },
+  "ingestionPlan": {
+    "perWriteFields": ["room", "observedSeq", "signedNonce", "signerDid", "canonicalFrame", "canonicalFrameHash", "submissionStatus", "observationStatus", "stateBefore", "stateAfter", "rejectedFrames", "provenanceShas", "tclkPin"],
+    "reuses": ["existing fail-closed importer", "existing capsule builder with assertSafe"],
+    "reconstructs": ["Flight Recorder", "Rejection Boundary", "Protocol lane", "Custody lane", "Rail lane", "Evidence Capsule"],
+    "emptyRejectionBoundaryIsValid": true,
+    "observedEqualsComplete": false,
+    "completenessClaimFromExpectedFramesObserved": false
+  },
+  "executionStructure": {
+    "monolithicRunner": false,
+    "onePublicWritePerCommand": true,
+    "phases": [
+      { "id": "3B.0", "scope": "public footprint, semantics, failure design", "status": "COMPLETE" },
+      { "id": "3B.C", "scope": "counterparty identity decision", "status": "BLOCKING", "keyCreated": false },
+      { "id": "3B.1", "scope": "freeze write 1 manifest; fixture-only path, no transport", "status": "PENDING" },
+      { "id": "3B.2", "scope": "one public write: offer", "status": "PENDING" },
+      { "id": "3B.3", "scope": "one public write: accept", "status": "PENDING" },
+      { "id": "3B.4", "scope": "one public write: lock", "status": "PENDING" },
+      { "id": "3B.5", "scope": "one public write: reveal (first phase that may publish a preimage)", "status": "PENDING" },
+      { "id": "3B.6", "scope": "ingestion and capsule build", "status": "PENDING" },
+      { "id": "3B.7", "scope": "optional receipt, only if evidentiary value", "status": "PENDING" }
+    ],
+    "freshHumanApprovalPerPublicWrite": true
+  },
+  "blackboxValue": {
+    "signals": [
+      "visible four-step state trajectory across two real public rooms",
+      "signed vs submitted vs observed demonstrated on real network outcomes",
+      "per-DID-per-room nonce evidence with any natural gap explained honestly",
+      "deterministic replay of public bytes at a pinned commit",
+      "portable secret-free Evidence Capsule verifiable without trusting us"
+    ],
+    "manufacturedPublicRejection": false,
+    "chaosRejectionStaysLocal": true,
+    "naturalRejectionRecordedIfEncountered": true
+  },
+  "artifacts": {
+    "humanReadable": "docs/PHASE3B_PUBLIC_FOOTPRINT.md",
+    "machineReadable": "evidence/phase3b-public-footprint-plan.json",
+    "failureMatrix": "docs/PHASE3B_FAILURE_MATRIX.md"
+  },
+  "stopCondition": {
+    "blocked": true,
+    "reason": "SECOND_REAL_DID_REQUIRED_AND_NOT_AN_APPROVED_CUSTODY_IDENTITY",
+    "readyForExactPublicManifestFreeze": false,
+    "prerequisite": "resolve the counterparty custody identity in phase 3B.C"
+  }
+}
