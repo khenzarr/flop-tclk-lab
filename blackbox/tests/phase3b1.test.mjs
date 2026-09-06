@@ -9,7 +9,8 @@
 // read-only static text analysis and never imports the artifact under question.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { probePinBuildIntegrity, freezeAllowed } from '../../lab/pin-build-integrity.mjs';
 
@@ -24,6 +25,35 @@ const BLOCKER_DOC = readFileSync(at('docs', 'PHASE3B1_PIN_BUILD_BLOCKER.md'), 'u
 const PIN = 'd48e87343200e3115e243df39e8f295f5ce2e645';
 const SIGNING_SHA = '124d621dd8c68b04bed79744ab332e8305093d02';
 const ENROLLMENT_SHA = '3675aeacdb73656285c4253b6d6d8d937afe25d6';
+
+function staleIncidentFixture() {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase3b1-stale-'));
+  const source = at('.upstream', 'tclk');
+  try {
+    cpSync(resolve(source, 'src'), resolve(root, 'src'), { recursive: true });
+    cpSync(resolve(source, '.git'), resolve(root, '.git'), { recursive: true });
+    cpSync(resolve(source, '.gitignore'), resolve(root, '.gitignore'));
+    const dist = resolve(root, 'dist');
+    cpSync(resolve(source, 'dist'), dist, { recursive: true });
+    // Reconstruct only the recorded pre-repair artifact characteristics. This is an isolated
+    // negative control, not a claim that the current promoted dist is stale.
+    rmSync(resolve(dist, 'frame-fields.generated.js'));
+    for (const name of ['rails.js', 'transcript.js']) rmSync(resolve(dist, name));
+    const frames = resolve(dist, 'frames.js');
+    writeFileSync(frames, readFileSync(frames, 'utf8')
+      .replaceAll('"heartbeat"', '"__heartbeat_removed__"')
+      .replaceAll('function makeHeartbeat', 'function makeRemovedHeartbeat')
+      .replaceAll(', "type"', '')
+      .replaceAll('"ref", "reason"', '"reason"')
+      .replaceAll('"ref", "secret"', '"secret"'));
+    const machine = resolve(dist, 'machine.js');
+    writeFileSync(machine, readFileSync(machine, 'utf8').replaceAll('case "heartbeat":', 'case "__heartbeat_removed__":'));
+    return root;
+  } catch (error) {
+    rmSync(root, { recursive: true, force: true });
+    throw error;
+  }
+}
 
 // ---------------------------------------------------------------- Part 17: provenance roles
 
@@ -72,31 +102,50 @@ test('pinned-source protocol reconfirmation matches Phase 3B.0', () => {
 
 // ---------------------------------------------------------------- the freeze gate itself
 
-test('pin-build probe still reports the executed artifact is not the pin', () => {
-  // If a human rebuilds .upstream/tclk from the pin, this test is expected to fail and the
-  // recorded finding must be revisited deliberately rather than drifting out of date.
-  const report = probePinBuildIntegrity();
-  assert.equal(report.pin, PIN);
-  assert.equal(report.cloneOnPin, true, 'clone must still be on the adopted pin');
-  assert.equal(report.distIsABuildOfThePin, false);
-  assert.equal(report.verdict, 'STALE_BUILD__EXECUTED_PROTOCOL_IS_NOT_THE_PIN');
-  assert.equal(freezeAllowed(report), false);
-  assert.equal(report.verdict, FINDING.finding.verdict);
+test('isolated stale-dist fixture still reproduces the historical blocker', () => {
+  // The promoted runtime was repaired in R2. Keep the incident as a content-addressed, isolated
+  // negative control: pin sources plus the pre-repair dist tree, never the live loader directory.
+  const root = staleIncidentFixture();
+  try {
+    const report = probePinBuildIntegrity({ cloneDir: root });
+    assert.equal(report.pin, PIN);
+    assert.equal(report.cloneOnPin, true, 'clone must still be on the adopted pin');
+    assert.equal(report.distIsABuildOfThePin, false);
+    assert.equal(report.verdict, 'STALE_BUILD__EXECUTED_PROTOCOL_IS_NOT_THE_PIN');
+    assert.equal(freezeAllowed(report), false);
+    assert.equal(report.verdict, FINDING.finding.verdict);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('probe reproduces the recorded deltas', () => {
+test('stale-dist probe reproduces the recorded deltas', () => {
+  const root = staleIncidentFixture();
+  try {
+    const report = probePinBuildIntegrity({ cloneDir: root });
+    const recorded = FINDING.probeObservations;
+    assert.equal(report.machineCasesMatch, false);
+    assert.deepEqual(report.pinnedSourceMachineCases, recorded.pinnedSourceMachineCases);
+    assert.deepEqual(report.builtArtifactMachineCases, recorded.builtArtifactMachineCases);
+    assert.deepEqual(report.modulesMissingFromBuiltArtifact, recorded.modulesMissingFromBuiltArtifact);
+    // The reconstructed fixture intentionally removes the generated module and its stale
+    // inlined table. The historical report counted the table's ten field differences; this
+    // negative control still proves the stronger invariant (nonzero mismatch plus the exact
+    // missing protocol surface) without pretending the synthetic fixture is byte-identical to
+    // the original untracked dist tree.
+    assert.ok(report.frameFieldDeltaCount > 0);
+    assert.ok(report.pinnedSourceMachineCases.includes('heartbeat'));
+    assert.ok(!report.builtArtifactMachineCases.includes('heartbeat'));
+    assert.equal(report.pinnedSourceExportsMakeHeartbeat, true);
+    assert.equal(report.builtArtifactExportsMakeHeartbeat, false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('promoted runtime now passes the pin-build gate', () => {
   const report = probePinBuildIntegrity();
-  const recorded = FINDING.probeObservations;
-  assert.equal(report.machineCasesMatch, false);
-  assert.deepEqual(report.pinnedSourceMachineCases, recorded.pinnedSourceMachineCases);
-  assert.deepEqual(report.builtArtifactMachineCases, recorded.builtArtifactMachineCases);
-  assert.deepEqual(report.modulesMissingFromBuiltArtifact, recorded.modulesMissingFromBuiltArtifact);
-  assert.equal(report.frameFieldDeltaCount, recorded.frameFieldDeltaCount);
-  // heartbeat is dispatched at the pin and absent from the executed artifact.
-  assert.ok(report.pinnedSourceMachineCases.includes('heartbeat'));
-  assert.ok(!report.builtArtifactMachineCases.includes('heartbeat'));
-  assert.equal(report.pinnedSourceExportsMakeHeartbeat, true);
-  assert.equal(report.builtArtifactExportsMakeHeartbeat, false);
+  assert.equal(report.pin, PIN);
+  assert.equal(report.cloneOnPin, true);
+  assert.equal(report.distIsABuildOfThePin, true);
+  assert.equal(report.verdict, 'PIN_BUILD_COHERENT');
+  assert.equal(freezeAllowed(report), true);
 });
 
 test('the probe is read-only and does not import the artifact under question', () => {
@@ -109,10 +158,11 @@ test('the probe is read-only and does not import the artifact under question', (
 
 // ---------------------------------------------------------------- no fabricated freeze
 
-test('no frozen manifest artifact was produced while the gate is failing', () => {
-  // The whole point of the halt: these must not exist until the pin is actually executable.
-  assert.ok(!existsSync(at('evidence', 'phase3b-exact-manifest.json')));
-  assert.ok(!existsSync(at('docs', 'PHASE3B_EXACT_MANIFEST.md')));
+test('historical blocker records that no manifest was produced while its gate was failing', () => {
+  // This finding is immutable incident evidence. R2 may create a new manifest after repairing and
+  // attesting the runtime; it must not rewrite what happened in the blocked phase.
+  assert.equal(FINDING.outcome, 'FREEZE_GATE_FAILED_BEFORE_ANY_MANIFEST_WAS_FROZEN');
+  assert.match(BLOCKER_DOC, /no frozen manifest was written/i);
 });
 
 test('the finding claims no canonical hash, template hash, manifest root or execution id', () => {
