@@ -1,17 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Resolve the pinned upstream build.
+// Resolve the pinned upstream RUNTIME — the single door to the protocol.
 //
-// This lab never reimplements protocol logic. Every primitive exercised here is imported
-// from `.upstream/tclk/dist`, produced by upstream's own
-// `pnpm -r --include-workspace-root build`. If the clone is missing, unbuilt, or no longer
-// sitting on the commit recorded in evidence/upstream-baseline.json, we fail closed rather
-// than silently rehearse against something else.
+// This lab never reimplements protocol logic. Every primitive exercised here is imported from
+// `.upstream/tclk/dist`, produced by upstream's own build at the pinned commit.
+//
+// Phase 3B.1 promoted a `dist/` from the wrong commit and nothing noticed, because "the clone is
+// on the right SHA" says nothing about the compiled bytes beside it. Phase 3B.1-R then proved the
+// replacement `dist/` was a reproducible build of the pin — and it still could not load, because
+// `dist/transcript.js` imports `@scure/base` and no production dependency closure had been
+// promoted. Two different holes, both invisible to a commit check.
+//
+// So this module no longer asks "is the clone on the pinned commit?". It requires ALL of:
+//
+//   SOURCE_SHA               the checkout is on the reviewed commit
+//   LOCKFILE_SHA             the dependency resolution is the reviewed one
+//   DIST_TREE_SHA            the compiled bytes are the reviewed artifact
+//   PROD_CLOSURE_SHA         the packages Node will resolve are the reviewed packages
+//   RUNTIME_ENTRYPOINT_EXISTS
+//
+// and only then imports, and only then checks the imported surface really is the protocol. Any
+// failure exits non-zero before a consumer receives a module. Nothing here installs, builds or
+// fetches: a loader that repairs its own gate is not a gate.
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+
+import { cloneHead, loadAttestedRuntime } from "./runtime-attest.mjs";
+
 
 const ROOT = new URL("../", import.meta.url);
 const CLONE = new URL(".upstream/tclk/", ROOT);
@@ -60,34 +77,10 @@ if (!existsSync(fileURLToPath(DIST_IN_USE))) {
 }
 
 
-/**
- * Read the checked-out commit of the upstream clone without shelling out to git.
- *
- * `git worktree` clones carry a `.git` *file* pointing at the parent repository, so resolve
- * that indirection before looking for refs.
- */
-function cloneHead(clone) {
-  const dotGit = fileURLToPath(new URL(".git", clone));
-  // A normal clone has a `.git` directory; a linked worktree has a `.git` file whose contents
-  // are `gitdir: <path>`. Both must resolve, and neither may be guessed at.
-  let gitDir = dotGit;
-  if (statSync(dotGit).isFile()) {
-    const pointer = readFileSync(dotGit, "utf8").trim();
-    if (!pointer.startsWith("gitdir: ")) die(`unrecognised .git pointer in ${dotGit}`);
-    gitDir = pointer.slice("gitdir: ".length).trim();
-  }
-  const head = readFileSync(join(gitDir, "HEAD"), "utf8").trim();
+// The single implementation of "which commit is this clone on" lives in runtime-attest.mjs, so the
+// gate and the loader can never disagree about it.
+export const head = cloneHead(fileURLToPath(CLONE_IN_USE));
 
-  if (!head.startsWith("ref: ")) return head;
-  const ref = head.slice(5).trim();
-  const loose = join(gitDir, ...ref.split("/"));
-  if (existsSync(loose)) return readFileSync(loose, "utf8").trim();
-  const packed = readFileSync(join(gitDir, "packed-refs"), "utf8");
-  const line = packed.split("\n").find((l) => l.endsWith(` ${ref}`));
-  return line ? line.split(" ")[0] : "unknown";
-}
-
-export const head = cloneHead(CLONE_IN_USE);
 
 const expected = overrideSha ?? pinned.commit;
 if (head !== expected) {
@@ -116,7 +109,72 @@ export const baseline = overrideSha === null
       pinnedCommit: pinned.commit,
     };
 
-/** The full public surface of the resolved upstream library, read-only. */
-export const tclk = await import(DIST_IN_USE.href);
+/**
+ * The reviewed runtime identity, and the gate that must pass before any import.
+ *
+ * Under a comparison override the reviewed identity by definition does NOT apply — the whole point
+ * is to execute a different commit — so the static identity gate is skipped and the result is
+ * labelled `COMPARISON_OVERRIDE`, never `PASS`. The asserted-SHA check above still holds, the
+ * artifact is still marked `comparisonOverride`, and no override path can report itself attested.
+ */
+const reviewed = pinned.runtimeAttestation ?? null;
 
+if (overrideSha === null && reviewed === null) {
+  die(
+    "evidence/upstream-baseline.json carries no runtimeAttestation block",
+    "the loader will not import an unattested runtime — restore the reviewed identity, do not delete the gate",
+  );
+}
 
+const attestation = overrideSha === null
+  ? await loadAttestedRuntime(fileURLToPath(CLONE_IN_USE), reviewed)
+  : null;
+
+if (attestation !== null && attestation.runtimeAttestation !== "PASS") {
+  // Report every leg, so a refusal names the failing one instead of "something is wrong".
+  const legs = [
+    ["SOURCE_SHA", attestation.sourceSha.status],
+    ["LOCKFILE_SHA", attestation.lockfileSha.status],
+    ["DIST_TREE_SHA", attestation.distTreeSha.status],
+    ["PROD_CLOSURE_SHA", attestation.prodClosureSha.status],
+    ["RUNTIME_ENTRYPOINT_EXISTS", attestation.runtimeEntrypointExists ? "PASS" : "FAIL"],
+    ["RUNTIME_IMPORT", attestation.runtimeImport],
+  ];
+  for (const [name, status] of legs) console.error(`lab: ${name}=${status}`);
+  if (attestation.closureError) console.error(`lab: closure: ${attestation.closureError}`);
+  if (attestation.importError) console.error(`lab: import: ${attestation.importError}`);
+  if (attestation.missingExports?.length) {
+    console.error(`lab: missing protocol exports: ${attestation.missingExports.join(", ")}`);
+  }
+  die(
+    "the promoted TCLK runtime is NOT attested — refusing to hand a module to protocol consumers",
+    "rebuild and re-promote from the pinned commit (lab/runtime-attest.mjs explains each leg); the loader will not install, build or repair anything itself",
+  );
+}
+
+/** SOURCE_ATTESTED AND DIST_ATTESTED AND DEPENDENCIES_ATTESTED AND IMPORTABLE. */
+export const runtimeAttestation = attestation === null ? "COMPARISON_OVERRIDE" : "PASS";
+
+/** The reviewed runtime identity actually enforced for this process, for artifacts to record. */
+export const runtimeIdentity = attestation === null
+  ? Object.freeze({ runtimeAttestation, comparisonOverride: true, sourceCommit: head })
+  : Object.freeze({
+      runtimeAttestation,
+      algorithm: attestation.algorithm,
+      sourceCommit: attestation.sourceSha.expected,
+      lockfileSha256: attestation.lockfileSha.expected,
+      distTreeSha256: attestation.distTreeSha.expected,
+      prodClosureSha256: attestation.prodClosureSha.expected,
+      distFileCount: attestation.distFileCount,
+      closurePackageCount: attestation.closurePackageCount,
+      entrypoint: attestation.runtimeEntrypoint,
+    });
+
+/**
+ * The full public surface of the resolved upstream library, read-only.
+ *
+ * Reached only through the gate above: the attested path reuses the module the attestation itself
+ * imported (importing twice would leave a window in which the bytes could change between the two),
+ * and the override path imports the clone whose SHA the caller asserted.
+ */
+export const tclk = attestation === null ? await import(DIST_IN_USE.href) : attestation.module;

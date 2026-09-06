@@ -105,6 +105,122 @@
       "Candidate declared pnpm@11.25.0; effective audit pnpm was activated with Corepack."
     ]
   },
+  "runtimeAttestation": {
+    "$comment": "Phase 3B.1-R2. The identity of the TCLK runtime this lab EXECUTES, not merely the commit it was cut from. Phase 3B.1-R proved dist/ was a reproducible build of the pin and the promoted runtime still could not load: dist/transcript.js imports @scure/base and no production dependency closure had been promoted. Runtime identity is therefore the conjunction of source SHA + lockfile SHA + dist tree SHA + production dependency closure SHA + an entrypoint that actually imports. Verified by lab/runtime-attest.mjs; enforced by lab/upstream.mjs. Content-addressed evidence only: no node_modules and no dependency bytes are tracked in git.",
+    "algorithm": "blackbox-tclk-runtime-v1",
+    "repository": "https://github.com/flop-labs/tclk",
+    "sourceCommit": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "packageName": "@flop-labs/tclk",
+    "packageVersion": "0.1.0",
+    "toolchain": {
+      "nodeVersion": "v24.18.0",
+      "platform": "win32",
+      "arch": "x64",
+      "packageManager": "pnpm",
+      "packageManagerVersion": "11.25.0",
+      "declaredPackageManager": "pnpm@11.25.0"
+    },
+    "lockfile": {
+      "path": "pnpm-lock.yaml",
+      "sha256": "94bce4421a367073e906119bcc8e702395972406200852acee0c1d74411e7233"
+    },
+    "build": {
+      "command": "pnpm install --frozen-lockfile && pnpm build",
+      "buildScript": "tsc -p tsconfig.json",
+      "generators": [
+        "scripts/generate-frame-fields.mjs -> src/frame-fields.generated.ts (committed at the pin; `pnpm check:protocol` verifies the checked-in file matches the generator, so the build is not generator-order dependent)"
+      ],
+      "reproducedBuilds": 2,
+      "note": "Two independent clean clones of the pin, installed and built in isolation, produced the identical dist tree digest below."
+    },
+    "dist": {
+      "algorithm": "blackbox-tclk-dist-tree-v1",
+      "sha256": "01cd72e1b9a518d5caa7f2c279a021182c37b5dfee3da804f26893e7f90ce27b",
+      "fileCount": 45,
+      "totalBytes": 179229,
+      "entrypoint": "index.js",
+      "entrypointSha256": "6c3aec8220d05ac9166463e95e1998b0f79eb1654636161cad0188eff674361d"
+    },
+    "productionDependencyClosure": {
+      "algorithm": "blackbox-tclk-prod-closure-v1",
+      "sha256": "c772b5b1b250f4e0381f71fa12f0ca02dc1fee44fdd2763fce7e7e8811b5f3b8",
+      "packageCount": 3,
+      "reproducedBuilds": 2,
+      "installCommand": "pnpm install --prod --frozen-lockfile --ignore-scripts",
+      "lifecycleScriptsExecuted": "none",
+      "lifecycleScriptReview": "No package in the production closure declares preinstall/install/postinstall, and none needs one: @noble/curves, @noble/hashes and @scure/base are pure-JS, prebuilt, zero-dependency packages with no native component. --ignore-scripts is therefore an assertion of an audited fact, not a blanket suppression. The attested package's own prepublishOnly (pnpm build) is a publish hook and is never an install hook.",
+      "rootDependencies": ["@noble/curves", "@noble/hashes", "@scure/base"],
+      "optionalRootDependencies": [],
+      "peerRootRequirements": [],
+      "devDependenciesExcluded": ["@types/node", "typescript", "vitest"],
+      "packages": [
+        {
+          "name": "@noble/curves",
+          "version": "2.4.0",
+          "resolutionId": "@noble/curves@2.4.0",
+          "lockIntegrity": "sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==",
+          "contentSha256": "7b0d9fb15a7ceb6274c30eeb46ab6c6ffe2e56b44e6bdde18bdb0f863d95c126",
+          "fileCount": 72,
+          "totalBytes": 1590210
+        },
+        {
+          "name": "@noble/hashes",
+          "version": "2.4.0",
+          "resolutionId": "@noble/hashes@2.4.0",
+          "lockIntegrity": "sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==",
+          "contentSha256": "c6f031bad631936c8cef1828200be69bf4bf55ff108f8a5900e40713b70c688a",
+          "fileCount": 60,
+          "totalBytes": 691646
+        },
+        {
+          "name": "@scure/base",
+          "version": "2.4.0",
+          "resolutionId": "@scure/base@2.4.0",
+          "lockIntegrity": "sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==",
+          "contentSha256": "db4ebe04559a5dadec8ee4b5d6b47bd6de8c984d0aa9cf6baa539a84e2354436",
+          "fileCount": 6,
+          "totalBytes": 145274
+        }
+      ],
+      "requiredBy": {
+        "@scure/base": "dist/transcript.js -> bare `import '@scure/base'` (base64url of canonical transcript bytes); root `dependencies` edge of @flop-labs/tclk. Its absence was the Phase 3B.1-R BLOCKED_RUNTIME_UNLOADABLE finding."
+      }
+    },
+    "runtimeImport": {
+      "expectedEntrypoint": "dist/index.js",
+      "expectedProtocolExports": [
+        "TCLK_VERSION",
+        "TCLK_PREFIX",
+        "TCLK_DOMAIN",
+        "MAX_FRAME_CHARS",
+        "makeOffer",
+        "makeAccept",
+        "makeHeartbeat",
+        "applyFrame",
+        "encodeFrame",
+        "decodeFrame",
+        "validateFrame",
+        "canonicalJson",
+        "contractId",
+        "dealRoom",
+        "offerId",
+        "foldTranscript"
+      ],
+      "note": "A floor, not the full exported surface: pinning every name would make an upstream addition indistinguishable from a compromise. Checked AFTER import, because a module that loads but is not the protocol must also be refused."
+    },
+    "staleArtifactIncident": {
+      "$comment": "Preserved, not overwritten. The originally promoted dist was a different artifact from an earlier commit; the repaired attestation is additive and this record keeps the incident falsifiable.",
+      "classification": "STALE_UNATTESTED",
+      "distTreeSha256": "f5d914bc87904072048cc109e90bbf39655eb7fad44ac5f92736a2080c937fee",
+      "fileCount": 36,
+      "totalBytes": 132552,
+      "entrypointSha256": "ef0900921d5fbcf8163e36724cb90f0d8825c505d257063cc53117b5fadce5ab",
+      "detectedBy": "lab/pin-build-integrity.mjs (Phase 3B.1)",
+      "negativeControl": "blackbox/tests/phase3b1r2.test.mjs asserts this tree is REFUSED against the reviewed identity above"
+    }
+  },
   "capturedAt": "2026-09-04T05:27:00+03:00",
-  "capturedBy": "flop-tclk-lab Phase 3A.2 candidate adoption (offline, read-only upstream audit)"
+  "capturedBy": "flop-tclk-lab Phase 3A.2 candidate adoption (offline, read-only upstream audit)",
+  "runtimeAttestationCapturedAt": "2026-09-06T01:45:00+03:00",
+  "runtimeAttestationCapturedBy": "flop-tclk-lab Phase 3B.1-R2 executable runtime attestation (offline; no signing, no nonce, no Technocore access)"
 }

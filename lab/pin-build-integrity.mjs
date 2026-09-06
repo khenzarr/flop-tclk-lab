@@ -20,15 +20,15 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { resolve as resolvePath } from "node:path";
 
 const ROOT = new URL("../", import.meta.url);
 const CLONE = new URL(".upstream/tclk/", ROOT);
-const at = (rel) => fileURLToPath(new URL(rel, CLONE));
-const read = (rel) => readFileSync(at(rel), "utf8");
 
 /** Clone HEAD, resolved the way lab/upstream.mjs resolves it: no git shell-out. */
-function cloneHead() {
-  const dotGit = at(".git");
+function cloneHead(cloneDir) {
+  const atClone = (rel) => resolvePath(cloneDir, rel);
+  const dotGit = atClone(".git");
   let gitDir = dotGit;
   if (statSync(dotGit).isFile()) {
     const pointer = readFileSync(dotGit, "utf8").trim();
@@ -87,7 +87,7 @@ const dispatchCases = (text) =>
   [...new Set([...text.matchAll(/case "([a-z]+)":/g)].map((x) => x[1]))].sort();
 
 /** Module basenames, so a .ts/.js extension difference is not mistaken for a real one. */
-function moduleNames(dir, ext) {
+function moduleNames(at, dir, ext) {
   return new Set(
     readdirSync(at(dir))
       .filter((f) => f.endsWith(ext) && !f.endsWith(`.d${ext}`))
@@ -103,23 +103,43 @@ function moduleNames(dir, ext) {
  * tables. Anything else is a stale or foreign build and no byte-exact freeze may be claimed
  * against it.
  */
-export function probePinBuildIntegrity() {
+export function probePinBuildIntegrity({ cloneDir = fileURLToPath(CLONE), distDir, baselinePath } = {}) {
+  const cloneRoot = resolvePath(cloneDir);
+  const distRoot = resolvePath(distDir ?? resolvePath(cloneRoot, "dist"));
+  const at = (rel) => resolvePath(cloneRoot, rel);
+  const atDist = (rel) => resolvePath(distRoot, rel);
+  const read = (rel) => readFileSync(at(rel), "utf8");
+  const readDist = (rel) => readFileSync(atDist(rel), "utf8");
   const baseline = JSON.parse(
-    readFileSync(fileURLToPath(new URL("evidence/upstream-baseline.json", ROOT)), "utf8"),
+    readFileSync(baselinePath ?? fileURLToPath(new URL("evidence/upstream-baseline.json", ROOT)), "utf8"),
   );
 
   const srcFrames = read("src/frames.ts");
-  const distFrames = read("dist/frames.js");
+  const distFrames = readDist("frames.js");
   const srcCases = dispatchCases(read("src/machine.ts"));
-  const distCases = dispatchCases(read("dist/machine.js"));
+  const distCases = dispatchCases(readDist("machine.js"));
 
-  const srcMods = moduleNames("src", ".ts");
-  const distMods = moduleNames("dist", ".js");
+  const srcMods = moduleNames(at, "src", ".ts");
+  const distMods = new Set(readdirSync(atDist(".")).filter((f) => f.endsWith(".js") && !f.endsWith(".d.js")).map((f) => f.slice(0, -3)));
   const missingFromDist = [...srcMods].filter((m) => !distMods.has(m)).sort();
   const missingFromSrc = [...distMods].filter((m) => !srcMods.has(m)).sort();
 
   const srcTable = fieldTable(read("src/frame-fields.generated.ts"), "FRAME_FIELDS");
-  const distTable = fieldTable(distFrames, "const KEYS");
+
+  // Where the artifact keeps its frame field table is itself provenance evidence. A build of the
+  // pin emits the generated table as its own module (dist/frame-fields.generated.js, exporting
+  // FRAME_FIELDS, compiled from src/frame-fields.generated.ts); the stale artifact predates that
+  // generator and inlined an equivalent table in dist/frames.js as `const KEYS`. Read whichever
+  // the artifact actually carries and record which one, so a stale artifact is still detected by
+  // its *contents* instead of being reported — wrongly — as missing every frame.
+  const distTableIsGeneratedModule = existsSync(atDist("frame-fields.generated.js"));
+  const distFieldTableSource = distTableIsGeneratedModule
+    ? "dist/frame-fields.generated.js"
+    : "dist/frames.js";
+  const distTable = distTableIsGeneratedModule
+    ? fieldTable(readDist("frame-fields.generated.js"), "FRAME_FIELDS")
+    : fieldTable(distFrames, "const KEYS");
+
 
   const frameFieldDeltas = [];
   const names = [
@@ -145,7 +165,7 @@ export function probePinBuildIntegrity() {
     }
   }
 
-  const head = cloneHead();
+  const head = cloneHead(cloneDir);
   const cloneOnPin = head === baseline.commit;
   const casesMatch = srcCases.join(",") === distCases.join(",");
   const coherent =
@@ -168,10 +188,12 @@ export function probePinBuildIntegrity() {
     pinnedSourceExportsMakeHeartbeat: /export function makeHeartbeat/.test(srcFrames),
     builtArtifactExportsMakeHeartbeat: /function makeHeartbeat/.test(distFrames),
     pinnedSourceUsesGeneratedFieldTable: /frame-fields\.generated/.test(srcFrames),
-    builtArtifactHasGeneratedFieldTable: existsSync(at("dist/frame-fields.generated.js")),
+    builtArtifactHasGeneratedFieldTable: distTableIsGeneratedModule,
+    builtArtifactFieldTableSource: distFieldTableSource,
     frameFieldDeltaCount: frameFieldDeltas.length,
+
     frameFieldDeltas,
-    builtArtifactMtime: statSync(at("dist/frames.js")).mtime.toISOString(),
+    builtArtifactMtime: statSync(atDist("frames.js")).mtime.toISOString(),
     pinnedSourceMtime: statSync(at("src/frames.ts")).mtime.toISOString(),
     distIsABuildOfThePin: coherent,
     verdict: coherent ? "PIN_BUILD_COHERENT" : "STALE_BUILD__EXECUTED_PROTOCOL_IS_NOT_THE_PIN",

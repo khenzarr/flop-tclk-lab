@@ -9,7 +9,7 @@
   },
   "adoptedPin": "d48e87343200e3115e243df39e8f295f5ce2e645",
   "pinIsAdopted": true,
-  "canonicalSignerPublicInterface": "Signer.sign_room(room, text) -> SignedOperation(did, room, nonce, signature, text)",
+  "canonicalSignerPublicInterface": "Signer.sign_room_detached(room, text) -> SignedOperation(did, room, nonce, signature, text)",
   "adapterMode": "MOCK",
   "realCanonicalSignerAccessed": false,
   "realSignaturePerformed": false,
