@@ -53,6 +53,31 @@ const afterLock = state.status;
 const revealResult = tclk.applyFrame(state, revealFrame, NOW);
 state = revealResult.state ?? revealResult;
 
+// The four frames are signed room writes.  The pinned PaperRail also performs two
+// unsigned KV mutations during the lock/reveal lifecycle.  Exercise that rail with
+// the same fixture terms so the frozen public footprint records both mutations rather
+// than silently counting only the room frames.
+const paperNotes = new tclk.MemoryNoteStore();
+const paperRail = new tclk.PaperRail(paperNotes, () => NOW);
+const paperTerms = {
+  contract,
+  lock: 'hash',
+  statement: lock.hash,
+  amount: offer.amount,
+  asset: offer.asset,
+  payer: DID_A,
+  payee: DID_B,
+  claimByMs: offer.claimByMs,
+  refundAfterMs: offer.refundAfterMs,
+};
+const paperRef = await paperRail.lock(paperTerms);
+const paperLockNote = tclk.paperNote(paperRef);
+await paperRail.claim(paperRef, PREIMAGE);
+const paperClaimNote = tclk.paperNote(paperRef);
+if (JSON.stringify(paperLockNote) !== JSON.stringify(paperClaimNote)) {
+  throw new Error('phase3b manifest: PaperRail lock and claim did not target one note');
+}
+
 const frameSpecs = [
   { write: 1, frame: offer, type: 'offer', room: tclk.OFFER_ROOM, signerRole: 'party A / payer', stateBefore: null, stateAfter: 'proposed' },
   { write: 2, frame: accept, type: 'accept', room: tclk.OFFER_ROOM, signerRole: 'party B / payee', stateBefore: 'proposed', stateAfter: 'accepted' },
@@ -73,6 +98,11 @@ const trajectory = [before, afterAccept, afterLock, state.status];
 if (trajectory.join(' -> ') !== 'proposed -> accepted -> locked -> claimed') {
   throw new Error(`phase3b manifest: unexpected fixture trajectory ${trajectory.join(' -> ')}`);
 }
+
+const paperRailWrites = [
+  { write: 5, operation: 'lock', note: paperLockNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false },
+  { write: 6, operation: 'claim', note: paperClaimNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false },
+];
 
 const manifest = {
   schema: 'tclk-blackbox/phase3b-exact-manifest/v1',
@@ -131,9 +161,11 @@ const manifest = {
   frameSet: {
     sequence: ['offer', 'accept', 'lock', 'reveal'],
     signedRoomWrites: 4,
-    totalPublicWrites: 4,
+    unsignedPaperRailNoteWrites: 2,
+    totalPublicWrites: 6,
     terminalFrame: 'reveal',
     frames,
+    paperRailWrites,
   },
   fixtureReplay: {
     fixtureOnly: true,
@@ -147,7 +179,7 @@ const manifest = {
     dealRoom: tclk.dealRoom(contract),
     preimageStored: false,
   },
-  manifestRoot: sha256(JSON.stringify({ provenance: { tclkPin: PIN, sourceSha: runtimeIdentity.sourceCommit, distTreeSha256: runtimeIdentity.distTreeSha256, productionClosureSha256: runtimeIdentity.prodClosureSha256 }, frames })),
+  manifestRoot: sha256(JSON.stringify({ provenance: { tclkPin: PIN, sourceSha: runtimeIdentity.sourceCommit, distTreeSha256: runtimeIdentity.distTreeSha256, productionClosureSha256: runtimeIdentity.prodClosureSha256 }, frames, paperRailWrites })),
   limitations: [
     'This freezes a future write plan; it does not authorize signing, nonce reservation, submission or observation.',
     'Both DIDs are controlled by one human operator and are not evidence of economic independence.',
@@ -158,7 +190,7 @@ const manifest = {
 await writeFile(new URL('../evidence/phase3b-exact-manifest.json', import.meta.url), `${JSON.stringify(manifest, null, 2)}\n`);
 await writeFile(new URL('../docs/PHASE3B_EXACT_MANIFEST.md', import.meta.url), `# Phase 3B.1 — exact write manifest\n\n` +
   `**FROZEN** against the runtime-attested TCLK pin \`${PIN}\`. This is a fixture-only, unsigned, unposted plan.\n\n` +
-  `- Manifest root: \`${manifest.manifestRoot}\`\n- Runtime attestation: \`${runtimeAttestation}\`\n- Source SHA: \`${runtimeIdentity.sourceCommit}\`\n- Dist tree SHA: \`${runtimeIdentity.distTreeSha256}\`\n- Production closure SHA: \`${runtimeIdentity.prodClosureSha256}\`\n- Fixture trajectory: \`${trajectory.join(' → ')}\`\n- Safety: no key access, signature, nonce reservation, transport, network, public action or value movement.\n\n` +
+  `- Manifest root: \`${manifest.manifestRoot}\`\n- Runtime attestation: \`${runtimeAttestation}\`\n- Source SHA: \`${runtimeIdentity.sourceCommit}\`\n- Lockfile SHA: \`${runtimeIdentity.lockfileSha256}\`\n- Dist tree SHA: \`${runtimeIdentity.distTreeSha256}\`\n- Production closure SHA: \`${runtimeIdentity.productionClosureSha256}\`\n- Canonical signing commit: \`124d621dd8c68b04bed79744ab332e8305093d02\`\n- Canonical enrollment commit: \`3675aeacdb73656285c4253b6d6d8d937afe25d6\`\n- Technocore evidence: \`82d942936050f1ab0fb9f34db17893b89f3e064b\`\n- Public footprint: 4 signed TCLK room writes + 2 unsigned PaperRail KV note writes = 6\n- PaperRail trust: every note mutation is SIGNED=false, WORLD_WRITABLE=true, AUTHORSHIP_PROOF=NONE, EVIDENCE_CLASS=UNSIGNED_RAIL_OBSERVATION\n- Fixture trajectory: \`${trajectory.join(' → ')}\`\n- Safety: no key access, signature, nonce reservation, transport, network, public action or value movement.\n\n` +
   `The reveal preimage and execution id are deliberately absent. This artifact is not an authorization to execute a public write.\n`);
 
 console.log(JSON.stringify({

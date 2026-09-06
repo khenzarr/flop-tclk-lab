@@ -65,7 +65,8 @@
       "reveal"
     ],
     "signedRoomWrites": 4,
-    "totalPublicWrites": 4,
+    "unsignedPaperRailNoteWrites": 2,
+    "totalPublicWrites": 6,
     "terminalFrame": "reveal",
     "frames": [
       {
@@ -153,6 +154,34 @@
         "public": true,
         "valueMoved": false
       }
+    ],
+    "paperRailWrites": [
+      {
+        "write": 5,
+        "operation": "lock",
+        "note": {
+          "ns": "tclk-paper-8c",
+          "key": "98fc454fe1028d"
+        },
+        "signed": false,
+        "worldWritable": true,
+        "authorshipProof": "NONE",
+        "evidenceClass": "UNSIGNED_RAIL_OBSERVATION",
+        "valueMoved": false
+      },
+      {
+        "write": 6,
+        "operation": "claim",
+        "note": {
+          "ns": "tclk-paper-8c",
+          "key": "98fc454fe1028d"
+        },
+        "signed": false,
+        "worldWritable": true,
+        "authorshipProof": "NONE",
+        "evidenceClass": "UNSIGNED_RAIL_OBSERVATION",
+        "valueMoved": false
+      }
     ]
   },
   "fixtureReplay": {
@@ -172,7 +201,7 @@
     "dealRoom": "mb-p-tclk-8c98fc454fe1028d",
     "preimageStored": false
   },
-  "manifestRoot": "ac52d9eeb749628a7b89c9bf174c2700eb5b30985ee80dd28357924822073f0c",
+  "manifestRoot": "9be158c613e68533a1700fdb2e08fac1adcacba16370551a98403b7d10922d8f",
   "limitations": [
     "This freezes a future write plan; it does not authorize signing, nonce reservation, submission or observation.",
     "Both DIDs are controlled by one human operator and are not evidence of economic independence.",

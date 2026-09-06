@@ -122,6 +122,16 @@ test('frozen manifest derives from attested runtime and remains inert', () => {
   assert.equal(manifest.provenance.productionClosureSha256, reviewed.productionDependencyClosure.sha256);
   assert.deepEqual(manifest.fixtureReplay.trajectory, ['proposed', 'accepted', 'locked', 'claimed']);
   assert.equal(manifest.frameSet.signedRoomWrites, 4);
+  assert.equal(manifest.frameSet.unsignedPaperRailNoteWrites, 2);
+  assert.equal(manifest.frameSet.totalPublicWrites, 6);
+  assert.deepEqual(manifest.frameSet.paperRailWrites.map(write => write.operation), ['lock', 'claim']);
+  for (const write of manifest.frameSet.paperRailWrites) {
+    assert.equal(write.signed, false);
+    assert.equal(write.worldWritable, true);
+    assert.equal(write.authorshipProof, 'NONE');
+    assert.equal(write.evidenceClass, 'UNSIGNED_RAIL_OBSERVATION');
+    assert.equal(write.valueMoved, false);
+  }
   assert.equal(manifest.safety.realCanonicalKeyAccessed, false);
   assert.equal(manifest.safety.realSignaturePerformed, false);
   assert.equal(manifest.safety.realNonceConsumed, false);
