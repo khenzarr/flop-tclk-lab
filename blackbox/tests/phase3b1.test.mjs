@@ -225,3 +225,6 @@ test('blocker doc states the halt, the reason and the remediation order', () => 
   assert.ok(prose.includes(SIGNING_SHA));
   assert.ok(prose.includes(ENROLLMENT_SHA));
 });
+
+
+

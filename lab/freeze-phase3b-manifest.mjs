@@ -122,7 +122,7 @@ const manifest = {
     distTreeSha256: runtimeIdentity.distTreeSha256,
     productionClosureSha256: runtimeIdentity.prodClosureSha256,
     runtimeEntrypoint: runtimeIdentity.entrypoint,
-    signingCommit: '124d621dd8c68b04bed79744ab332e8305093d02',
+    signingCommit: 'e0005e5d6aa3df309743c5469012afa1d0f726f9',
     enrollmentCommit: '3675aeacdb73656285c4253b6d6d8d937afe25d6',
     technocoreEvidence: '82d942936050f1ab0fb9f34db17893b89f3e064b',
   },
@@ -179,7 +179,7 @@ const manifest = {
     dealRoom: tclk.dealRoom(contract),
     preimageStored: false,
   },
-  manifestRoot: sha256(JSON.stringify({ provenance: { tclkPin: PIN, sourceSha: runtimeIdentity.sourceCommit, distTreeSha256: runtimeIdentity.distTreeSha256, productionClosureSha256: runtimeIdentity.prodClosureSha256 }, frames, paperRailWrites })),
+  manifestRoot: sha256(JSON.stringify({ provenance: { tclkPin: PIN, sourceSha: runtimeIdentity.sourceCommit, distTreeSha256: runtimeIdentity.distTreeSha256, productionClosureSha256: runtimeIdentity.prodClosureSha256, signingCommit: 'e0005e5d6aa3df309743c5469012afa1d0f726f9', enrollmentCommit: '3675aeacdb73656285c4253b6d6d8d937afe25d6' }, frames, paperRailWrites })),
   limitations: [
     'This freezes a future write plan; it does not authorize signing, nonce reservation, submission or observation.',
     'Both DIDs are controlled by one human operator and are not evidence of economic independence.',
@@ -190,7 +190,7 @@ const manifest = {
 await writeFile(new URL('../evidence/phase3b-exact-manifest.json', import.meta.url), `${JSON.stringify(manifest, null, 2)}\n`);
 await writeFile(new URL('../docs/PHASE3B_EXACT_MANIFEST.md', import.meta.url), `# Phase 3B.1 — exact write manifest\n\n` +
   `**FROZEN** against the runtime-attested TCLK pin \`${PIN}\`. This is a fixture-only, unsigned, unposted plan.\n\n` +
-  `- Manifest root: \`${manifest.manifestRoot}\`\n- Runtime attestation: \`${runtimeAttestation}\`\n- Source SHA: \`${runtimeIdentity.sourceCommit}\`\n- Lockfile SHA: \`${runtimeIdentity.lockfileSha256}\`\n- Dist tree SHA: \`${runtimeIdentity.distTreeSha256}\`\n- Production closure SHA: \`${runtimeIdentity.productionClosureSha256}\`\n- Canonical signing commit: \`124d621dd8c68b04bed79744ab332e8305093d02\`\n- Canonical enrollment commit: \`3675aeacdb73656285c4253b6d6d8d937afe25d6\`\n- Technocore evidence: \`82d942936050f1ab0fb9f34db17893b89f3e064b\`\n- Public footprint: 4 signed TCLK room writes + 2 unsigned PaperRail KV note writes = 6\n- PaperRail trust: every note mutation is SIGNED=false, WORLD_WRITABLE=true, AUTHORSHIP_PROOF=NONE, EVIDENCE_CLASS=UNSIGNED_RAIL_OBSERVATION\n- Fixture trajectory: \`${trajectory.join(' → ')}\`\n- Safety: no key access, signature, nonce reservation, transport, network, public action or value movement.\n\n` +
+  `- Manifest root: \`${manifest.manifestRoot}\`\n- Runtime attestation: \`${runtimeAttestation}\`\n- Source SHA: \`${runtimeIdentity.sourceCommit}\`\n- Lockfile SHA: \`${runtimeIdentity.lockfileSha256}\`\n- Dist tree SHA: \`${runtimeIdentity.distTreeSha256}\`\n- Production closure SHA: \`${runtimeIdentity.productionClosureSha256}\`\n- Canonical signing commit: \`e0005e5d6aa3df309743c5469012afa1d0f726f9\`\n- Canonical enrollment commit: \`3675aeacdb73656285c4253b6d6d8d937afe25d6\`\n- Technocore evidence: \`82d942936050f1ab0fb9f34db17893b89f3e064b\`\n- Public footprint: 4 signed TCLK room writes + 2 unsigned PaperRail KV note writes = 6\n- PaperRail trust: every note mutation is SIGNED=false, WORLD_WRITABLE=true, AUTHORSHIP_PROOF=NONE, EVIDENCE_CLASS=UNSIGNED_RAIL_OBSERVATION\n- Fixture trajectory: \`${trajectory.join(' → ')}\`\n- Safety: no key access, signature, nonce reservation, transport, network, public action or value movement.\n\n` +
   `The reveal preimage and execution id are deliberately absent. This artifact is not an authorization to execute a public write.\n`);
 
 console.log(JSON.stringify({
@@ -200,3 +200,4 @@ console.log(JSON.stringify({
   trajectory,
   signed: false, posted: false, publicActions: 0,
 }, null, 2));
+

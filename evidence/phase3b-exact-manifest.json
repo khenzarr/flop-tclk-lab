@@ -16,7 +16,7 @@
     "distTreeSha256": "01cd72e1b9a518d5caa7f2c279a021182c37b5dfee3da804f26893e7f90ce27b",
     "productionClosureSha256": "c772b5b1b250f4e0381f71fa12f0ca02dc1fee44fdd2763fce7e7e8811b5f3b8",
     "runtimeEntrypoint": "index.js",
-    "signingCommit": "124d621dd8c68b04bed79744ab332e8305093d02",
+    "signingCommit": "e0005e5d6aa3df309743c5469012afa1d0f726f9",
     "enrollmentCommit": "3675aeacdb73656285c4253b6d6d8d937afe25d6",
     "technocoreEvidence": "82d942936050f1ab0fb9f34db17893b89f3e064b"
   },
@@ -201,7 +201,7 @@
     "dealRoom": "mb-p-tclk-8c98fc454fe1028d",
     "preimageStored": false
   },
-  "manifestRoot": "9be158c613e68533a1700fdb2e08fac1adcacba16370551a98403b7d10922d8f",
+  "manifestRoot": "9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7",
   "limitations": [
     "This freezes a future write plan; it does not authorize signing, nonce reservation, submission or observation.",
     "Both DIDs are controlled by one human operator and are not evidence of economic independence.",

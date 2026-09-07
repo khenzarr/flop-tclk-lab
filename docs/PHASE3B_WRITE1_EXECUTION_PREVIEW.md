@@ -5,7 +5,7 @@ nonce reservation, submission, observation, or PaperRail writes.
 
 | Field | Frozen value |
 |---|---|
-| Manifest root | `9be158c613e68533a1700fdb2e08fac1adcacba16370551a98403b7d10922d8f` |
+| Manifest root | `9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7` |
 | Operation ID | `phase3b-write-1` |
 | Frame | `offer` |
 | Signer | `did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi` (DID A) |
@@ -38,3 +38,9 @@ budget is acquired before exactly one POST. A timeout, connection loss, 408,
 
 No signature, nonce, budget, custody access, network call, public action, or
 PaperRail write was performed to produce this artifact.
+
+Canonical signing authority: `e0005e5d6aa3df309743c5469012afa1d0f726f9`.
+Historical default detached-signing review checkpoint: `e0005e5d6aa3df309743c5469012afa1d0f726f9`.
+Named-profile enrollment implementation: `3675aeacdb73656285c4253b6d6d8d937afe25d6`.
+
+

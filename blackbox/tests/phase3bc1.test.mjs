@@ -210,3 +210,6 @@ test('added sibling files do not falsely trip the unchanged check', () => {
   const verdict = compareSnapshots(before, fingerprintRoot(root));
   assert.equal(verdict.unchanged, true);
 });
+
+
+

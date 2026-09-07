@@ -281,3 +281,6 @@ test('phase verdict is honest about what is and is not proved', () => {
   // The fingerprint algorithm recorded in Phase 3B.C1 still holds for the public DID.
   assert.equal(c1.didAKeyFingerprint, sha256Hex(DID_A));
 });
+
+
+

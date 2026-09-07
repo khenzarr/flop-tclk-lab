@@ -4,23 +4,57 @@
   "fixtureOnly": true,
   "signed": false,
   "posted": false,
-  "manifestRoot": "9be158c613e68533a1700fdb2e08fac1adcacba16370551a98403b7d10922d8f",
+  "manifestRoot": "9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7",
   "operationId": "phase3b-write-1",
-  "runtime": { "attestation": "PASS", "sourceSha": "d48e87343200e3115e243df39e8f295f5ce2e645", "signingCommit": "124d621dd8c68b04bed79744ab332e8305093d02" },
+  "runtime": {
+    "attestation": "PASS",
+    "sourceSha": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "signingCommit": "e0005e5d6aa3df309743c5469012afa1d0f726f9"
+  },
   "frame": "offer",
   "signerDid": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
   "room": "tclk-offers",
   "publicFields": {
     "from": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
-    "role": "payer", "amount": "100", "asset": "FLOP", "lock": "hash", "rails": ["paper"],
-    "claimByMs": 1800000600000, "refundAfterMs": 1800003600000, "expiresMs": 1800007200000,
-    "type": "offer", "id": "0x127c4deb2cf4e200035a76961358632ce9763a3cd48193f52b2c6d7ae10c0714",
-    "signature": "WILL_BE_PUBLIC_AFTER_SUBMIT", "signedNonce": "WILL_BE_PUBLIC_AFTER_SUBMIT"
+    "role": "payer",
+    "amount": "100",
+    "asset": "FLOP",
+    "lock": "hash",
+    "rails": [
+      "paper"
+    ],
+    "claimByMs": 1800000600000,
+    "refundAfterMs": 1800003600000,
+    "expiresMs": 1800007200000,
+    "type": "offer",
+    "id": "0x127c4deb2cf4e200035a76961358632ce9763a3cd48193f52b2c6d7ae10c0714",
+    "signature": "WILL_BE_PUBLIC_AFTER_SUBMIT",
+    "signedNonce": "WILL_BE_PUBLIC_AFTER_SUBMIT"
   },
-  "runtimeOnlyFields": ["signature", "signedNonce"],
-  "stateBefore": "PLANNED", "stateAfterIfAccepted": "ACCEPTED_BY_MACHINE",
-  "signBudgetId": "SIGN:phase3b-write-1", "submitBudgetId": "SUBMIT:phase3b-write-1",
-  "observationMatching": { "room": "tclk-offers", "signedNonce": "SIGNED_OPERATION_NONCE", "canonicalLine": "SIGNED_OPERATION_TEXT" },
-  "failureRules": ["SIGN budget before signer boundary", "SUBMIT budget before one POST", "ACK_RECEIVED != OBSERVED_PUBLIC", "uncertain submit is never retried"],
-  "paperRail": "NOT INVOLVED YET", "valueMoved": false, "payment": false, "settlement": false, "flopRewardProof": false
+  "runtimeOnlyFields": [
+    "signature",
+    "signedNonce"
+  ],
+  "stateBefore": "PLANNED",
+  "stateAfterIfAccepted": "ACCEPTED_BY_MACHINE",
+  "signBudgetId": "SIGN:phase3b-write-1",
+  "submitBudgetId": "SUBMIT:phase3b-write-1",
+  "observationMatching": {
+    "room": "tclk-offers",
+    "signedNonce": "SIGNED_OPERATION_NONCE",
+    "canonicalLine": "SIGNED_OPERATION_TEXT"
+  },
+  "failureRules": [
+    "SIGN budget before signer boundary",
+    "SUBMIT budget before one POST",
+    "ACK_RECEIVED != OBSERVED_PUBLIC",
+    "uncertain submit is never retried"
+  ],
+  "paperRail": "NOT INVOLVED YET",
+  "valueMoved": false,
+  "payment": false,
+  "settlement": false,
+  "flopRewardProof": false
 }
+
+

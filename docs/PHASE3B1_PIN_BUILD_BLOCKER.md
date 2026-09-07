@@ -80,7 +80,7 @@ This agrees with Phase 3B.0. `src/frames.ts` also carries `job` and `presig` typ
 
 | role | commit |
 |---|---|
-| `canonicalSigningCommit` | `124d621dd8c68b04bed79744ab332e8305093d02` |
+| `canonicalSigningCommit` | `e0005e5d6aa3df309743c5469012afa1d0f726f9` |
 | `canonicalEnrollmentCommit` | `3675aeacdb73656285c4253b6d6d8d937afe25d6` |
 
 Both stored artifacts — `evidence/phase3b-counterparty-identity.json` and
@@ -121,3 +121,7 @@ unmodified.
 `READY_FOR_FIRST_PUBLIC_WRITE=NO` — two independent reasons now: the pin-build gap above, and
 DID B's signing route, which remains `ENROLLED_BUT_SIGNING_ROUTE_UNPROVEN` from Phase 3B.C1b and
 was not re-audited here because the phase halted before Part 14.
+
+
+
+Historical provenance: reviewed canonical signing checkpoint 124d621dd8c68b04bed79744ab332e8305093d02; named-profile enrollment checkpoint 3675aeacdb73656285c4253b6d6d8d937afe25d6.

@@ -1,6 +1,6 @@
 // The only Blackbox-to-canonical signer boundary. stdout is always captured and never logged.
 //
-// PHASE 3A.10.3 — the real route is executable in source, and remains non-automatable:
+// PHASE 3B.2-PREP — the human real SIGN route is executable; SUBMIT/OBSERVE remain unavailable:
 //
 //   * `custody: 'real'` refuses unless this process owns an interactive operator terminal, and the
 //     child then runs its OWN request-bound interactive confirmation before touching custody;
@@ -9,7 +9,7 @@
 //   * for real custody the child's stdin and stderr stay attached to the human terminal, so a
 //     later custody credential prompt is typed directly into the canonical child. Node cannot
 //     read, proxy, or capture it. Only stdout (the machine response) is captured;
-//   * the one-signature budget is process-local and consumed BEFORE the child is contacted.
+//   * the durable one-shot budget is consumed BEFORE the child is contacted.
 //
 // Fixture validation drives this same function; only the custody provider and the interactive
 // input provider are test implementations.
@@ -22,18 +22,15 @@ import { randomUUID } from 'node:crypto';
 import { rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
-import { REVIEWED_CANONICAL_COMMIT, RealSignatureBudget } from './budget.mjs';
+import { REVIEWED_CANONICAL_COMMIT } from './budget.mjs';
+import { acquireOneShotAttempt } from './attempt-budget.mjs';
 import { requireInteractiveOperatorTerminal } from './operator-approval.mjs';
 
 const execFileAsync = promisify(execFile);
 const BLACKBOX_ROOT = fileURLToPath(new URL('../', import.meta.url));
-export const CANONICAL_WORKTREE = resolve(BLACKBOX_ROOT, '..', '..', 'technocore-agent-canonical-human-execution', 'local-agent');
+export const CANONICAL_WORKTREE = resolve(BLACKBOX_ROOT, '..', '..', 'technocore-agent-canonical-profile-signing', 'local-agent');
 export const DETACHED_REQUEST_SCHEMA = 'technocore-detached-sign-request/v2';
 export const DETACHED_PURPOSE = 'DETACHED_ROOM_SIGNING';
-
-/** Process-local: a second real attempt in one run is an error, never an accident. */
-const REAL_BUDGET = new RealSignatureBudget();
-export const realSignatureBudget = () => REAL_BUDGET.snapshot();
 
 export function canonicalPython(worktree) {
   const candidates = process.platform === 'win32'
@@ -98,7 +95,7 @@ export function detachedRequestFrame({ room, text, requestId }) {
  */
 export async function invokeDetachedBridge({
   room, text, requestId = randomUUID(), custody = 'fixture',
-  worktree = CANONICAL_WORKTREE, state, approvalResponse,
+  worktree = CANONICAL_WORKTREE, state, approvalResponse, profile = 'default', expectedSignerDid,
 } = {}) {
   if (custody !== 'fixture' && custody !== 'real') throw new Error('REFUSE: custody mode is invalid');
   await assertReviewedCanonicalWorktree(worktree);
@@ -106,8 +103,6 @@ export async function invokeDetachedBridge({
   if (real) {
     // Fail closed before any custody handoff when no human owns this terminal.
     requireInteractiveOperatorTerminal();
-    // Taken before the signer is contacted: a signature that fails afterwards still happened.
-    REAL_BUDGET.consume('real-canonical-detached-signature');
   }
   const statePath = state ?? (real ? protectedCustodyStateRoot()
     : resolve(tmpdir(), `flop-tclk-fixture-state-${randomUUID()}`));
@@ -116,9 +111,11 @@ export async function invokeDetachedBridge({
     '--request-file', requestPath, '--custody', custody, '--state', statePath];
   // Fixture-only interactive input provider. The canonical child refuses it for real custody, so
   // it can never become an approval bypass; real custody has no approval argument at all.
-  if (!real) args.push('--approval-source', 'fixture', '--approval-response', approvalResponse ?? 'correct');
+    if (!real) args.push('--approval-source', 'fixture', '--approval-response', approvalResponse ?? 'correct');
   try {
-    await writeFile(requestPath, JSON.stringify(detachedRequestFrame({ room, text, requestId })), { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    const request = { ...detachedRequestFrame({ room, text, requestId }), profile, ...(expectedSignerDid ? { expectedSignerDid } : {}) };
+    await writeFile(requestPath, JSON.stringify(request), { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    if (real) acquireOneShotAttempt({ purpose: 'PHASE3B_SIGN', operationClass: 'REAL_DETACHED_ROOM_SIGNATURE', subject: requestId });
     const { code, stdout, stderr } = await runBridgeProcess(canonicalPython(worktree), args, {
       cwd: worktree,
       env: { ...process.env, PYTHONPATH: 'src' },
@@ -147,3 +144,6 @@ export function invokeFixtureDetachedBridge(options = {}) {
 export function invokeRealDetachedBridge(options = {}) {
   return invokeDetachedBridge({ ...options, custody: 'real' });
 }
+
+
+

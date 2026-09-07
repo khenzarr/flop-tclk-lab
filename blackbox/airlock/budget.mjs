@@ -55,7 +55,7 @@ export const AUDITED_NONCE_EVIDENCE_SHA = '82d942936050f1ab0fb9f34db17893b89f3e0
  * own interactive operator confirmation. Both are retained so the transition stays auditable.
  */
 export const PRE_ENABLEMENT_CANONICAL_COMMIT = 'a1c7d9ae31e2e5c11387dde91ff4945d25ceea10';
-export const REVIEWED_CANONICAL_COMMIT = '124d621dd8c68b04bed79744ab332e8305093d02';
+export const REVIEWED_CANONICAL_COMMIT = 'e0005e5d6aa3df309743c5469012afa1d0f726f9';
 
 /**
  * Gate A is mode-aware. `gateA(string)` is retained as a fail-closed legacy compatibility call.
@@ -232,3 +232,5 @@ export class RealSignatureBudget {
     });
   }
 }
+
+
