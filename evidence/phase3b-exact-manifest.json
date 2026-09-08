@@ -1,7 +1,9 @@
 {
   "schema": "tclk-blackbox/phase3b-exact-manifest/v1",
-  "phase": "3B.1",
-  "kind": "fixture-only-exact-write-manifest",
+  "phase": "3B",
+  "kind": "superseding-authoritative-execution-manifest",
+  "supersedesManifestRoot": "9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7",
+  "manifestTransitionReason": "EXECUTION_BINDING_CORRECTION_BEFORE_REMAINING_ACTIONS",
   "generatedBy": "flop-tclk-lab Phase 3B.1-R2 runtime-attested manifest freeze",
   "frozen": true,
   "signed": false,
@@ -55,14 +57,19 @@
     "signAndSubmitSeparate": true,
     "automaticRetries": 0,
     "noncePolicy": "GENERATED_AND_RESERVED_INSIDE_TRUSTED_SIGNER_AT_EXECUTION; fixture nonces above are not reservations",
-    "revealSecretPolicy": "GENERATED_AT_EXECUTION; omitted from this artifact"
+    "revealSecretPolicy": "LOCAL_CSPRNG_32_BYTE_HEX_PREIMAGE; COMMITMENT_ONLY_IN_MANIFEST",
+    "secretStatePath": "blackbox/state/phase3b-deal-secret/phase3b-deal.json",
+    "secretCommitmentAlgorithm": "SHA-256(raw 32-byte preimage)",
+    "secretCommitment": "0xa61c5a96e1d34850eb4e747ba49ee6ff663cf1cae0258ae37d6ae4694a7830fc"
   },
   "frameSet": {
     "sequence": [
       "offer",
       "accept",
       "lock",
-      "reveal"
+      "paper-lock",
+      "reveal",
+      "paper-claim"
     ],
     "signedRoomWrites": 4,
     "unsignedPaperRailNoteWrites": 2,
@@ -70,6 +77,8 @@
     "terminalFrame": "reveal",
     "frames": [
       {
+        "operationId": "phase3b-write-1",
+        "ordinal": 1,
         "write": 1,
         "type": "offer",
         "room": "tclk-offers",
@@ -98,6 +107,8 @@
         "valueMoved": false
       },
       {
+        "operationId": "phase3b-write-2",
+        "ordinal": 2,
         "write": 2,
         "type": "accept",
         "room": "tclk-offers",
@@ -108,48 +119,52 @@
           "type": "accept",
           "from": "did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW",
           "ref": "0x127c4deb2cf4e200035a76961358632ce9763a3cd48193f52b2c6d7ae10c0714",
-          "statement": "0x9a2db2e23f1504cd056606553ac049c5e718e8f9ce9233876df1a7a1821af885",
+          "statement": "0xa61c5a96e1d34850eb4e747ba49ee6ff663cf1cae0258ae37d6ae4694a7830fc",
           "nonce": "1112131415161718",
-          "contract": "0x8c98fc454fe1028da2377a47b0831421527ba74ffe0f809f3540d3a0bd36c23c"
+          "contract": "0x62b08bcfe4331e3af8e47b9e42661264e97e898c7e0ae850fc4452f17a16a078"
         },
-        "canonicalFrameHash": "244b9859638a41c75f48228e888011b9f28fa59a2e0db023e5781c67b0c2c5bf",
+        "canonicalFrameHash": "172fb6e08e946e91a169a76e8b32b5474df31f8f0cb86e7865d953de624ad93f",
         "payloadBytes": 352,
         "public": true,
         "valueMoved": false
       },
       {
+        "operationId": "phase3b-write-3",
+        "ordinal": 3,
         "write": 3,
         "type": "lock",
-        "room": "mb-p-tclk-8c98fc454fe1028d",
+        "room": "mb-p-tclk-62b08bcfe4331e3a",
         "signerRole": "party A / payer",
         "stateBefore": "accepted",
         "stateAfter": "locked",
         "canonicalFrame": {
           "type": "lock",
           "from": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
-          "contract": "0x8c98fc454fe1028da2377a47b0831421527ba74ffe0f809f3540d3a0bd36c23c",
+          "contract": "0x62b08bcfe4331e3af8e47b9e42661264e97e898c7e0ae850fc4452f17a16a078",
           "rail": "paper",
           "ref": "paper-ref-1"
         },
-        "canonicalFrameHash": "4e3b8860655417cc3b827c672a72b0305f78cadbe82210fcea413f4343263fd7",
+        "canonicalFrameHash": "2f7e35b445ad252746f05d42d0a6ffd29276bb781895ec5f7c88a6a0c183122b",
         "payloadBytes": 202,
         "public": true,
         "valueMoved": false
       },
       {
+        "operationId": "phase3b-write-4",
+        "ordinal": 5,
         "write": 4,
         "type": "reveal",
-        "room": "mb-p-tclk-8c98fc454fe1028d",
+        "room": "mb-p-tclk-62b08bcfe4331e3a",
         "signerRole": "party B / payee",
         "stateBefore": "locked",
         "stateAfter": "claimed",
         "canonicalFrame": {
           "type": "reveal",
           "from": "did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW",
-          "contract": "0x8c98fc454fe1028da2377a47b0831421527ba74ffe0f809f3540d3a0bd36c23c",
-          "secret": "<GENERATED_AT_EXECUTION>"
+          "contract": "0x62b08bcfe4331e3af8e47b9e42661264e97e898c7e0ae850fc4452f17a16a078",
+          "secret": "<LOCAL_SECRET_AT_EXECUTION>"
         },
-        "canonicalFrameHash": "ad6a2cbae96687a6749a231148ef59e5dca2192a392a228127c4ffa1000446c5",
+        "canonicalFrameHash": "d9534d74913d9bed990af56b99182ca79f3d0c8f74d5fa0fe167865f9a44a097",
         "payloadBytes": 247,
         "public": true,
         "valueMoved": false
@@ -158,29 +173,35 @@
     "paperRailWrites": [
       {
         "write": 5,
+        "operationId": "phase3b-write-5",
+        "ordinal": 4,
         "operation": "lock",
         "note": {
-          "ns": "tclk-paper-8c",
-          "key": "98fc454fe1028d"
+          "ns": "tclk-paper-62",
+          "key": "b08bcfe4331e3a"
         },
         "signed": false,
         "worldWritable": true,
         "authorshipProof": "NONE",
         "evidenceClass": "UNSIGNED_RAIL_OBSERVATION",
-        "valueMoved": false
+        "valueMoved": false,
+        "valueCommitment": "ee22cd643ecf35841960c77eb747b4cb9c591f80415d848e350a32a16c36479e"
       },
       {
         "write": 6,
+        "operationId": "phase3b-write-6",
+        "ordinal": 6,
         "operation": "claim",
         "note": {
-          "ns": "tclk-paper-8c",
-          "key": "98fc454fe1028d"
+          "ns": "tclk-paper-62",
+          "key": "b08bcfe4331e3a"
         },
         "signed": false,
         "worldWritable": true,
         "authorshipProof": "NONE",
         "evidenceClass": "UNSIGNED_RAIL_OBSERVATION",
-        "valueMoved": false
+        "valueMoved": false,
+        "valueCommitment": "ee22cd643ecf35841960c77eb747b4cb9c591f80415d848e350a32a16c36479e"
       }
     ]
   },
@@ -196,12 +217,12 @@
     "acceptOk": true,
     "lockOk": true,
     "revealOk": true,
-    "contractId": "0x8c98fc454fe1028da2377a47b0831421527ba74ffe0f809f3540d3a0bd36c23c",
+    "contractId": "0x62b08bcfe4331e3af8e47b9e42661264e97e898c7e0ae850fc4452f17a16a078",
     "offerId": "0x127c4deb2cf4e200035a76961358632ce9763a3cd48193f52b2c6d7ae10c0714",
-    "dealRoom": "mb-p-tclk-8c98fc454fe1028d",
+    "dealRoom": "mb-p-tclk-62b08bcfe4331e3a",
     "preimageStored": false
   },
-  "manifestRoot": "9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7",
+  "manifestRoot": "d452f8fcc877f9bb5ba199c20a0d96d3b220075be48d3ffd8aa625bb10ece694",
   "limitations": [
     "This freezes a future write plan; it does not authorize signing, nonce reservation, submission or observation.",
     "Both DIDs are controlled by one human operator and are not evidence of economic independence.",

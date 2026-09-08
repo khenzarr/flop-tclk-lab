@@ -2,6 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { runRealSubmit, runRealObserve } from './phase3b-submit-observe.mjs';
 
@@ -25,12 +26,21 @@ export async function loadExactManifest() {
 
 function manifestFrame(manifest, operationId) {
   const frame = manifest.frameSet?.frames?.find(candidate => `phase3b-write-${candidate.write}` === operationId);
-  if (!frame || frame.write !== 1 || frame.type !== 'offer') throw new Error('WRITE1_FRAME_NOT_FROZEN');
+  if (!frame || !['offer', 'accept', 'lock', 'reveal'].includes(frame.type)) throw new Error('MANIFEST_FRAME_NOT_FROZEN');
   return frame;
 }
 
-function attestPayload(frame, prepareFrame) {
-  const prepared = prepareFrame(frame.canonicalFrame);
+function executionPayload(frame, operationId) {
+  if (operationId !== 'phase3b-write-4') return frame.canonicalFrame;
+  const secretPath = resolve('blackbox/state/phase3b-deal-secret/phase3b-deal.json');
+  let state;
+  try { state = JSON.parse(readFileSync(secretPath, 'utf8')); } catch { throw new Error('REVEAL_SECRET_STATE_MISSING'); }
+  if (!/^0x[0-9a-f]{64}$/.test(state.secret)) throw new Error('REVEAL_SECRET_STATE_INVALID');
+  return { ...frame.canonicalFrame, secret: state.secret };
+}
+
+function attestPayload(frame, operationId, prepareFrame) {
+  const prepared = prepareFrame(executionPayload(frame, operationId));
   if (prepared.canonicalHash !== frame.canonicalFrameHash) throw new Error('CANONICAL_FRAME_HASH_MISMATCH');
   if (prepared.payloadBytes !== frame.payloadBytes) throw new Error('CANONICAL_FRAME_LENGTH_MISMATCH');
   return prepared;
@@ -44,15 +54,12 @@ export async function runRealSign(options = {}) {
   ]);
   const signing = await import('./airlock/budget.mjs');
   const { operationId = OPERATION, preflight = false } = options;
-  const firstSignIdentity = Object.freeze({ purpose: 'PHASE3B_SIGN', operationClass: 'REAL_DETACHED_ROOM_SIGNATURE', subject: operationId });
-  const recoverySubject = 'phase3b-write-1-sign-attempt-2';
-  const recoverySignIdentity = Object.freeze({ purpose: 'PHASE3B_SIGN', operationClass: 'REAL_DETACHED_ROOM_SIGNATURE', subject: recoverySubject });
+  const firstSignIdentity = Object.freeze({ purpose: 'PHASE3B_SIGN', operationClass: 'REAL_DETACHED_ROOM_SIGNATURE', subject: `${operationId}-sign` });
   const frozen = await frozenOperation(operationId, { prepareFrame: prepare.prepareFrame, buildRequest: envelope.buildRequest, reviewedCommit: signing.REVIEWED_CANONICAL_COMMIT });
   await bridge.assertReviewedCanonicalWorktree();
   const firstStatus = budget.inspectOneShotAttempt(firstSignIdentity);
-  const recoveryStatus = budget.inspectOneShotAttempt(recoverySignIdentity);
   const pending = pendingSignedOperation(operationId, frozen.manifest.manifestRoot, pendingModule.readPendingSignedOperation);
-  const signIdentity = resolveSignBudgetIdentity({ firstStatus, recoveryStatus, pendingSignedOperation: pending, firstSignIdentity, recoverySignIdentity });
+  const signIdentity = resolveSignBudgetIdentity({ firstStatus, pendingSignedOperation: pending, firstSignIdentity });
   const review = showReview(frozen, firstStatus, approval);
   if (preflight) return Object.freeze({ stopped: 'PREFLIGHT_ONLY', budgetMutations: 0, requestId: frozen.requestId,
     signSubject: signIdentity.subject, signBudgetState: budget.inspectOneShotAttempt(signIdentity).state, verified: false, posted: false });
@@ -63,16 +70,16 @@ export async function runRealSign(options = {}) {
   await bridge.assertReviewedCanonicalWorktree();
   const signBudget = budget.acquireOneShotAttempt(signIdentity, { root: budget.BUDGET_ROOT });
   const response = await bridge.invokeRealDetachedBridge({ ...frozen, requestId: signIdentity.subject, signBudget });
-  if (!verifyCanonicalSignedOperation(response, frozen, signer, signing.REVIEWED_CANONICAL_COMMIT)) throw new Error('REFUSED: canonical signer response did not verify against WRITE1');
+  if (!verifyCanonicalSignedOperation(response, frozen, signer, signing.REVIEWED_CANONICAL_COMMIT)) throw new Error('REFUSED: canonical signer response did not verify against manifest operation');
   const saved = pendingModule.writePendingSignedOperation(pendingRecord(response, frozen), PENDING_SIGNED_OPERATION_ROOT);
   return Object.freeze({ requestId: frozen.requestId, room: response.room, did: response.did, nonce: response.nonce,
     custodyMode: response.custodyMode, canonicalCommit: response.canonicalCommit, budgetId: signBudget.budgetId,
     pendingPath: saved.path, pendingSha256: saved.sha256, verified: true, posted: false });
 }
 
-export function resolveSignBudgetIdentity({ firstStatus, recoveryStatus, pendingSignedOperation = null, firstSignIdentity, recoverySignIdentity }) {
+export function resolveSignBudgetIdentity({ firstStatus, recoveryStatus = null, pendingSignedOperation = null, firstSignIdentity, recoverySignIdentity = null }) {
   if (pendingSignedOperation !== null) throw new Error('PENDING_SIGNED_OPERATION_EXISTS');
-  if (firstStatus?.state === 'SPENT') {
+  if (firstStatus?.state === 'SPENT' && recoverySignIdentity) {
     if (recoveryStatus?.state !== 'AVAILABLE') throw new Error('RECOVERY_SIGN_ALREADY_SPENT_OR_UNAVAILABLE');
     return recoverySignIdentity;
   }
@@ -109,30 +116,29 @@ function pendingRecord(response, frozen) {
 
 export async function frozenOperation(operationId = OPERATION, { prepareFrame, buildRequest, reviewedCommit } = {}) {
   if (!operationPattern.test(operationId)) throw new Error('operation selector is invalid');
-  if (operationId !== OPERATION) throw new Error('operation is not frozen for real SIGN');
   const [manifest, preview] = await Promise.all([
     loadExactManifest(), readFile(PREVIEW_PATH, 'utf8').then(JSON.parse),
   ]);
-  if (preview.operationId !== operationId || preview.manifestRoot !== manifest.manifestRoot) throw new Error('FROZEN_MANIFEST_ROOT_MISMATCH');
+  if (preview.manifestRoot !== manifest.manifestRoot) throw new Error('FROZEN_MANIFEST_ROOT_MISMATCH');
   if (preview.runtime?.signingCommit !== reviewedCommit) throw new Error('frozen canonical signer is invalid');
   const frame = manifestFrame(manifest, operationId);
-  const prepared = attestPayload(frame, prepareFrame);
-  if (prepared.signerDid !== preview.signerDid || prepared.intendedRoom !== preview.room) throw new Error('FROZEN_WRITE1_BINDING_MISMATCH');
+  const prepared = attestPayload(frame, operationId, prepareFrame);
+  if (prepared.signerDid !== frame.canonicalFrame.from || prepared.intendedRoom !== frame.room) throw new Error('FROZEN_MANIFEST_BINDING_MISMATCH');
   const request = buildRequest(prepared, { createdAt: '2026-01-01T00:00:00.000Z' });
   return Object.freeze({ manifest, preview, frame, prepared, request, room: prepared.intendedRoom,
-    text: prepared.canonicalPayload, requestId: operationId, profile: 'default', expectedSignerDid: prepared.signerDid });
+    text: prepared.canonicalPayload, requestId: operationId, profile: frame.signerRole.includes('party B') ? 'phase3b-counterparty-b' : 'default', expectedSignerDid: prepared.signerDid });
 }
 
 function showReview(frozen, recoveryStatus, approval) {
   const { request } = frozen;
   const review = approval.reviewSnapshot(request, { canonicalCommit: frozen.preview.runtime.signingCommit, tclkPin: frozen.manifest.provenance.tclkPin, phase3bReuse: 'NO' });
   console.log('------------------------------------------------');
-  console.log('TCLK BLACKBOX — WRITE #1 OFFER SIGN RECOVERY');
+  console.log(`TCLK BLACKBOX — ${frozen.request.intendedOperation} SIGN REVIEW`);
   console.log('------------------------------------------------');
   console.log(`FRAME TYPE\n${request.frameType}\n\nROOM\n${review.room}\n\nSIGNER DID\n${review.signerDid}`);
   console.log(`\nCANONICAL FRAME HASH\n${review.canonicalHash}\n\nCANONICAL PAYLOAD BYTES\n${request.payloadBytes}`);
   console.log(`\nMANIFEST ROOT\n${frozen.manifest.manifestRoot}\n\nSIGNED TEXT SOURCE\n${SIGNED_TEXT_SOURCE}`);
-  console.log(`\nAPPROVAL CODE\n${approval.approvalCode(request)}\n\nATTEMPT 1\n${recoveryStatus.state}\nRECOVERY SUBJECT\nphase3b-write-1-sign-attempt-2`);
+  console.log(`\nAPPROVAL CODE\n${approval.approvalCode(request)}\n\nSIGN BUDGET\n${recoveryStatus.state}`);
   console.log('\nNETWORK SUBMISSION\nDISABLED\nSTOP AFTER LOCAL VERIFICATION');
   return review;
 }

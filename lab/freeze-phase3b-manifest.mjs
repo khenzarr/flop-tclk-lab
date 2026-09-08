@@ -7,8 +7,10 @@
 // It creates no signer, reserves no nonce, contacts no transport, and never writes a preimage to
 // the manifest.  The values below are deterministic test-vector inputs, not execution credentials.
 
-import { createHash } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { createHash, randomBytes } from 'node:crypto';
+import { mkdir, open, readFile, writeFile, chmod } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { runtimeAttestation, runtimeIdentity, tclk, baseline } from './upstream.mjs';
 
@@ -17,7 +19,27 @@ const PIN = 'd48e87343200e3115e243df39e8f295f5ce2e645';
 const DID_A = 'did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi';
 const DID_B = 'did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW';
 const NOW = 1800000000000;
-const PREIMAGE = `0x${'ab'.repeat(32)}`;
+const SECRET_PATH = fileURLToPath(new URL('../blackbox/state/phase3b-deal-secret/phase3b-deal.json', import.meta.url));
+
+async function createDealSecret() {
+  await mkdir(dirname(SECRET_PATH), { recursive: true });
+  let secret;
+  try {
+    const existing = JSON.parse(await readFile(SECRET_PATH, 'utf8'));
+    if (!/^0x[0-9a-f]{64}$/.test(existing.secret)) throw new Error('SECRET_STATE_CONFLICT');
+    secret = existing.secret;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    secret = `0x${randomBytes(32).toString('hex')}`;
+    const fd = await open(SECRET_PATH, 'wx', 0o600);
+    try { await fd.writeFile(`${JSON.stringify({ schema: 'tclk/phase3b-deal-secret/v1', contract: 'derived-after-accept', secret })}\n`); await fd.sync(); }
+    finally { await fd.close(); }
+    try { await chmod(SECRET_PATH, 0o600); } catch {}
+  }
+  return secret;
+}
+
+const PREIMAGE = await createDealSecret();
 
 const sha256 = value => createHash('sha256').update(value, 'utf8').digest('hex');
 const frameHash = frame => sha256(tclk.encodeFrame(frame));
@@ -86,8 +108,10 @@ const frameSpecs = [
 ];
 
 const frames = frameSpecs.map(({ frame, ...spec }) => ({
+  operationId: `phase3b-write-${spec.write}`,
+  ordinal: spec.write === 5 ? 4 : spec.write === 4 ? 5 : spec.write,
   ...spec,
-  canonicalFrame: spec.type === 'reveal' ? { ...clone(frame), secret: '<GENERATED_AT_EXECUTION>' } : clone(frame),
+  canonicalFrame: spec.type === 'reveal' ? { ...clone(frame), secret: '<LOCAL_SECRET_AT_EXECUTION>' } : clone(frame),
   canonicalFrameHash: frameHash(frame),
   payloadBytes: Buffer.byteLength(tclk.encodeFrame(frame), 'utf8'),
   public: true,
@@ -100,14 +124,16 @@ if (trajectory.join(' -> ') !== 'proposed -> accepted -> locked -> claimed') {
 }
 
 const paperRailWrites = [
-  { write: 5, operation: 'lock', note: paperLockNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false },
-  { write: 6, operation: 'claim', note: paperClaimNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false },
+  { write: 5, operationId: 'phase3b-write-5', ordinal: 4, operation: 'lock', note: paperLockNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false, valueCommitment: sha256(tclk.canonicalJson(await paperNotes.get(paperLockNote.ns, paperLockNote.key))) },
+  { write: 6, operationId: 'phase3b-write-6', ordinal: 6, operation: 'claim', note: paperClaimNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false, valueCommitment: sha256(tclk.canonicalJson(await paperNotes.get(paperClaimNote.ns, paperClaimNote.key))) },
 ];
 
 const manifest = {
   schema: 'tclk-blackbox/phase3b-exact-manifest/v1',
-  phase: '3B.1',
-  kind: 'fixture-only-exact-write-manifest',
+  phase: '3B',
+  kind: 'superseding-authoritative-execution-manifest',
+  supersedesManifestRoot: '9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7',
+  manifestTransitionReason: 'EXECUTION_BINDING_CORRECTION_BEFORE_REMAINING_ACTIONS',
   generatedBy: 'flop-tclk-lab Phase 3B.1-R2 runtime-attested manifest freeze',
   frozen: true,
   signed: false,
@@ -156,10 +182,13 @@ const manifest = {
     signAndSubmitSeparate: true,
     automaticRetries: 0,
     noncePolicy: 'GENERATED_AND_RESERVED_INSIDE_TRUSTED_SIGNER_AT_EXECUTION; fixture nonces above are not reservations',
-    revealSecretPolicy: 'GENERATED_AT_EXECUTION; omitted from this artifact',
+    revealSecretPolicy: 'LOCAL_CSPRNG_32_BYTE_HEX_PREIMAGE; COMMITMENT_ONLY_IN_MANIFEST',
+    secretStatePath: 'blackbox/state/phase3b-deal-secret/phase3b-deal.json',
+    secretCommitmentAlgorithm: 'SHA-256(raw 32-byte preimage)',
+    secretCommitment: lock.hash,
   },
   frameSet: {
-    sequence: ['offer', 'accept', 'lock', 'reveal'],
+    sequence: ['offer', 'accept', 'lock', 'paper-lock', 'reveal', 'paper-claim'],
     signedRoomWrites: 4,
     unsignedPaperRailNoteWrites: 2,
     totalPublicWrites: 6,
@@ -179,13 +208,15 @@ const manifest = {
     dealRoom: tclk.dealRoom(contract),
     preimageStored: false,
   },
-  manifestRoot: sha256(JSON.stringify({ provenance: { tclkPin: PIN, sourceSha: runtimeIdentity.sourceCommit, distTreeSha256: runtimeIdentity.distTreeSha256, productionClosureSha256: runtimeIdentity.prodClosureSha256, signingCommit: 'e0005e5d6aa3df309743c5469012afa1d0f726f9', enrollmentCommit: '3675aeacdb73656285c4253b6d6d8d937afe25d6' }, frames, paperRailWrites })),
+  manifestRoot: '',
   limitations: [
     'This freezes a future write plan; it does not authorize signing, nonce reservation, submission or observation.',
     'Both DIDs are controlled by one human operator and are not evidence of economic independence.',
     'PaperRail moves no value and proves no settlement.',
   ],
 };
+
+manifest.manifestRoot = sha256(JSON.stringify({ ...manifest, manifestRoot: undefined }));
 
 await writeFile(new URL('../evidence/phase3b-exact-manifest.json', import.meta.url), `${JSON.stringify(manifest, null, 2)}\n`);
 await writeFile(new URL('../docs/PHASE3B_EXACT_MANIFEST.md', import.meta.url), `# Phase 3B.1 — exact write manifest\n\n` +

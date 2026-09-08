@@ -4,7 +4,7 @@
   "fixtureOnly": true,
   "signed": false,
   "posted": false,
-  "manifestRoot": "9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7",
+  "manifestRoot": "d452f8fcc877f9bb5ba199c20a0d96d3b220075be48d3ffd8aa625bb10ece694",
   "operationId": "phase3b-write-1",
   "runtime": {
     "attestation": "PASS",
@@ -65,5 +65,3 @@
   "settlement": false,
   "flopRewardProof": false
 }
-
-

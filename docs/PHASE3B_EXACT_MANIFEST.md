@@ -2,7 +2,7 @@
 
 **FROZEN** against the runtime-attested TCLK pin `d48e87343200e3115e243df39e8f295f5ce2e645`. This is a fixture-only, unsigned, unposted plan.
 
-- Manifest root: `9887263d84fb29a6fd99de286793a5e31ad84c6cd3c354ea62cd6582829632e7`
+- Manifest root: `d452f8fcc877f9bb5ba199c20a0d96d3b220075be48d3ffd8aa625bb10ece694`
 - Runtime attestation: `PASS`
 - Source SHA: `d48e87343200e3115e243df39e8f295f5ce2e645`
 - Lockfile SHA: `94bce4421a367073e906119bcc8e702395972406200852acee0c1d74411e7233`

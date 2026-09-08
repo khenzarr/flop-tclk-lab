@@ -8,6 +8,7 @@ import { prepareFrame } from './airlock/prepare.mjs';
 import manifest from '../evidence/phase3b-exact-manifest.json' with { type: 'json' };
 
 export const CURRENT_MANIFEST_ROOT = manifest.manifestRoot;
+export const PUBLIC_ORDER = Object.freeze(['phase3b-write-1', 'phase3b-write-2', 'phase3b-write-3', 'phase3b-write-5', 'phase3b-write-4', 'phase3b-write-6']);
 
 export const PHASE3B_STATES = Object.freeze([
   'PLANNED', 'APPROVED_FOR_SIGN', 'SIGN_ATTEMPTED', 'SIGNED', 'APPROVED_FOR_SUBMIT',
@@ -36,6 +37,21 @@ export function operationId(frame) {
   return `phase3b-write-${frame.write}`;
 }
 
+export function manifestOperation(operationIdValue) {
+  if (!PUBLIC_ORDER.includes(operationIdValue)) throw new Error('UNKNOWN_OPERATION');
+  const frame = manifest.frameSet.frames.find(item => item.operationId === operationIdValue);
+  if (frame) return Object.freeze({ ...frame, actionClass: 'TCLK', rail: 'technocore', operationId: operationIdValue });
+  const rail = manifest.frameSet.paperRailWrites.find(item => item.operationId === operationIdValue);
+  if (rail) return Object.freeze({ ...rail, actionClass: 'PaperRail', rail: 'paper' });
+  throw new Error('MANIFEST_OPERATION_MISSING');
+}
+
+export function assertExecutionOrder(completed, operationIdValue) {
+  const expected = PUBLIC_ORDER[completed.length];
+  if (expected !== operationIdValue) throw new Error(`OUT_OF_ORDER_OPERATION:${operationIdValue}:EXPECTED_${expected ?? 'NONE'}`);
+  return true;
+}
+
 export function namedProfile(profile = 'default') {
   if (profile !== 'default' && !/^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/.test(profile)) {
     throw new Error('PROFILE_INVALID');
@@ -52,6 +68,18 @@ export function transition(record, next) {
 export function createOperation(frame, manifestRoot) {
   return Object.freeze({ operationId: operationId(frame), manifestRoot, frame: frame.type, room: frame.room,
     signerDid: frame.canonicalFrame.from, payload: frame.canonicalFrame, state: 'PLANNED', history: ['PLANNED'] });
+}
+
+export function fixtureSignManifestOperation(operationIdValue, { nonce = 1, secret } = {}) {
+  const frame = manifestOperation(operationIdValue);
+  if (frame.actionClass !== 'TCLK') throw new Error('UNSIGNED_OPERATION');
+  const payload = frame.type === 'reveal' && secret ? { ...frame.canonicalFrame, secret } : frame.canonicalFrame;
+  const profile = frame.signerRole.includes('party B') ? 'phase3b-counterparty-b' : 'default';
+  const operation = Object.freeze({ operationId: operationIdValue, manifestRoot: manifest.manifestRoot, frame: frame.type,
+    room: frame.room, signerDid: namedProfile(profile).publicDid, payload, state: 'PLANNED', history: ['PLANNED'] });
+  const prepared = prepareFrame(payload);
+  if (hash(prepared.canonicalPayload) !== frame.canonicalFrameHash || prepared.payloadBytes !== frame.payloadBytes) throw new Error('MANIFEST_PAYLOAD_BINDING_REFUSED');
+  return fixtureSign(operation, { profile, nonce });
 }
 
 const PRIVATE_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');

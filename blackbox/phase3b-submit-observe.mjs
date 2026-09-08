@@ -5,6 +5,8 @@ import { createInterface } from 'node:readline';
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import manifest from '../evidence/phase3b-exact-manifest.json' with { type: 'json' };
+import { PUBLIC_ORDER, manifestOperation } from './phase3b2.mjs';
 import { budgetIdentity, acquireOneShotAttempt, inspectOneShotAttempt, BUDGET_ROOT } from './airlock/attempt-budget.mjs';
 
 export const WRITE1_OPERATION = 'phase3b-write-1';
@@ -40,6 +42,76 @@ const sha256 = value => createHash('sha256').update(value).digest('hex');
 const textSha = text => sha256(Buffer.from(text, 'utf8'));
 const PUBLIC_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+function operationSpec(operationId) {
+  const spec = manifestOperation(operationId);
+  if (spec.actionClass !== 'TCLK') throw new Error('UNSIGNED_OPERATION');
+  return spec;
+}
+
+function genericPendingPath(operationId) { return resolve(PENDING_ROOT, `${operationId}.json`); }
+
+function genericPending(path, operationId) {
+  const record = JSON.parse(readFileSync(path, 'utf8'));
+  const spec = operationSpec(operationId);
+  const integrity = sha256(`${record.manifestRoot}|${record.operationId}|${record.did}|${record.room}|${record.nonce}|${record.text}|${record.signature}`);
+  if (record.manifestRoot !== manifest.manifestRoot || record.operationId !== operationId || integrity !== record.integrity
+    || record.did !== spec.canonicalFrame.from || record.room !== spec.room || !Number.isSafeInteger(record.nonce)
+    || typeof record.text !== 'string' || !record.signature || !verifyPendingRecord(record)) {
+    throw new Error('PENDING_OPERATION_FROZEN_BINDING_REFUSED');
+  }
+  return Object.freeze({ record, rawSha256: sha256(readFileSync(path, 'utf8')), integrity: record.integrity, path });
+}
+
+function genericSubmitPreflight(operationId, budgetRoot) {
+  const spec = operationSpec(operationId);
+  const path = genericPendingPath(operationId);
+  const budget = inspectOneShotAttempt(budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: `${operationId}-submit` }), { root: budgetRoot });
+  if (!existsSync(path)) return Object.freeze({ operationId, room: spec.room, expectedSignerDid: spec.canonicalFrame.from,
+    pendingVerification: 'NOT_YET_SIGNED', pendingPath: path, submitBudget: budget.state,
+    posted: false, budgetMutations: 0, networkCalls: 0 });
+  const pending = genericPending(path, operationId);
+  const request = requestFor(pending.record);
+  return Object.freeze({ operationId, room: spec.room, did: pending.record.did, nonce: pending.record.nonce,
+    pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint,
+    submitBudget: budget.state, posted: false, budgetMutations: 0, networkCalls: 0 });
+}
+
+async function runGenericSubmit({ operationId, preflight, transport, budgetRoot, stateRoot, pendingPath, confirm, afterApproval, reviewSink }) {
+  const spec = operationSpec(operationId);
+  const path = pendingPath === PENDING_PATH ? genericPendingPath(operationId) : pendingPath;
+  if (!existsSync(path)) return genericSubmitPreflight(operationId, budgetRoot);
+  const pending = genericPending(path, operationId);
+  const request = requestFor(pending.record);
+  const budget = inspectOneShotAttempt(budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: `${operationId}-submit` }), { root: budgetRoot });
+  const review = reviewData(pending, request, budget);
+  reviewSink(review);
+  if (preflight) return Object.freeze({ operationId, room: spec.room, did: pending.record.did, nonce: pending.record.nonce,
+    pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint,
+    submitBudget: budget.state, posted: false, budgetMutations: 0, networkCalls: 0 });
+  if (budget.state !== 'AVAILABLE') throw new Error(`SUBMIT_REFUSED:BUDGET_${budget.state}`);
+  if (!await confirm(review)) throw new Error('OPERATOR_CANCELLED: no submit budget or network was used');
+  await afterApproval();
+  const reread = genericPending(path, operationId);
+  assertSamePending(pending, reread);
+  const rereadRequest = requestFor(reread.record);
+  if (rereadRequest.bodySha256 !== request.bodySha256) throw new Error('APPROVAL_INVALIDATED:TRANSPORT_BODY_MUTATED');
+  const identity = budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: `${operationId}-submit` });
+  acquireOneShotAttempt(identity, { root: budgetRoot });
+  const evidence = { schema: 'tclk/phase3b-submit-result/v1', operationId,
+    submitAttemptIdentity: identity.subject, submitBudgetId: budget.budgetId,
+    pendingIntegrity: reread.integrity, pendingArtifactSha256: reread.rawSha256,
+    requestBodySha256: rereadRequest.bodySha256, endpoint: rereadRequest.endpoint, method: 'POST',
+    postCalls: 1, timestamp: new Date().toISOString(), classification: 'SUBMISSION_UNCERTAIN', httpStatus: null };
+  try {
+    const response = await transport(rereadRequest.endpoint, { method: 'POST', headers: rereadRequest.headers, body: rereadRequest.body, redirect: 'error', credentials: 'omit' });
+    evidence.httpStatus = response.status;
+    evidence.classification = classifyResponse(response.status);
+    const body = typeof response.text === 'function' ? await response.text() : '';
+    evidence.responseBodySha256 = sha256(body);
+  } catch (error) { evidence.transportError = error?.code ?? error?.name ?? 'TRANSPORT_EXCEPTION'; }
+  return Object.freeze({ ...evidence, posted: true });
+}
 
 function didPublicKey(did) {
   if (typeof did !== 'string' || !did.startsWith('did:key:z')) throw new Error('PENDING_OPERATION_DID_INVALID');
@@ -199,7 +271,10 @@ export async function runRealSubmit({ operationId = WRITE1_OPERATION, preflight 
   budgetRoot = BUDGET_ROOT, stateRoot = SUBMIT_STATE_ROOT, pendingPath = PENDING_PATH,
   expectedRoot = WRITE1_MANIFEST_ROOT, expectedBindings = {}, confirm = confirmSubmit,
   afterApproval = async () => {}, reviewSink = printSubmitReview } = {}) {
-  if (operationId !== WRITE1_OPERATION) throw new Error('operation is not frozen for real SUBMIT');
+  if (operationId !== WRITE1_OPERATION) {
+    return runGenericSubmit({ operationId, preflight, transport, budgetRoot, stateRoot, pendingPath,
+      confirm, afterApproval, reviewSink });
+  }
   const validation = { path: pendingPath, expectedRoot, expectedOperationId: operationId, ...expectedBindings };
   const pending = validatePendingOperation(validation);
   const request = requestFor(pending.record);
@@ -269,11 +344,25 @@ export function observeMatch(signed, responseJson) {
     observationIdentity: Object.freeze({ room: signed.room, did: signed.did, signedNonce: signed.nonce, canonicalText: signed.text }) });
 }
 
-export async function runRealObserve({ operationId = WRITE1_OPERATION, transport = fetch, pendingPath = PENDING_PATH,
-  expectedRoot = WRITE1_MANIFEST_ROOT, expectedBindings = {} } = {}) {
-  if (operationId !== WRITE1_OPERATION) throw new Error('operation is not frozen for real OBSERVE');
-  const pending = validatePendingOperation({ path: pendingPath, expectedRoot, expectedOperationId: operationId, ...expectedBindings });
-  const response = await transport(SUBMIT_ENDPOINT, { method: 'GET', redirect: 'error', credentials: 'omit', headers: { accept: 'application/json' } });
+async function observeEndpoint(pending, endpoint, transport) {
+  const response = await transport(endpoint, { method: 'GET', redirect: 'error', credentials: 'omit', headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error(`OBSERVATION_READ_FAILED:HTTP_${response.status}`);
-  return Object.freeze({ operationId, endpoint: SUBMIT_ENDPOINT, method: 'GET', ...(observeMatch(pending.record, await response.json())) });
+  return Object.freeze({ endpoint, method: 'GET', ...observeMatch(pending.record, await response.json()) });
+}
+
+export async function runRealObserve({ operationId = WRITE1_OPERATION, transport = fetch, pendingPath = PENDING_PATH,
+  expectedRoot = WRITE1_MANIFEST_ROOT, expectedBindings = {}, exportTransport = transport } = {}) {
+  if (operationId !== WRITE1_OPERATION) {
+    const spec = operationSpec(operationId);
+    const pending = genericPending(pendingPath === PENDING_PATH ? genericPendingPath(operationId) : pendingPath, operationId);
+    const endpoint = `https://technocore.chat/r/${encodeURIComponent(spec.room)}?format=json`;
+    const result = await observeEndpoint(pending, endpoint, transport);
+    if (result.match) return Object.freeze({ operationId, ...result, observationSource: 'ORDINARY_ROOM_GET' });
+    const exportEndpoint = `https://technocore.chat/r/${encodeURIComponent(spec.room)}/export`;
+    const exported = await observeEndpoint(pending, exportEndpoint, exportTransport);
+    return Object.freeze({ operationId, ...exported, observationSource: exported.match ? 'RETAINED_RING_EXPORT' : 'NOT_FOUND_IN_RETAINED_RING' });
+  }
+  const pending = validatePendingOperation({ path: pendingPath, expectedRoot, expectedOperationId: operationId, ...expectedBindings });
+  const result = await observeEndpoint(pending, SUBMIT_ENDPOINT, transport);
+  return Object.freeze({ operationId, ...result, observationSource: result.match ? 'ORDINARY_ROOM_GET' : 'NOT_FOUND_IN_RETAINED_RING' });
 }
