@@ -1,33 +1,19 @@
-// Phase 3B.2-PREP command surface. SIGN is the only reachable human-gated operation;
-// SUBMIT and OBSERVE remain deliberately unavailable. The budget owner lives here, immediately
-// before the irreversible canonical signer boundary, never inside the detached bridge.
+// Phase 3B command surface. Submit/observe are separate from and never import the signer path.
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { prepareFrame } from './airlock/prepare.mjs';
-import { buildRequest } from './airlock/envelope.mjs';
-import { approvalCode, promptHumanOperator, recheckApprovalBinding, reviewSnapshot } from './airlock/operator-approval.mjs';
-import { acquireOneShotAttempt, inspectOneShotAttempt, BUDGET_ROOT } from './airlock/attempt-budget.mjs';
-import { assertReviewedCanonicalWorktree, invokeRealDetachedBridge } from './airlock/detached-bridge.mjs';
-import { REVIEWED_CANONICAL_COMMIT } from './airlock/budget.mjs';
-import { canonicalMessage, cleanText, verifyEd25519 } from './airlock/signer.mjs';
-import { readPendingSignedOperation, writePendingSignedOperation } from './phase3b2.mjs';
+import { runRealSubmit, runRealObserve } from './phase3b-submit-observe.mjs';
 
 export const SIGNED_TEXT_SOURCE = 'ATTESTED_TCLK_CANONICAL_FRAME';
-export const REAL_SIGN_BUDGET_OWNER = 'blackbox/phase3b2-cli.mjs/runRealSign';
-export const RECOVERY_SUBJECT = 'phase3b-write-1-sign-attempt-2';
-export const SIGN_BUDGET_IDENTITY = Object.freeze({ purpose: 'PHASE3B_SIGN', operationClass: 'REAL_DETACHED_ROOM_SIGNATURE' });
 const OPERATION = 'phase3b-write-1';
-const FIRST_SIGN_IDENTITY = Object.freeze({ ...SIGN_BUDGET_IDENTITY, subject: OPERATION });
-const RECOVERY_SIGN_IDENTITY = Object.freeze({ ...SIGN_BUDGET_IDENTITY, subject: RECOVERY_SUBJECT });
 const MANIFEST_PATH = resolve('evidence/phase3b-exact-manifest.json');
 const PREVIEW_PATH = resolve('evidence/phase3b-write1-execution-preview.json');
 export const PENDING_SIGNED_OPERATION_ROOT = resolve('blackbox/state/phase3b-pending-signed');
 const operationPattern = /^phase3b-write-[1-6]$/;
 
 function usage() {
-  console.error('USAGE: phase3b2-cli.mjs sign --operation phase3b-write-1 [--preflight]');
+  console.error('USAGE: phase3b2-cli.mjs <sign|submit|observe> --operation phase3b-write-1 [--preflight]');
   process.exitCode = 2;
 }
 
@@ -43,24 +29,58 @@ function manifestFrame(manifest, operationId) {
   return frame;
 }
 
-function attestPayload(frame) {
+function attestPayload(frame, prepareFrame) {
   const prepared = prepareFrame(frame.canonicalFrame);
   if (prepared.canonicalHash !== frame.canonicalFrameHash) throw new Error('CANONICAL_FRAME_HASH_MISMATCH');
   if (prepared.payloadBytes !== frame.payloadBytes) throw new Error('CANONICAL_FRAME_LENGTH_MISMATCH');
   return prepared;
 }
 
-export function resolveSignBudgetIdentity({ firstStatus, recoveryStatus, pendingSignedOperation = null }) {
+export async function runRealSign(options = {}) {
+  const [prepare, envelope, approval, budget, bridge, signer, pendingModule] = await Promise.all([
+    import('./airlock/prepare.mjs'), import('./airlock/envelope.mjs'), import('./airlock/operator-approval.mjs'),
+    import('./airlock/attempt-budget.mjs'), import('./airlock/detached-bridge.mjs'), import('./airlock/signer.mjs'),
+    import('./phase3b2.mjs'),
+  ]);
+  const signing = await import('./airlock/budget.mjs');
+  const { operationId = OPERATION, preflight = false } = options;
+  const firstSignIdentity = Object.freeze({ purpose: 'PHASE3B_SIGN', operationClass: 'REAL_DETACHED_ROOM_SIGNATURE', subject: operationId });
+  const recoverySubject = 'phase3b-write-1-sign-attempt-2';
+  const recoverySignIdentity = Object.freeze({ purpose: 'PHASE3B_SIGN', operationClass: 'REAL_DETACHED_ROOM_SIGNATURE', subject: recoverySubject });
+  const frozen = await frozenOperation(operationId, { prepareFrame: prepare.prepareFrame, buildRequest: envelope.buildRequest, reviewedCommit: signing.REVIEWED_CANONICAL_COMMIT });
+  await bridge.assertReviewedCanonicalWorktree();
+  const firstStatus = budget.inspectOneShotAttempt(firstSignIdentity);
+  const recoveryStatus = budget.inspectOneShotAttempt(recoverySignIdentity);
+  const pending = pendingSignedOperation(operationId, frozen.manifest.manifestRoot, pendingModule.readPendingSignedOperation);
+  const signIdentity = resolveSignBudgetIdentity({ firstStatus, recoveryStatus, pendingSignedOperation: pending, firstSignIdentity, recoverySignIdentity });
+  const review = showReview(frozen, firstStatus, approval);
+  if (preflight) return Object.freeze({ stopped: 'PREFLIGHT_ONLY', budgetMutations: 0, requestId: frozen.requestId,
+    signSubject: signIdentity.subject, signBudgetState: budget.inspectOneShotAttempt(signIdentity).state, verified: false, posted: false });
+  const approvalResult = await approval.promptHumanOperator(frozen.request);
+  if (!approvalResult.ok) throw new Error(approvalResult.code === 'OPERATOR_CANCELLED' ? 'OPERATOR_CANCELLED: no custody was attempted' : 'WRONG_APPROVAL_CODE: no custody was attempted');
+  const unchanged = approval.recheckApprovalBinding(frozen.request, review, { canonicalCommit: signing.REVIEWED_CANONICAL_COMMIT, tclkPin: frozen.manifest.provenance.tclkPin, phase3bReuse: 'NO' });
+  if (!unchanged.ok) throw new Error(`APPROVAL_INVALIDATED: ${unchanged.findings.join(',')}`);
+  await bridge.assertReviewedCanonicalWorktree();
+  const signBudget = budget.acquireOneShotAttempt(signIdentity, { root: budget.BUDGET_ROOT });
+  const response = await bridge.invokeRealDetachedBridge({ ...frozen, requestId: signIdentity.subject, signBudget });
+  if (!verifyCanonicalSignedOperation(response, frozen, signer, signing.REVIEWED_CANONICAL_COMMIT)) throw new Error('REFUSED: canonical signer response did not verify against WRITE1');
+  const saved = pendingModule.writePendingSignedOperation(pendingRecord(response, frozen), PENDING_SIGNED_OPERATION_ROOT);
+  return Object.freeze({ requestId: frozen.requestId, room: response.room, did: response.did, nonce: response.nonce,
+    custodyMode: response.custodyMode, canonicalCommit: response.canonicalCommit, budgetId: signBudget.budgetId,
+    pendingPath: saved.path, pendingSha256: saved.sha256, verified: true, posted: false });
+}
+
+export function resolveSignBudgetIdentity({ firstStatus, recoveryStatus, pendingSignedOperation = null, firstSignIdentity, recoverySignIdentity }) {
   if (pendingSignedOperation !== null) throw new Error('PENDING_SIGNED_OPERATION_EXISTS');
   if (firstStatus?.state === 'SPENT') {
     if (recoveryStatus?.state !== 'AVAILABLE') throw new Error('RECOVERY_SIGN_ALREADY_SPENT_OR_UNAVAILABLE');
-    return RECOVERY_SIGN_IDENTITY;
+    return recoverySignIdentity;
   }
   if (firstStatus?.state !== 'AVAILABLE') throw new Error('FIRST_SIGN_BUDGET_STATE_INVALID');
-  return FIRST_SIGN_IDENTITY;
+  return firstSignIdentity;
 }
 
-function pendingSignedOperation(operationId, manifestRoot) {
+function pendingSignedOperation(operationId, manifestRoot, readPendingSignedOperation) {
   const path = resolve(PENDING_SIGNED_OPERATION_ROOT, `${operationId}.json`);
   try { return readPendingSignedOperation(path, manifestRoot, operationId); }
   catch (error) {
@@ -69,14 +89,13 @@ function pendingSignedOperation(operationId, manifestRoot) {
   }
 }
 
-export function verifyCanonicalSignedOperation(response, frozen) {
+export function verifyCanonicalSignedOperation(response, frozen, signer, reviewedCommit) {
   const bound = response.room === frozen.room
-    && cleanText(response.text) === cleanText(frozen.text)
     && response.text === frozen.text
     && response.did === frozen.expectedSignerDid
-    && response.canonicalCommit === REVIEWED_CANONICAL_COMMIT
+    && response.canonicalCommit === reviewedCommit
     && response.custodyMode === 'real';
-  return bound && verifyEd25519(response.did, canonicalMessage(response.room, response.nonce, response.text), response.signature);
+  return bound && signer.verifyEd25519(response.did, signer.canonicalMessage(response.room, response.nonce, response.text), response.signature);
 }
 
 function pendingRecord(response, frozen) {
@@ -88,65 +107,47 @@ function pendingRecord(response, frozen) {
   });
 }
 
-export async function frozenOperation(operationId = OPERATION) {
+export async function frozenOperation(operationId = OPERATION, { prepareFrame, buildRequest, reviewedCommit } = {}) {
   if (!operationPattern.test(operationId)) throw new Error('operation selector is invalid');
   if (operationId !== OPERATION) throw new Error('operation is not frozen for real SIGN');
   const [manifest, preview] = await Promise.all([
     loadExactManifest(), readFile(PREVIEW_PATH, 'utf8').then(JSON.parse),
   ]);
   if (preview.operationId !== operationId || preview.manifestRoot !== manifest.manifestRoot) throw new Error('FROZEN_MANIFEST_ROOT_MISMATCH');
-  if (preview.runtime?.signingCommit !== REVIEWED_CANONICAL_COMMIT) throw new Error('frozen canonical signer is invalid');
+  if (preview.runtime?.signingCommit !== reviewedCommit) throw new Error('frozen canonical signer is invalid');
   const frame = manifestFrame(manifest, operationId);
-  const prepared = attestPayload(frame);
+  const prepared = attestPayload(frame, prepareFrame);
   if (prepared.signerDid !== preview.signerDid || prepared.intendedRoom !== preview.room) throw new Error('FROZEN_WRITE1_BINDING_MISMATCH');
   const request = buildRequest(prepared, { createdAt: '2026-01-01T00:00:00.000Z' });
   return Object.freeze({ manifest, preview, frame, prepared, request, room: prepared.intendedRoom,
     text: prepared.canonicalPayload, requestId: operationId, profile: 'default', expectedSignerDid: prepared.signerDid });
 }
 
-function showReview(frozen, recoveryStatus) {
+function showReview(frozen, recoveryStatus, approval) {
   const { request } = frozen;
-  const review = reviewSnapshot(request, { canonicalCommit: REVIEWED_CANONICAL_COMMIT, tclkPin: frozen.manifest.provenance.tclkPin, phase3bReuse: 'NO' });
+  const review = approval.reviewSnapshot(request, { canonicalCommit: frozen.preview.runtime.signingCommit, tclkPin: frozen.manifest.provenance.tclkPin, phase3bReuse: 'NO' });
   console.log('------------------------------------------------');
   console.log('TCLK BLACKBOX — WRITE #1 OFFER SIGN RECOVERY');
   console.log('------------------------------------------------');
   console.log(`FRAME TYPE\n${request.frameType}\n\nROOM\n${review.room}\n\nSIGNER DID\n${review.signerDid}`);
   console.log(`\nCANONICAL FRAME HASH\n${review.canonicalHash}\n\nCANONICAL PAYLOAD BYTES\n${request.payloadBytes}`);
   console.log(`\nMANIFEST ROOT\n${frozen.manifest.manifestRoot}\n\nSIGNED TEXT SOURCE\n${SIGNED_TEXT_SOURCE}`);
-  console.log(`\nAPPROVAL CODE\n${approvalCode(request)}\n\nATTEMPT 1\n${recoveryStatus.state}\nRECOVERY SUBJECT\n${RECOVERY_SUBJECT}`);
+  console.log(`\nAPPROVAL CODE\n${approval.approvalCode(request)}\n\nATTEMPT 1\n${recoveryStatus.state}\nRECOVERY SUBJECT\nphase3b-write-1-sign-attempt-2`);
   console.log('\nNETWORK SUBMISSION\nDISABLED\nSTOP AFTER LOCAL VERIFICATION');
   return review;
-}
-
-/** Sole production budget owner: review, approval, TOCTOU, then one acquisition at the boundary. */
-export async function runRealSign({ operationId = OPERATION, preflight = false } = {}) {
-  const frozen = await frozenOperation(operationId);
-  await assertReviewedCanonicalWorktree();
-  const firstStatus = inspectOneShotAttempt(FIRST_SIGN_IDENTITY);
-  const recoveryStatus = inspectOneShotAttempt(RECOVERY_SIGN_IDENTITY);
-  const pending = pendingSignedOperation(operationId, frozen.manifest.manifestRoot);
-  const signIdentity = resolveSignBudgetIdentity({ firstStatus, recoveryStatus, pendingSignedOperation: pending });
-  const review = showReview(frozen, firstStatus);
-  if (preflight) return Object.freeze({ stopped: 'PREFLIGHT_ONLY', budgetMutations: 0, requestId: frozen.requestId,
-    signSubject: signIdentity.subject, signBudgetState: inspectOneShotAttempt(signIdentity).state, verified: false, posted: false });
-  const approval = await promptHumanOperator(frozen.request);
-  if (!approval.ok) throw new Error(approval.code === 'OPERATOR_CANCELLED' ? 'OPERATOR_CANCELLED: no custody was attempted' : 'WRONG_APPROVAL_CODE: no custody was attempted');
-  const unchanged = recheckApprovalBinding(frozen.request, review, { canonicalCommit: REVIEWED_CANONICAL_COMMIT, tclkPin: frozen.manifest.provenance.tclkPin, phase3bReuse: 'NO' });
-  if (!unchanged.ok) throw new Error(`APPROVAL_INVALIDATED: ${unchanged.findings.join(',')}`);
-  await assertReviewedCanonicalWorktree();
-  const signBudget = acquireOneShotAttempt(signIdentity, { root: BUDGET_ROOT });
-  const response = await invokeRealDetachedBridge({ ...frozen, requestId: signIdentity.subject, signBudget });
-  if (!verifyCanonicalSignedOperation(response, frozen)) throw new Error('REFUSED: canonical signer response did not verify against WRITE1');
-  const saved = writePendingSignedOperation(pendingRecord(response, frozen), PENDING_SIGNED_OPERATION_ROOT);
-  return Object.freeze({ requestId: frozen.requestId, room: response.room, did: response.did, nonce: response.nonce,
-    custodyMode: response.custodyMode, canonicalCommit: response.canonicalCommit, budgetId: signBudget.budgetId,
-    pendingPath: saved.path, pendingSha256: saved.sha256, verified: true, posted: false });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, flag, selected, maybePreflight] = process.argv.slice(2);
   if (!['sign', 'submit', 'observe'].includes(command) || flag !== '--operation' || !operationPattern.test(selected ?? '') || (maybePreflight !== undefined && maybePreflight !== '--preflight')) usage();
-  else if (command === 'submit' || command === 'observe') { console.error('REAL_SUBMIT_AND_OBSERVE_DISABLED: no network or transport is reachable.'); process.exitCode = 3; }
+  else if (command === 'submit') {
+    try { process.stdout.write(`${JSON.stringify(await runRealSubmit({ operationId: selected, preflight: maybePreflight === '--preflight' }))}\n`); }
+    catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; }
+  } else if (command === 'observe') {
+    if (maybePreflight !== undefined) usage();
+    else try { process.stdout.write(`${JSON.stringify(await runRealObserve({ operationId: selected }))}\n`); }
+    catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; }
+  }
   else {
     try { process.stdout.write(`${JSON.stringify(await runRealSign({ operationId: selected, preflight: maybePreflight === '--preflight' }))}\n`); }
     catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; }
