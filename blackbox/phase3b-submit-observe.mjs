@@ -20,8 +20,14 @@ export const SUBMIT_QUERY = 'format=json';
 export const SUBMIT_ENDPOINT = `${SUBMIT_ORIGIN}${SUBMIT_PATH}?${SUBMIT_QUERY}`;
 export const SUBMIT_ATTEMPT_IDENTITY = Object.freeze({
   purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST',
-  subject: 'phase3b-write-1-submit-attempt-1',
+  subject: 'phase3b-write-1-submit-attempt-2',
 });
+export const SUBMIT_ATTEMPT_2_IDENTITY = SUBMIT_ATTEMPT_IDENTITY;
+export const ATTEMPT1_IDENTITY = Object.freeze({ ...SUBMIT_ATTEMPT_IDENTITY, subject: 'phase3b-write-1-submit-attempt-1' });
+export const HISTORICAL_ATTEMPT1_BODY_SHA256 = '0b7ee26cc5fd069e00fbdbf8fb564d4206247cfcd7f7c617dd60258e34343a96';
+export const CORRECTED_REQUEST_BODY_SHA256 = '06bdd51270af8292a84124a75f4c297940deeeb6fad86a454c7d76d4b4b03083';
+export const HISTORICAL_PENDING_ARTIFACT_SHA256 = '089e9fbb1f0ad80abf05098dc32f066311cfb7cb58a1c440018abcf9119e7259';
+export const SERVER_DIAGNOSTIC_MAX_BYTES = 2048;
 export const REAL_SUBMIT_BUDGET_OWNER = 'blackbox/phase3b-submit-observe.mjs/runRealSubmit';
 export const MAX_HTTP_POST_ATTEMPTS = 1;
 export const AUTOMATIC_RETRY = 'NO';
@@ -82,9 +88,17 @@ export function validatePendingOperation({ path = PENDING_PATH, expectedRoot = W
 }
 
 export function requestFor(record) {
-  const body = JSON.stringify({ did: record.did, sig: record.signature, nonce: record.nonce, text: record.text });
+  const body = JSON.stringify({ did: record.did, sig: record.signature, nonce: String(record.nonce), text: record.text });
   return Object.freeze({ endpoint: SUBMIT_ENDPOINT, origin: SUBMIT_ORIGIN, path: SUBMIT_PATH, query: SUBMIT_QUERY,
     method: 'POST', headers: Object.freeze({ 'content-type': 'application/json' }), body, bodySha256: sha256(body) });
+}
+
+export function validateTransportBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)
+    || typeof body.did !== 'string' || typeof body.sig !== 'string'
+    || typeof body.nonce !== 'string' || !/^[0-9]{1,19}$/.test(body.nonce)
+    || typeof body.text !== 'string') throw new Error('TRANSPORT_SCHEMA_REFUSED');
+  return true;
 }
 
 function approvalFingerprint({ pending, request, submitAttemptIdentity = SUBMIT_ATTEMPT_IDENTITY }) {
@@ -93,12 +107,15 @@ function approvalFingerprint({ pending, request, submitAttemptIdentity = SUBMIT_
 }
 
 export function reviewData(pending, request, budget) {
+  validateTransportBody(JSON.parse(request.body));
   const fingerprint = approvalFingerprint({ pending, request });
   return Object.freeze({ operationId: pending.record.operationId, frame: 'offer', did: pending.record.did,
     room: pending.record.room, nonce: pending.record.nonce, manifestRoot: pending.record.manifestRoot,
     signedTextSha256: textSha(pending.record.text), pendingArtifactSha256: pending.rawSha256,
     pendingIntegrity: pending.integrity, destinationOrigin: request.origin, exactPath: request.path,
     exactQuery: request.query, method: request.method, requestBodySha256: request.bodySha256,
+    signedNonceValue: pending.record.nonce, transportNonceJsonType: typeof JSON.parse(request.body).nonce,
+    transportNonceJsonValue: JSON.parse(request.body).nonce,
     submitAttemptIdentity: SUBMIT_ATTEMPT_IDENTITY.subject, submitBudgetId: budget.budgetId,
     submitBudgetState: budget.state, maxHttpPosts: 1, approvalFingerprint: fingerprint,
     warnings: Object.freeze(['ACK != OBSERVED', 'NO AUTOMATIC RETRY', 'SIGNATURE ALREADY EXISTS — NO SIGNING WILL OCCUR']) });
@@ -128,9 +145,40 @@ function classifyResponse(status) {
   return 'SUBMISSION_UNCERTAIN';
 }
 
-function writeResult(result, root = SUBMIT_STATE_ROOT) {
-  mkdirSync(root, { recursive: true });
+function historicalAttempt1(root) {
   const path = resolve(root, `${WRITE1_OPERATION}.json`);
+  if (!existsSync(path)) return null;
+  const result = JSON.parse(readFileSync(path, 'utf8'));
+  if (result.submitAttemptIdentity !== ATTEMPT1_IDENTITY.subject || result.classification !== 'REJECTED'
+    || result.httpStatus !== 400 || result.postCalls !== 1 || result.requestBodySha256 !== HISTORICAL_ATTEMPT1_BODY_SHA256) {
+    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT1_EVIDENCE_MISMATCH');
+  }
+  return Object.freeze({ path, result });
+}
+
+function assertRecoveryEligibility(pending, request, stateRoot) {
+  const historical = historicalAttempt1(stateRoot);
+  if (!historical) throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT1_NOT_PRESENT');
+  const numeric = JSON.stringify({ did: pending.record.did, sig: pending.record.signature,
+    nonce: pending.record.nonce, text: pending.record.text });
+  const historicalNumericBodySha256 = historical.result.numericRequestBodySha256 ?? historical.result.requestBodySha256;
+  if (sha256(numeric) !== historicalNumericBodySha256
+    || sha256(numeric) === request.bodySha256
+    || (historical.result.correctedTransportOnly !== undefined && historical.result.correctedTransportOnly !== true)
+    || historical.result.pendingArtifactSha256 !== pending.rawSha256) {
+    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:TRANSPORT_CHANGE_NOT_EXACT');
+  }
+  if (pending.path === PENDING_PATH && (pending.rawSha256 !== HISTORICAL_PENDING_ARTIFACT_SHA256
+    || request.bodySha256 !== CORRECTED_REQUEST_BODY_SHA256
+    || historicalNumericBodySha256 !== HISTORICAL_ATTEMPT1_BODY_SHA256)) {
+    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:FROZEN_EVIDENCE_MISMATCH');
+  }
+  return historical;
+}
+
+function writeResult(result, root = SUBMIT_STATE_ROOT, operationId = WRITE1_OPERATION) {
+  mkdirSync(root, { recursive: true });
+  const path = resolve(root, `${operationId}-submit-attempt-2.json`);
   const temp = `${path}.tmp-${process.pid}`;
   const fd = openSync(temp, 'wx', 0o600);
   try { writeSync(fd, `${JSON.stringify(result, null, 2)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
@@ -140,7 +188,7 @@ function writeResult(result, root = SUBMIT_STATE_ROOT) {
 
 export function inspectSubmitResult({ budgetRoot = BUDGET_ROOT, stateRoot = SUBMIT_STATE_ROOT } = {}) {
   const budget = submitBudgetStatus(budgetRoot);
-  const path = resolve(stateRoot, `${WRITE1_OPERATION}.json`);
+  const path = resolve(stateRoot, `${WRITE1_OPERATION}-submit-attempt-2.json`);
   if (existsSync(path)) return Object.freeze(JSON.parse(readFileSync(path, 'utf8')));
   return Object.freeze({ operationId: WRITE1_OPERATION, submitBudgetId: budget.budgetId,
     classification: budget.state === 'SPENT' ? 'SUBMISSION_UNCERTAIN' : 'NOT_ATTEMPTED',
@@ -155,38 +203,53 @@ export async function runRealSubmit({ operationId = WRITE1_OPERATION, preflight 
   const validation = { path: pendingPath, expectedRoot, expectedOperationId: operationId, ...expectedBindings };
   const pending = validatePendingOperation(validation);
   const request = requestFor(pending.record);
+  validateTransportBody(JSON.parse(request.body));
+  if (pending.record.nonce !== WRITE1_NONCE || !verifyPendingRecord(pending.record)) throw new Error('LOCAL_SIGNATURE_REVERIFY_FAILED');
+  if (pending.path === PENDING_PATH && request.bodySha256 !== CORRECTED_REQUEST_BODY_SHA256) throw new Error('CORRECTED_BODY_HASH_MISMATCH');
+  const historical = assertRecoveryEligibility(pending, request, stateRoot);
   const budget = submitBudgetStatus(budgetRoot);
   const review = reviewData(pending, request, budget);
   reviewSink(review);
   if (preflight) return Object.freeze({ operationId, room: pending.record.room, did: pending.record.did, nonce: pending.record.nonce,
+    signedNonceValue: pending.record.nonce, transportNonceJsonType: 'string', transportNonceJsonValue: String(pending.record.nonce),
     pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint,
-    submitAttemptIdentity: SUBMIT_ATTEMPT_IDENTITY.subject, submitBudget: budget.state, posted: false,
+    attempt1: historical ? 'REJECTED / SPENT' : 'NOT PRESENT (fixture)', submitAttemptIdentity: SUBMIT_ATTEMPT_IDENTITY.subject,
+    submitBudgetId: budget.budgetId, submitBudget: budget.state, posted: false,
     budgetMutations: 0, signBudgetMutations: 0, networkCalls: 0 });
   if (budget.state !== 'AVAILABLE') throw new Error(`SUBMIT_REFUSED:BUDGET_${budget.state}`);
   if (!await confirm(review)) throw new Error('OPERATOR_CANCELLED: no submit budget or network was used');
   await afterApproval();
   const reread = validatePendingOperation(validation);
   assertSamePending(pending, reread);
+  const rereadRequest = requestFor(reread.record);
+  validateTransportBody(JSON.parse(rereadRequest.body));
+  if (rereadRequest.bodySha256 !== request.bodySha256) throw new Error('APPROVAL_INVALIDATED:CORRECTED_BODY_MUTATED_AFTER_APPROVAL');
   const evidence = { schema: 'tclk/phase3b-submit-result/v1', operationId, submitAttemptIdentity: SUBMIT_ATTEMPT_IDENTITY.subject,
     submitBudgetId: budget.budgetId, pendingIntegrity: reread.integrity, pendingArtifactSha256: reread.rawSha256,
-    requestBodySha256: request.bodySha256, endpoint: request.endpoint, method: 'POST', postCalls: 0,
+    requestBodySha256: rereadRequest.bodySha256, endpoint: rereadRequest.endpoint, method: 'POST', postCalls: 0,
     timestamp: new Date().toISOString(), classification: 'SUBMISSION_UNCERTAIN', httpStatus: null };
   acquireOneShotAttempt(submitBudgetIdentity(), { root: budgetRoot });
   try {
-    const response = await transport(request.endpoint, { method: 'POST', headers: request.headers, body: request.body, redirect: 'error', credentials: 'omit' });
+    const response = await transport(rereadRequest.endpoint, { method: 'POST', headers: rereadRequest.headers, body: rereadRequest.body, redirect: 'error', credentials: 'omit' });
     evidence.httpStatus = response.status;
     evidence.classification = classifyResponse(response.status);
+    const responseBody = typeof response.text === 'function' ? await response.text() : '';
+    evidence.responseBodySha256 = sha256(responseBody);
+    if (response.status >= 400) {
+      evidence.responseContentType = typeof response.headers?.get === 'function' ? response.headers.get('content-type') : null;
+      evidence.diagnosticExcerpt = Buffer.from(responseBody, 'utf8').subarray(0, SERVER_DIAGNOSTIC_MAX_BYTES).toString('utf8');
+    }
     evidence.postCalls = 1;
   } catch (error) {
     evidence.postCalls = 1; evidence.transportError = error?.code ?? error?.name ?? 'TRANSPORT_EXCEPTION';
   }
-  const resultPath = writeResult(evidence, stateRoot);
+  const resultPath = writeResult(evidence, stateRoot, operationId);
   return Object.freeze({ ...evidence, resultPath, posted: true });
 }
 
 export function printSubmitReview(review) {
   console.log('------------------------------------------------');
-  console.log('TCLK BLACKBOX — WRITE #1 PUBLIC SUBMIT REVIEW');
+  console.log('TCLK BLACKBOX — WRITE #1 PUBLIC SUBMIT ATTEMPT #2 REVIEW');
   console.log('------------------------------------------------');
   for (const [key, value] of Object.entries(review)) if (key !== 'warnings') console.log(`${key}=${value}`);
   for (const warning of review.warnings) console.log(warning);
@@ -201,7 +264,7 @@ function recordsFrom(value) {
 
 export function observeMatch(signed, responseJson) {
   const match = recordsFrom(responseJson).some(entry => entry.room === signed.room && entry.did === signed.did
-    && (entry.nonce ?? entry.signedNonce) === signed.nonce && entry.text === signed.text);
+    && Number.isSafeInteger(Number(entry.nonce ?? entry.signedNonce)) && Number(entry.nonce ?? entry.signedNonce) === signed.nonce && entry.text === signed.text);
   return Object.freeze({ classification: match ? 'OBSERVED_PUBLIC' : 'PROVEN_ABSENT_WITHIN_BOUNDED_WINDOW', match,
     observationIdentity: Object.freeze({ room: signed.room, did: signed.did, signedNonce: signed.nonce, canonicalText: signed.text }) });
 }

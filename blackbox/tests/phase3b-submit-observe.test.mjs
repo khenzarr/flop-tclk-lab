@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { createOperation, fixtureSign, namedProfile, writePendingSignedOperation } from '../phase3b2.mjs';
@@ -9,7 +9,8 @@ import { acquireOneShotAttempt } from '../airlock/attempt-budget.mjs';
 import {
   inspectSubmitResult, observeMatch, requestFor, runRealObserve, runRealSubmit,
   submitBudgetIdentity, submitBudgetStatus, SUBMIT_ATTEMPT_IDENTITY, SUBMIT_ENDPOINT,
-  validatePendingOperation, WRITE1_OPERATION,
+  validatePendingOperation, WRITE1_OPERATION, validateTransportBody, CORRECTED_REQUEST_BODY_SHA256,
+  HISTORICAL_ATTEMPT1_BODY_SHA256, SUBMIT_ATTEMPT_2_IDENTITY,
 } from '../phase3b-submit-observe.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -29,6 +30,15 @@ function fixture() {
     expectedTextBytes: Buffer.byteLength(signed.text, 'utf8'), expectedTextSha256: hash(Buffer.from(signed.text, 'utf8')) };
   const options = { operationId: WRITE1_OPERATION, pendingPath, budgetRoot, stateRoot, expectedRoot: manifestRoot,
     expectedBindings, reviewSink: quiet };
+  const numericBody = JSON.stringify({ did: signed.did, sig: signed.signature, nonce: signed.nonce, text: signed.text });
+  mkdirSync(stateRoot, { recursive: true });
+  writeFileSync(resolve(stateRoot, `${WRITE1_OPERATION}.json`), `${JSON.stringify({
+    schema: 'tclk/phase3b-submit-result/v1', operationId: WRITE1_OPERATION,
+    submitAttemptIdentity: 'phase3b-write-1-submit-attempt-1', classification: 'REJECTED', httpStatus: 400,
+    postCalls: 1, requestBodySha256: HISTORICAL_ATTEMPT1_BODY_SHA256,
+    numericRequestBodySha256: hash(numericBody), correctedTransportOnly: true,
+    pendingArtifactSha256: hash(readFileSync(pendingPath, 'utf8')),
+  })}\n`);
   return { root, pendingPath, budgetRoot, stateRoot, signed, options };
 }
 
@@ -54,6 +64,15 @@ test('B/C: approved submit performs exactly one locked POST; ACK needs separate 
   assert.equal(observeMatch(signed, [{ ...signed, seq: 999 }]).classification, 'OBSERVED_PUBLIC');
 }));
 
+test('transport schema refuses numeric nonce and accepts decimal string; corrected ordering/hash is exact', () => withFixture(({ signed }) => {
+  const numeric = { did: signed.did, sig: signed.signature, nonce: signed.nonce, text: signed.text };
+  assert.throws(() => validateTransportBody(numeric), /TRANSPORT_SCHEMA_REFUSED/);
+  const corrected = { did: signed.did, sig: signed.signature, nonce: '1', text: signed.text };
+  assert.equal(validateTransportBody(corrected), true);
+  assert.notEqual(hash(JSON.stringify(numeric)), hash(JSON.stringify(corrected)));
+  assert.equal(JSON.stringify(corrected), requestFor(signed).body);
+}));
+
 test('D/E: timeout is uncertain, never retried, and bounded observe reconciles independently', () => withFixture(async ({ options, signed }) => {
   let posts = 0;
   const result = await runRealSubmit({ ...options, confirm: async () => true, transport: async () => { posts += 1; throw Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }); } });
@@ -70,8 +89,11 @@ test('F/G: uncertain statuses, redirect and malformed response never retry; clea
   });
   await withFixture(async ({ options }) => {
     let calls = 0;
-    const result = await runRealSubmit({ ...options, confirm: async () => true, transport: async () => { calls += 1; return { status: 400 }; } });
+    const result = await runRealSubmit({ ...options, confirm: async () => true, transport: async () => { calls += 1; return {
+      status: 400, headers: { get: () => 'application/json' }, text: async () => 'x'.repeat(4096),
+    }; } });
     assert.equal(result.classification, 'REJECTED'); assert.equal(calls, 1);
+    assert.equal(result.diagnosticExcerpt.length, 2048); assert.equal(result.responseContentType, 'application/json');
   });
 });
 
@@ -117,6 +139,15 @@ test('P/Q: spent budget blocks every later POST and concurrent submits have one 
   assert.equal(settled.filter(item => item.status === 'fulfilled').length, 1); assert.equal(calls, 1);
   await assert.rejects(runRealSubmit({ ...options, confirm: async () => true, transport }), /BUDGET_SPENT/);
   assert.equal(calls, 1); assert.equal(submitBudgetStatus(budgetRoot).state, 'SPENT');
+}));
+
+test('attempt #1 evidence remains separate and attempt #2 identity is available before approval', () => withFixture(async ({ options, stateRoot, budgetRoot, signed }) => {
+  const result = await runRealSubmit({ ...options, preflight: true });
+  assert.equal(result.submitAttemptIdentity, SUBMIT_ATTEMPT_2_IDENTITY.subject);
+  assert.equal(result.submitBudget, 'AVAILABLE'); assert.equal(result.budgetMutations, 0);
+  assert.equal(result.networkCalls, 0); assert.equal(result.requestBodySha256, requestFor(signed).bodySha256);
+  assert.equal(existsSync(resolve(stateRoot, `${WRITE1_OPERATION}.json`)), true);
+  assert.equal(existsSync(resolve(stateRoot, `${WRITE1_OPERATION}-submit-attempt-2.json`)), false);
 }));
 
 test('crash-after-budget state is permanently uncertain and never retryable', () => withFixture(async ({ budgetRoot, stateRoot }) => {
