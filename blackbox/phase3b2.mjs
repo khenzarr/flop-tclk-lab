@@ -4,6 +4,10 @@ import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'nod
 import { mkdirSync, openSync, readFileSync, closeSync, writeSync, fsyncSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { acquireOneShotAttempt, inspectOneShotAttempt } from './airlock/attempt-budget.mjs';
+import { prepareFrame } from './airlock/prepare.mjs';
+import manifest from '../evidence/phase3b-exact-manifest.json' with { type: 'json' };
+
+export const CURRENT_MANIFEST_ROOT = manifest.manifestRoot;
 
 export const PHASE3B_STATES = Object.freeze([
   'PLANNED', 'APPROVED_FOR_SIGN', 'SIGN_ATTEMPTED', 'SIGNED', 'APPROVED_FOR_SUBMIT',
@@ -59,7 +63,9 @@ function fixtureKey(profile) { const material = createHash('sha256').update(`pha
 export function fixtureSign(operation, { profile = 'default', nonce = 1 } = {}) {
   const key = fixtureKey(profile); const did = didFor(key);
   if (did !== operation.signerDid) throw new Error(`EXPECTED_SIGNER_DID_BINDING:${did}`);
-  const text = JSON.stringify(operation.payload);
+  // Full protocol frames use the upstream canonical encoder. Minimal synthetic records remain
+  // supported for older lifecycle-unit tests; they are not accepted by the WRITE1 E2E path.
+  const text = operation.payload?.type ? prepareFrame(operation.payload).canonicalPayload : JSON.stringify(operation.payload);
   const message = `${operation.room}|${nonce}|${text}`;
   const signature = sign(null, Buffer.from(message), key).toString('base64url');
   return Object.freeze({ schema: 'tclk/1-signed-operation-fixture', manifestRoot: operation.manifestRoot,
@@ -124,17 +130,21 @@ export function fixtureObserve(signed, roomHistory) {
   return { classification: match ? 'OBSERVED_PUBLIC' : 'PROVEN_ABSENT_WITHIN_BOUNDED_WINDOW', match };
 }
 
-export function fixtureWrite1E2E({ response = 200 } = {}) {
-  const frame = { write: 1, type: 'offer', room: 'tclk-offers', canonicalFrame: { from: namedProfile().publicDid, role: 'payer', amount: '100', asset: 'FLOP' } };
-  const operation = createOperation(frame, '9be158c613e68533a1700fdb2e08fac1adcacba16370551a98403b7d10922d8f');
+export function fixtureWrite1E2E({ response = 200, budgetRoot } = {}) {
+  if (typeof budgetRoot !== 'string' || budgetRoot.length === 0) throw new Error('FIXTURE_BUDGET_ROOT_REQUIRED');
+  const source = manifest.frameSet.frames[0];
+  // The fixture key is deliberately separate from the frozen real signer DID. Keep the frozen
+  // canonical payload byte-for-byte intact while binding this offline rehearsal to its fixture key.
+  const operation = Object.freeze({ ...createOperation(source, manifest.manifestRoot), signerDid: namedProfile().publicDid });
   let lifecycle = operation;
   lifecycle = transition(lifecycle, 'APPROVED_FOR_SIGN');
+  const signBudget = spendBudget('SIGN', operation.operationId, budgetRoot);
   lifecycle = transition(lifecycle, 'SIGN_ATTEMPTED');
-  const signed = fixtureSign(lifecycle);
+  const signed = fixtureSign(operation);
   lifecycle = transition(lifecycle, 'SIGNED');
   lifecycle = transition(lifecycle, 'APPROVED_FOR_SUBMIT');
   lifecycle = transition(lifecycle, 'SUBMIT_ATTEMPTED');
   const submission = fixtureSubmit(signed, response);
   lifecycle = transition(lifecycle, submission.classification);
-  return Object.freeze({ operation: lifecycle, signed, submission });
+  return Object.freeze({ operation: lifecycle, signed, signBudget, submission });
 }

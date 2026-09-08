@@ -37,7 +37,16 @@
   ],
   "stateBefore": "PLANNED",
   "stateAfterIfAccepted": "ACCEPTED_BY_MACHINE",
-  "signBudgetId": "SIGN:phase3b-write-1",
+  "signBudgetId": "SIGN:phase3b-write-1-sign-attempt-2",
+  "signRecovery": {
+    "attempt1Subject": "phase3b-write-1",
+    "attempt1BudgetId": "4d11951987447b6005f2879a89dc5e1e5f2ab4d8d39d600ac4b709d0fb8ff0a7",
+    "attempt1State": "SPENT",
+    "attempt1Classification": "PRE_CUSTODY_BUDGET_ONLY",
+    "recoverySubject": "phase3b-write-1-sign-attempt-2",
+    "recoveryState": "AVAILABLE",
+    "recoveryAcquired": false
+  },
   "submitBudgetId": "SUBMIT:phase3b-write-1",
   "observationMatching": {
     "room": "tclk-offers",

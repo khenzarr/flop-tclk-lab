@@ -8,8 +8,9 @@ import {
   namedProfile, readPendingSignedOperation, spendBudget, transition, verifyFixtureSignedOperation,
   writePendingSignedOperation, fixtureObserve, fixtureWrite1E2E,
 } from '../phase3b2.mjs';
+import manifest from '../../evidence/phase3b-exact-manifest.json' with { type: 'json' };
 
-const ROOT = '9be158c613e68533a1700fdb2e08fac1adcacba16370551a98403b7d10922d8f';
+const ROOT = manifest.manifestRoot;
 const frame = { write: 1, type: 'offer', room: 'tclk-offers', canonicalFrame: { from: namedProfile().publicDid, role: 'payer', amount: '100', asset: 'FLOP' } };
 const operation = () => createOperation(frame, ROOT);
 
@@ -76,10 +77,19 @@ test('observation is a separate bounded reconciliation step', () => {
 });
 
 test('WRITE #1 fixture trajectory stops at ACK and uncertain submit has one attempt', () => {
-  const accepted = fixtureWrite1E2E();
-  assert.equal(accepted.operation.state, 'ACK_RECEIVED');
-  assert.equal(accepted.submission.attempts.length, 1);
-  const uncertain = fixtureWrite1E2E({ response: 'connection-close' });
-  assert.equal(uncertain.operation.state, 'SUBMISSION_UNCERTAIN');
-  assert.equal(uncertain.submission.attempts.length, 1);
+  const acceptedRoot = mkdtempSync(resolve(tmpdir(), 'phase3b2-write1-accepted-'));
+  const uncertainRoot = mkdtempSync(resolve(tmpdir(), 'phase3b2-write1-uncertain-'));
+  try {
+    const accepted = fixtureWrite1E2E({ budgetRoot: acceptedRoot });
+    assert.equal(accepted.operation.state, 'ACK_RECEIVED');
+    assert.equal(accepted.signBudget.acquired, true);
+    assert.equal(accepted.submission.attempts.length, 1);
+    const uncertain = fixtureWrite1E2E({ response: 'connection-close', budgetRoot: uncertainRoot });
+    assert.equal(uncertain.operation.state, 'SUBMISSION_UNCERTAIN');
+    assert.equal(uncertain.signBudget.acquired, true);
+    assert.equal(uncertain.submission.attempts.length, 1);
+  } finally {
+    rmSync(acceptedRoot, { recursive: true, force: true });
+    rmSync(uncertainRoot, { recursive: true, force: true });
+  }
 });
