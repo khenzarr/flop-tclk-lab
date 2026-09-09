@@ -49,6 +49,28 @@ function operationSpec(operationId) {
   return spec;
 }
 
+function endpointForRoom(room) {
+  if (typeof room !== 'string' || room.length === 0) throw new Error('ROOM_INVALID');
+  const path = `/r/${encodeURIComponent(room)}`;
+  return Object.freeze({ origin: SUBMIT_ORIGIN, path, query: SUBMIT_QUERY,
+    endpoint: `${SUBMIT_ORIGIN}${path}?${SUBMIT_QUERY}` });
+}
+
+function assertPendingRoom(operationId, pending) {
+  const spec = operationSpec(operationId);
+  if (spec.room !== pending.room) throw new Error('PENDING_OPERATION_MANIFEST_ROOM_MISMATCH');
+  return true;
+}
+
+function attemptIdentityFor(operationId) {
+  return Object.freeze({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST',
+    subject: operationId === 'phase3b-write-3' ? 'phase3b-write-3-submit-attempt-2' : `${operationId}-submit` });
+}
+
+function observationStatePath(operationId, root = SUBMIT_STATE_ROOT) {
+  return resolve(root, `${operationId}-observation.json`);
+}
+
 function genericPendingPath(operationId) { return resolve(PENDING_ROOT, `${operationId}.json`); }
 
 function genericPending(path, operationId) {
@@ -60,20 +82,23 @@ function genericPending(path, operationId) {
     || typeof record.text !== 'string' || !record.signature || !verifyPendingRecord(record)) {
     throw new Error('PENDING_OPERATION_FROZEN_BINDING_REFUSED');
   }
+  assertPendingRoom(operationId, record);
   return Object.freeze({ record, rawSha256: sha256(readFileSync(path, 'utf8')), integrity: record.integrity, path });
 }
 
 function genericSubmitPreflight(operationId, budgetRoot) {
   const spec = operationSpec(operationId);
   const path = genericPendingPath(operationId);
-  const budget = inspectOneShotAttempt(budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: `${operationId}-submit` }), { root: budgetRoot });
+  const identity = attemptIdentityFor(operationId);
+  const budget = inspectOneShotAttempt(budgetIdentity(identity), { root: budgetRoot });
   if (!existsSync(path)) return Object.freeze({ operationId, room: spec.room, expectedSignerDid: spec.canonicalFrame.from,
     pendingVerification: 'NOT_YET_SIGNED', pendingPath: path, submitBudget: budget.state,
     posted: false, budgetMutations: 0, networkCalls: 0 });
   const pending = genericPending(path, operationId);
   const request = requestFor(pending.record);
   return Object.freeze({ operationId, room: spec.room, did: pending.record.did, nonce: pending.record.nonce,
-    pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint,
+    pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint, exactPath: request.path,
+    submitAttemptIdentity: identity.subject,
     submitBudget: budget.state, posted: false, budgetMutations: 0, networkCalls: 0 });
 }
 
@@ -83,11 +108,16 @@ async function runGenericSubmit({ operationId, preflight, transport, budgetRoot,
   if (!existsSync(path)) return genericSubmitPreflight(operationId, budgetRoot);
   const pending = genericPending(path, operationId);
   const request = requestFor(pending.record);
-  const budget = inspectOneShotAttempt(budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: `${operationId}-submit` }), { root: budgetRoot });
-  const review = reviewData(pending, request, budget);
+  const submitAttemptIdentity = attemptIdentityFor(operationId);
+  const identity = budgetIdentity(submitAttemptIdentity);
+  const budget = inspectOneShotAttempt(identity, { root: budgetRoot });
+  const historical = assertGenericRecoveryEligibility(operationId, pending, request, stateRoot);
+  if (operationId !== 'phase3b-write-3') requireObservedPublic(operationId, stateRoot);
+  const review = reviewData(pending, request, budget, submitAttemptIdentity);
   reviewSink(review);
   if (preflight) return Object.freeze({ operationId, room: spec.room, did: pending.record.did, nonce: pending.record.nonce,
-    pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint,
+    pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint, exactPath: request.path,
+    attempt1: historical ? 'REJECTED / SPENT' : undefined, submitAttemptIdentity: submitAttemptIdentity.subject,
     submitBudget: budget.state, posted: false, budgetMutations: 0, networkCalls: 0 });
   if (budget.state !== 'AVAILABLE') throw new Error(`SUBMIT_REFUSED:BUDGET_${budget.state}`);
   if (!await confirm(review)) throw new Error('OPERATOR_CANCELLED: no submit budget or network was used');
@@ -95,11 +125,13 @@ async function runGenericSubmit({ operationId, preflight, transport, budgetRoot,
   const reread = genericPending(path, operationId);
   assertSamePending(pending, reread);
   const rereadRequest = requestFor(reread.record);
-  if (rereadRequest.bodySha256 !== request.bodySha256) throw new Error('APPROVAL_INVALIDATED:TRANSPORT_BODY_MUTATED');
-  const identity = budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: `${operationId}-submit` });
+  if (rereadRequest.bodySha256 !== request.bodySha256 || rereadRequest.endpoint !== request.endpoint
+    || approvalFingerprint({ pending: reread, request: rereadRequest, submitAttemptIdentity }) !== review.approvalFingerprint) {
+    throw new Error('APPROVAL_INVALIDATED:TRANSPORT_BINDING_MUTATED');
+  }
   acquireOneShotAttempt(identity, { root: budgetRoot });
   const evidence = { schema: 'tclk/phase3b-submit-result/v1', operationId,
-    submitAttemptIdentity: identity.subject, submitBudgetId: budget.budgetId,
+    submitAttemptIdentity: submitAttemptIdentity.subject, submitBudgetId: budget.budgetId,
     pendingIntegrity: reread.integrity, pendingArtifactSha256: reread.rawSha256,
     requestBodySha256: rereadRequest.bodySha256, endpoint: rereadRequest.endpoint, method: 'POST',
     postCalls: 1, timestamp: new Date().toISOString(), classification: 'SUBMISSION_UNCERTAIN', httpStatus: null };
@@ -110,7 +142,8 @@ async function runGenericSubmit({ operationId, preflight, transport, budgetRoot,
     const body = typeof response.text === 'function' ? await response.text() : '';
     evidence.responseBodySha256 = sha256(body);
   } catch (error) { evidence.transportError = error?.code ?? error?.name ?? 'TRANSPORT_EXCEPTION'; }
-  return Object.freeze({ ...evidence, posted: true });
+  const resultPath = writeResult(evidence, stateRoot, operationId);
+  return Object.freeze({ ...evidence, resultPath, posted: true });
 }
 
 function didPublicKey(did) {
@@ -161,7 +194,8 @@ export function validatePendingOperation({ path = PENDING_PATH, expectedRoot = W
 
 export function requestFor(record) {
   const body = JSON.stringify({ did: record.did, sig: record.signature, nonce: String(record.nonce), text: record.text });
-  return Object.freeze({ endpoint: SUBMIT_ENDPOINT, origin: SUBMIT_ORIGIN, path: SUBMIT_PATH, query: SUBMIT_QUERY,
+  const destination = endpointForRoom(record.room);
+  return Object.freeze({ endpoint: destination.endpoint, origin: destination.origin, path: destination.path, query: destination.query,
     method: 'POST', headers: Object.freeze({ 'content-type': 'application/json' }), body, bodySha256: sha256(body) });
 }
 
@@ -173,22 +207,25 @@ export function validateTransportBody(body) {
   return true;
 }
 
-function approvalFingerprint({ pending, request, submitAttemptIdentity = SUBMIT_ATTEMPT_IDENTITY }) {
+function approvalFingerprint({ pending, request, submitAttemptIdentity }) {
+  if (!submitAttemptIdentity) throw new Error('SUBMIT_ATTEMPT_IDENTITY_REQUIRED');
   return sha256(JSON.stringify({ pending: pending.rawSha256, integrity: pending.integrity, endpoint: request.endpoint,
     method: request.method, bodySha256: request.bodySha256, submitAttemptIdentity }));
 }
 
-export function reviewData(pending, request, budget) {
+export function reviewData(pending, request, budget, submitAttemptIdentity = attemptIdentityFor(pending.record.operationId)) {
+  const spec = operationSpec(pending.record.operationId);
+  assertPendingRoom(pending.record.operationId, pending.record);
   validateTransportBody(JSON.parse(request.body));
-  const fingerprint = approvalFingerprint({ pending, request });
-  return Object.freeze({ operationId: pending.record.operationId, frame: 'offer', did: pending.record.did,
+  const fingerprint = approvalFingerprint({ pending, request, submitAttemptIdentity });
+  return Object.freeze({ operationId: pending.record.operationId, frame: spec.type, did: pending.record.did,
     room: pending.record.room, nonce: pending.record.nonce, manifestRoot: pending.record.manifestRoot,
     signedTextSha256: textSha(pending.record.text), pendingArtifactSha256: pending.rawSha256,
     pendingIntegrity: pending.integrity, destinationOrigin: request.origin, exactPath: request.path,
     exactQuery: request.query, method: request.method, requestBodySha256: request.bodySha256,
     signedNonceValue: pending.record.nonce, transportNonceJsonType: typeof JSON.parse(request.body).nonce,
     transportNonceJsonValue: JSON.parse(request.body).nonce,
-    submitAttemptIdentity: SUBMIT_ATTEMPT_IDENTITY.subject, submitBudgetId: budget.budgetId,
+    submitAttemptIdentity: submitAttemptIdentity.subject, submitBudgetId: budget.budgetId,
     submitBudgetState: budget.state, maxHttpPosts: 1, approvalFingerprint: fingerprint,
     warnings: Object.freeze(['ACK != OBSERVED', 'NO AUTOMATIC RETRY', 'SIGNATURE ALREADY EXISTS — NO SIGNING WILL OCCUR']) });
 }
@@ -228,6 +265,28 @@ function historicalAttempt1(root) {
   return Object.freeze({ path, result });
 }
 
+function historicalRecoveryAttempt1(operationId, root) {
+  const path = resolve(root, `${operationId}.json`);
+  if (!existsSync(path)) throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT1_NOT_PRESENT');
+  const result = JSON.parse(readFileSync(path, 'utf8'));
+  if (result.submitAttemptIdentity !== `${operationId}-submit-attempt-1` || result.classification !== 'REJECTED'
+    || result.httpStatus !== 403 || result.postCalls !== 1) {
+    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT1_EVIDENCE_MISMATCH');
+  }
+  return Object.freeze({ path, result });
+}
+
+export function requireObservedPublic(operationId, stateRoot = SUBMIT_STATE_ROOT) {
+  const predecessor = PUBLIC_ORDER[PUBLIC_ORDER.indexOf(operationId) - 1];
+  if (!predecessor) return null;
+  const path = observationStatePath(predecessor, stateRoot);
+  if (!existsSync(path)) throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
+  let evidence;
+  try { evidence = JSON.parse(readFileSync(path, 'utf8')); } catch { throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVATION_UNREADABLE`); }
+  if (evidence.classification !== 'OBSERVED_PUBLIC') throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
+  return evidence;
+}
+
 function assertRecoveryEligibility(pending, request, stateRoot) {
   const historical = historicalAttempt1(stateRoot);
   if (!historical) throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT1_NOT_PRESENT');
@@ -244,6 +303,28 @@ function assertRecoveryEligibility(pending, request, stateRoot) {
     || request.bodySha256 !== CORRECTED_REQUEST_BODY_SHA256
     || historicalNumericBodySha256 !== HISTORICAL_ATTEMPT1_BODY_SHA256)) {
     throw new Error('RECOVERY_ELIGIBILITY_REFUSED:FROZEN_EVIDENCE_MISMATCH');
+  }
+  return historical;
+}
+
+function assertGenericRecoveryEligibility(operationId, pending, request, stateRoot) {
+  if (operationId !== 'phase3b-write-3') return null;
+  const historical = historicalRecoveryAttempt1(operationId, stateRoot);
+  requireObservedPublic(operationId, stateRoot);
+  const ownObservation = observationStatePath(operationId, stateRoot);
+  if (existsSync(ownObservation)) {
+    const evidence = JSON.parse(readFileSync(ownObservation, 'utf8'));
+    if (evidence.classification === 'OBSERVED_PUBLIC') throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ALREADY_OBSERVED_PUBLIC');
+  }
+  if (historical.result.pendingArtifactSha256 !== pending.rawSha256
+    || historical.result.pendingIntegrity !== pending.integrity
+    || historical.result.nonce !== pending.record.nonce
+    || historical.result.manifestRoot !== pending.record.manifestRoot
+    || historical.result.signature !== pending.record.signature
+    || historical.result.text !== pending.record.text
+    || historical.result.requestBodySha256 !== request.bodySha256
+    || request.endpoint === historical.result.endpoint) {
+    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:TRANSPORT_CHANGE_NOT_EXACT');
   }
   return historical;
 }
@@ -324,7 +405,7 @@ export async function runRealSubmit({ operationId = WRITE1_OPERATION, preflight 
 
 export function printSubmitReview(review) {
   console.log('------------------------------------------------');
-  console.log('TCLK BLACKBOX — WRITE #1 PUBLIC SUBMIT ATTEMPT #2 REVIEW');
+  console.log(`TCLK BLACKBOX — ${review.operationId} PUBLIC SUBMIT ATTEMPT #2 REVIEW`);
   console.log('------------------------------------------------');
   for (const [key, value] of Object.entries(review)) if (key !== 'warnings') console.log(`${key}=${value}`);
   for (const warning of review.warnings) console.log(warning);
@@ -344,25 +425,61 @@ export function observeMatch(signed, responseJson) {
     observationIdentity: Object.freeze({ room: signed.room, did: signed.did, signedNonce: signed.nonce, canonicalText: signed.text }) });
 }
 
+export function parseJsonLines(text) {
+  if (typeof text !== 'string') throw new Error('OBSERVATION_EXPORT_TEXT_REQUIRED');
+  const records = [];
+  for (const [index, line] of text.split(/\r?\n/).entries()) {
+    if (!line.trim()) continue;
+    try { records.push(JSON.parse(line)); }
+    catch (error) { throw new Error(`OBSERVATION_EXPORT_JSONL_MALFORMED:LINE_${index + 1}:${error.message}`); }
+  }
+  return records;
+}
+
 async function observeEndpoint(pending, endpoint, transport) {
   const response = await transport(endpoint, { method: 'GET', redirect: 'error', credentials: 'omit', headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error(`OBSERVATION_READ_FAILED:HTTP_${response.status}`);
   return Object.freeze({ endpoint, method: 'GET', ...observeMatch(pending.record, await response.json()) });
 }
 
+async function observeExportEndpoint(pending, endpoint, transport) {
+  const response = await transport(endpoint, { method: 'GET', redirect: 'error', credentials: 'omit', headers: { accept: 'application/json' } });
+  if (!response.ok) throw new Error(`OBSERVATION_READ_FAILED:HTTP_${response.status}`);
+  const text = typeof response.text === 'function' ? await response.text() : '';
+  const records = parseJsonLines(text);
+  return Object.freeze({ endpoint, method: 'GET', recordCount: records.length, ...observeMatch(pending.record, records) });
+}
+
+function persistObservation(result, stateRoot) {
+  mkdirSync(stateRoot, { recursive: true });
+  const path = observationStatePath(result.operationId, stateRoot);
+  const temp = `${path}.tmp-${process.pid}`;
+  const fd = openSync(temp, 'wx', 0o600);
+  try { writeSync(fd, `${JSON.stringify(result, null, 2)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
+  renameSync(temp, path);
+  return path;
+}
+
 export async function runRealObserve({ operationId = WRITE1_OPERATION, transport = fetch, pendingPath = PENDING_PATH,
-  expectedRoot = WRITE1_MANIFEST_ROOT, expectedBindings = {}, exportTransport = transport } = {}) {
+  expectedRoot = WRITE1_MANIFEST_ROOT, expectedBindings = {}, exportTransport = transport,
+  stateRoot = SUBMIT_STATE_ROOT } = {}) {
   if (operationId !== WRITE1_OPERATION) {
-    const spec = operationSpec(operationId);
     const pending = genericPending(pendingPath === PENDING_PATH ? genericPendingPath(operationId) : pendingPath, operationId);
-    const endpoint = `https://technocore.chat/r/${encodeURIComponent(spec.room)}?format=json`;
+    const endpoint = requestFor(pending.record).endpoint;
     const result = await observeEndpoint(pending, endpoint, transport);
-    if (result.match) return Object.freeze({ operationId, ...result, observationSource: 'ORDINARY_ROOM_GET' });
-    const exportEndpoint = `https://technocore.chat/r/${encodeURIComponent(spec.room)}/export`;
-    const exported = await observeEndpoint(pending, exportEndpoint, exportTransport);
-    return Object.freeze({ operationId, ...exported, observationSource: exported.match ? 'RETAINED_RING_EXPORT' : 'NOT_FOUND_IN_RETAINED_RING' });
+    if (result.match) {
+      const observed = { operationId, ...result, observationSource: 'ORDINARY_ROOM_GET' };
+      const evidencePath = persistObservation(observed, stateRoot);
+      return Object.freeze({ ...observed, evidencePath });
+    }
+    const exportEndpoint = `${SUBMIT_ORIGIN}/r/${encodeURIComponent(pending.record.room)}/export`;
+    const exported = await observeExportEndpoint(pending, exportEndpoint, exportTransport);
+    const observed = { operationId, ...exported, observationSource: exported.match ? 'RETAINED_RING_EXPORT' : 'NOT_FOUND_IN_RETAINED_RING' };
+    if (!exported.match) return Object.freeze(observed);
+    const evidencePath = persistObservation(observed, stateRoot);
+    return Object.freeze({ ...observed, evidencePath });
   }
   const pending = validatePendingOperation({ path: pendingPath, expectedRoot, expectedOperationId: operationId, ...expectedBindings });
-  const result = await observeEndpoint(pending, SUBMIT_ENDPOINT, transport);
+  const result = await observeEndpoint(pending, requestFor(pending.record).endpoint, transport);
   return Object.freeze({ operationId, ...result, observationSource: result.match ? 'ORDINARY_ROOM_GET' : 'NOT_FOUND_IN_RETAINED_RING' });
 }

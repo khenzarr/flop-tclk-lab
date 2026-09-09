@@ -4,25 +4,34 @@ import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import manifest from '../evidence/phase3b-exact-manifest.json' with { type: 'json' };
 import { PUBLIC_ORDER, assertExecutionOrder, manifestOperation } from './phase3b2.mjs';
+import { requireObservedPublic } from './phase3b-submit-observe.mjs';
 
 const ROOT = resolve('blackbox/state/phase3b-paper-rail');
 const hash = value => createHash('sha256').update(value, 'utf8').digest('hex');
+function requireRailPredecessorObserved(id, stateRoot) {
+  const predecessor = PUBLIC_ORDER[PUBLIC_ORDER.indexOf(id) - 1];
+  if (!predecessor) return null;
+  return requireObservedPublic(id, stateRoot);
+}
 export function railOperation(id) {
   const operation = manifestOperation(id);
   if (operation.actionClass !== 'PaperRail') throw new Error('NOT_PAPERRAIL_OPERATION');
   return operation;
 }
-export function fixtureRailPreflight(id, { completed = [] } = {}) {
+export function fixtureRailPreflight(id, { completed = [], stateRoot } = {}) {
   const operation = railOperation(id);
+  const predecessorEvidence = stateRoot ? requireRailPredecessorObserved(id, stateRoot) : null;
   return Object.freeze({ operationId: id, actionClass: 'PaperRail', operation: operation.operation,
     key: operation.note, valueCommitment: operation.valueCommitment, signed: false,
     worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION',
+    dependency: predecessorEvidence ? { predecessor: predecessorEvidence.operationId, classification: predecessorEvidence.classification } : undefined,
     executionOrder: { completed, expected: PUBLIC_ORDER[completed.length], valid: PUBLIC_ORDER[completed.length] === id },
     networkCalls: 0, writeBudgetMutations: 0, written: false });
 }
-export function fixtureRailWrite(id, { completed = [] } = {}) {
+export function fixtureRailWrite(id, { completed = [], stateRoot } = {}) {
   const operation = railOperation(id);
   assertExecutionOrder(completed, id);
+  requireRailPredecessorObserved(id, stateRoot);
   mkdirSync(ROOT, { recursive: true });
   const path = resolve(ROOT, `${id}.json`);
   if (existsSync(path)) throw new Error('PAPERRAIL_DUPLICATE_WRITE');

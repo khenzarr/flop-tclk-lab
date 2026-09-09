@@ -5,9 +5,10 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { createOperation, fixtureSign, namedProfile, writePendingSignedOperation } from '../phase3b2.mjs';
+import { fixtureRailWrite } from '../phase3b-rail.mjs';
 import { acquireOneShotAttempt } from '../airlock/attempt-budget.mjs';
 import {
-  inspectSubmitResult, observeMatch, requestFor, runRealObserve, runRealSubmit,
+  inspectSubmitResult, observeMatch, parseJsonLines, requestFor, requireObservedPublic, reviewData, runRealObserve, runRealSubmit,
   submitBudgetIdentity, submitBudgetStatus, SUBMIT_ATTEMPT_IDENTITY, SUBMIT_ENDPOINT,
   validatePendingOperation, WRITE1_OPERATION, validateTransportBody, CORRECTED_REQUEST_BODY_SHA256,
   HISTORICAL_ATTEMPT1_BODY_SHA256, SUBMIT_ATTEMPT_2_IDENTITY,
@@ -172,4 +173,86 @@ test('submit and observe production surfaces have no signer, custody, DPAPI, non
     const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
     assert.doesNotMatch(source, /airlock\/(?:signer|detached-bridge|real-route|budget)\.mjs|DPAPI|reserveNonce|PHASE3B_SIGN/);
   }
+});
+
+test('hotfix: endpoint and operation-specific review follow pending room/frame/attempt identity', () => {
+  const write2 = JSON.parse(readFileSync(resolve('blackbox/state/phase3b-pending-signed/phase3b-write-2.json'), 'utf8'));
+  const write3 = JSON.parse(readFileSync(resolve('blackbox/state/phase3b-pending-signed/phase3b-write-3.json'), 'utf8'));
+  assert.equal(requestFor(write3).endpoint, 'https://technocore.chat/r/mb-p-tclk-62b08bcfe4331e3a?format=json');
+  assert.equal(requestFor(write3).path, '/r/mb-p-tclk-62b08bcfe4331e3a');
+  const pending = record => ({ record, rawSha256: hash(JSON.stringify(record)), integrity: record.integrity });
+  const budget = { budgetId: 'fixture-budget', state: 'AVAILABLE' };
+  const review2 = reviewData(pending(write2), requestFor(write2), budget);
+  const review3 = reviewData(pending(write3), requestFor(write3), budget);
+  assert.equal(review2.frame, 'accept'); assert.equal(review3.frame, 'lock');
+  assert.equal(review2.submitAttemptIdentity, 'phase3b-write-2-submit');
+  assert.equal(review3.submitAttemptIdentity, 'phase3b-write-3-submit-attempt-2');
+  assert.notEqual(review2.approvalFingerprint, review3.approvalFingerprint);
+  assert.doesNotMatch(JSON.stringify([review2, review3]), /phase3b-write-1-submit-attempt-2/);
+});
+
+test('hotfix: JSONL export parses multiple CRLF/LF records, empty input, and malformed line diagnostics', () => {
+  assert.deepEqual(parseJsonLines('{"seq":1}\r\n\n{"seq":2}\n'), [{ seq: 1 }, { seq: 2 }]);
+  assert.deepEqual(parseJsonLines(' \r\n\n'), []);
+  assert.throws(() => parseJsonLines('{"seq":1}\n{"seq":'), /OBSERVATION_EXPORT_JSONL_MALFORMED:LINE_2/);
+});
+
+test('hotfix: WRITE #2 retained-ring JSONL exact match persists OBSERVED_PUBLIC without POST', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase3b-write2-observe-'));
+  try {
+    const signed = JSON.parse(readFileSync(resolve('blackbox/state/phase3b-pending-signed/phase3b-write-2.json'), 'utf8'));
+    const methods = [];
+    const result = await runRealObserve({ operationId: 'phase3b-write-2', stateRoot: root,
+      transport: async (_url, options) => { methods.push(options.method); return { ok: true, status: 200, json: async () => ({ records: [] }) }; },
+      exportTransport: async (_url, options) => { methods.push(options.method); return { ok: true, status: 200,
+        text: async () => `${JSON.stringify({ room: 'other', did: 'other', nonce: 1, text: 'other' })}\r\n${JSON.stringify(signed)}\n` }; } });
+    assert.equal(result.classification, 'OBSERVED_PUBLIC'); assert.equal(result.observationSource, 'RETAINED_RING_EXPORT');
+    assert.deepEqual(methods, ['GET', 'GET']); assert.equal(existsSync(resolve(root, 'phase3b-write-2-observation.json')), true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('hotfix: dependency requires OBSERVED_PUBLIC rather than ACK', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase3b-dependency-'));
+  try {
+    writeFileSync(resolve(root, 'phase3b-write-2-observation.json'), JSON.stringify({ classification: 'ACK_RECEIVED' }));
+    assert.throws(() => requireObservedPublic('phase3b-write-3', root), /OBSERVED_PUBLIC_REQUIRED/);
+    writeFileSync(resolve(root, 'phase3b-write-2-observation.json'), JSON.stringify({ classification: 'OBSERVED_PUBLIC' }));
+    assert.equal(requireObservedPublic('phase3b-write-3', root).classification, 'OBSERVED_PUBLIC');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('hotfix: PaperRail write requires durable OBSERVED_PUBLIC predecessor evidence', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase3b-rail-dependency-'));
+  try {
+    assert.throws(() => fixtureRailWrite('phase3b-write-5', { completed: ['phase3b-write-1', 'phase3b-write-2', 'phase3b-write-3'], stateRoot: root }), /DEPENDENCY_REFUSED:phase3b-write-3/);
+    writeFileSync(resolve(root, 'phase3b-write-3-observation.json'), JSON.stringify({ operationId: 'phase3b-write-3', classification: 'ACK_RECEIVED' }));
+    assert.throws(() => fixtureRailWrite('phase3b-write-5', { completed: ['phase3b-write-1', 'phase3b-write-2', 'phase3b-write-3'], stateRoot: root }), /OBSERVED_PUBLIC_REQUIRED/);
+    writeFileSync(resolve(root, 'phase3b-write-3-observation.json'), JSON.stringify({ operationId: 'phase3b-write-3', classification: 'OBSERVED_PUBLIC' }));
+    const evidence = fixtureRailWrite('phase3b-write-5', { completed: ['phase3b-write-1', 'phase3b-write-2', 'phase3b-write-3'], stateRoot: root });
+    assert.equal(evidence.evidenceClass, 'UNSIGNED_RAIL_OBSERVATION');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('hotfix: WRITE #3 recovery preserves attempt #1 and pending bytes while preflight uses attempt #2 deal endpoint', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase3b-write3-recovery-'));
+  const budgetRoot = resolve(root, 'budget'); const stateRoot = resolve(root, 'state'); mkdirSync(stateRoot);
+  const pendingPath = resolve('blackbox/state/phase3b-pending-signed/phase3b-write-3.json');
+  const raw = readFileSync(pendingPath, 'utf8'); const pending = JSON.parse(raw);
+  const attempt1Path = resolve(stateRoot, 'phase3b-write-3.json');
+  const attempt1 = { submitAttemptIdentity: 'phase3b-write-3-submit-attempt-1', classification: 'REJECTED', httpStatus: 403,
+    postCalls: 1, endpoint: SUBMIT_ENDPOINT, requestBodySha256: requestFor(pending).bodySha256,
+    pendingArtifactSha256: hash(raw), pendingIntegrity: pending.integrity,
+    nonce: pending.nonce, manifestRoot: pending.manifestRoot, signature: pending.signature, text: pending.text };
+  writeFileSync(attempt1Path, JSON.stringify(attempt1));
+  writeFileSync(resolve(stateRoot, 'phase3b-write-2-observation.json'), JSON.stringify({ classification: 'OBSERVED_PUBLIC' }));
+  try {
+    let review;
+    const result = await runRealSubmit({ operationId: 'phase3b-write-3', preflight: true, pendingPath, budgetRoot, stateRoot,
+      reviewSink: value => { review = value; } });
+    assert.equal(result.submitAttemptIdentity, 'phase3b-write-3-submit-attempt-2');
+    assert.equal(result.endpoint, 'https://technocore.chat/r/mb-p-tclk-62b08bcfe4331e3a?format=json');
+    assert.equal(review.frame, 'lock'); assert.equal(review.exactPath, '/r/mb-p-tclk-62b08bcfe4331e3a');
+    assert.equal(readFileSync(pendingPath, 'utf8'), raw); assert.deepEqual(JSON.parse(readFileSync(attempt1Path, 'utf8')), attempt1);
+    assert.equal(existsSync(resolve(stateRoot, 'phase3b-write-3-submit-attempt-2.json')), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

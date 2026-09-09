@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runRealSubmit, runRealObserve } from './phase3b-submit-observe.mjs';
+import { runRealSubmit, runRealObserve, requireObservedPublic } from './phase3b-submit-observe.mjs';
 
 export const SIGNED_TEXT_SOURCE = 'ATTESTED_TCLK_CANONICAL_FRAME';
 const OPERATION = 'phase3b-write-1';
@@ -59,6 +59,7 @@ export async function runRealSign(options = {}) {
   await bridge.assertReviewedCanonicalWorktree();
   const firstStatus = budget.inspectOneShotAttempt(firstSignIdentity);
   const pending = pendingSignedOperation(operationId, frozen.manifest.manifestRoot, pendingModule.readPendingSignedOperation);
+  if (pending === null && operationId !== OPERATION) requireObservedPublic(operationId);
   const signIdentity = resolveSignBudgetIdentity({ firstStatus, pendingSignedOperation: pending, firstSignIdentity });
   const review = showReview(frozen, firstStatus, approval);
   if (preflight) return Object.freeze({ stopped: 'PREFLIGHT_ONLY', budgetMutations: 0, requestId: frozen.requestId,
