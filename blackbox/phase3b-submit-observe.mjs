@@ -33,6 +33,20 @@ export const SERVER_DIAGNOSTIC_MAX_BYTES = 2048;
 export const REAL_SUBMIT_BUDGET_OWNER = 'blackbox/phase3b-submit-observe.mjs/runRealSubmit';
 export const MAX_HTTP_POST_ATTEMPTS = 1;
 export const AUTOMATIC_RETRY = 'NO';
+export const WRITE2_RETENTION_CLASSIFICATION = 'SERVER_APPENDED_THEN_NOT_RETAINED';
+export const HISTORICAL_SUBMIT_RECEIPT_NOT_PERSISTED = 'HISTORICAL_SUBMIT_RECEIPT_NOT_PERSISTED';
+export const WRITE2_RETENTION_OBSERVATION = 'NOT_FOUND_IN_RETAINED_RING';
+export const WRITE2_SUBMIT_TIMESTAMP = '2026-09-08T23:51:00.618Z';
+export const WRITE2_REQUEST_BODY_SHA256 = '64e2a38c38b6249b2655e9c17c7b02025706d0b64fff883d97025bf06e70fc3b';
+export const WRITE2_RESPONSE_BODY_SHA256 = '26fcf45898a3c7fb037a74552afe968de49df36832c9f776279da9eb42bcbbb6';
+export const WRITE2_TEXT_SHA256 = '172fb6e08e946e91a169a76e8b32b5474df31f8f0cb86e7865d953de624ad93f';
+export const WRITE2_ROOM = 'tclk-offers';
+export const WRITE2_DID = 'did:key:z6Mkk9tS1bieLjbRmh7fa4hy7BQRapTG9rp7q8En9o4GvmfK';
+export const WRITE2_NONCE = 1;
+export const WRITE3_EXPECTED_ROOM = 'mb-p-tclk-62b08bcfe4331e3a';
+export const WRITE3_ATTEMPT1_REQUEST_BODY_SHA256 = 'ee2d2370586cf351f6a3265f8e1be273caa299596f53db0b05485ce4e264f9f8';
+export const WRITE3_ATTEMPT1_RESPONSE_BODY_SHA256 = '70076eb7c3465e1caf45a17fb7006382de8ec00228294e582ba105afa24f6440';
+export const WRITE3_ATTEMPT1_BUDGET_ID = 'ed114cc92c3b23d9ba8e25bf89a3492f4fd67134f265756dff838664794c2003';
 
 const BLACKBOX_ROOT = resolve(fileURLToPath(new URL('./', import.meta.url)));
 export const PENDING_ROOT = resolve(BLACKBOX_ROOT, 'state', 'phase3b-pending-signed');
@@ -111,7 +125,7 @@ async function runGenericSubmit({ operationId, preflight, transport, budgetRoot,
   const submitAttemptIdentity = attemptIdentityFor(operationId);
   const identity = budgetIdentity(submitAttemptIdentity);
   const budget = inspectOneShotAttempt(identity, { root: budgetRoot });
-  const historical = assertGenericRecoveryEligibility(operationId, pending, request, stateRoot);
+  const historical = assertGenericRecoveryEligibility(operationId, pending, request, stateRoot, budgetRoot);
   if (operationId !== 'phase3b-write-3') requireObservedPublic(operationId, stateRoot);
   const review = reviewData(pending, request, budget, submitAttemptIdentity);
   reviewSink(review);
@@ -164,7 +178,10 @@ function didPublicKey(did) {
 function verifyPendingRecord(record) {
   const expectedIntegrity = sha256(`${record.manifestRoot}|${record.operationId}|${record.did}|${record.room}|${record.nonce}|${record.text}|${record.signature}`);
   if (expectedIntegrity !== record.integrity) return false;
-  return verify(null, Buffer.from(`${record.room}|${record.nonce}|${record.text}`), didPublicKey(record.did), Buffer.from(record.signature, 'base64url'));
+  if (!/^[A-Za-z0-9_-]{86}$/.test(record.signature)) return false;
+  const signature = Buffer.from(record.signature, 'base64url');
+  if (signature.length !== 64 || signature.toString('base64url') !== record.signature) return false;
+  return verify(null, Buffer.from(`${record.room}|${record.nonce}|${record.text}`), didPublicKey(record.did), signature);
 }
 
 export function submitBudgetIdentity() { return budgetIdentity(SUBMIT_ATTEMPT_IDENTITY); }
@@ -265,15 +282,30 @@ function historicalAttempt1(root) {
   return Object.freeze({ path, result });
 }
 
-function historicalRecoveryAttempt1(operationId, root) {
-  const path = resolve(root, `${operationId}.json`);
-  if (!existsSync(path)) throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT1_NOT_PRESENT');
-  const result = JSON.parse(readFileSync(path, 'utf8'));
-  if (result.submitAttemptIdentity !== `${operationId}-submit-attempt-1` || result.classification !== 'REJECTED'
-    || result.httpStatus !== 403 || result.postCalls !== 1) {
-    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT1_EVIDENCE_MISMATCH');
+function historicalRecoveryAttempt1(operationId, root, budgetRoot) {
+  const missingResultPath = resolve(root, `${operationId}.json`);
+  if (existsSync(missingResultPath)) throw new Error('RECOVERY_ELIGIBILITY_REFUSED:MISSING_RESULT_PATH_MUST_REMAIN_ABSENT');
+  const path = resolve(root, `${operationId}-reconciliation.json`);
+  if (!existsSync(path)) throw new Error('RECOVERY_ELIGIBILITY_REFUSED:RECONCILIATION_NOT_PRESENT');
+  const reconciliation = JSON.parse(readFileSync(path, 'utf8'));
+  const markerIdentity = { purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: 'phase3b-write-3-submit' };
+  const marker = inspectOneShotAttempt(budgetIdentity(markerIdentity), { root: budgetRoot });
+  if (marker.state !== 'SPENT' || marker.budgetId !== WRITE3_ATTEMPT1_BUDGET_ID
+    || reconciliation.operationId !== operationId
+    || reconciliation.classification !== HISTORICAL_SUBMIT_RECEIPT_NOT_PERSISTED
+    || reconciliation.source !== 'OPERATOR_TERMINAL_TRANSCRIPT_PLUS_DURABLE_BUDGET_MARKER'
+    || reconciliation.immutableSpentMarker?.budgetId !== WRITE3_ATTEMPT1_BUDGET_ID
+    || reconciliation.immutableSpentMarker?.state !== 'SPENT'
+    || reconciliation.historicalCodeProvenance?.wrongRoom !== 'tclk-offers'
+    || reconciliation.historicalCodeProvenance?.expectedRoom !== WRITE3_EXPECTED_ROOM
+    || reconciliation.operatorTerminalEvidence?.classification !== 'REJECTED'
+    || reconciliation.operatorTerminalEvidence?.httpStatus !== 403
+    || reconciliation.operatorTerminalEvidence?.postCalls !== 1
+    || reconciliation.operatorTerminalEvidence?.requestBodySha256 !== WRITE3_ATTEMPT1_REQUEST_BODY_SHA256
+    || reconciliation.operatorTerminalEvidence?.responseBodySha256 !== WRITE3_ATTEMPT1_RESPONSE_BODY_SHA256) {
+    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:RECONCILIATION_EVIDENCE_MISMATCH');
   }
-  return Object.freeze({ path, result });
+  return Object.freeze({ path, result: reconciliation });
 }
 
 export function requireObservedPublic(operationId, stateRoot = SUBMIT_STATE_ROOT) {
@@ -283,8 +315,81 @@ export function requireObservedPublic(operationId, stateRoot = SUBMIT_STATE_ROOT
   if (!existsSync(path)) throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
   let evidence;
   try { evidence = JSON.parse(readFileSync(path, 'utf8')); } catch { throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVATION_UNREADABLE`); }
-  if (evidence.classification !== 'OBSERVED_PUBLIC') throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
+  const acceptedHistoricalRetention = predecessor === 'phase3b-write-2'
+    && evidence.operationId === predecessor
+    && evidence.classification === WRITE2_RETENTION_CLASSIFICATION
+    && evidence.originalSubmitClassification === 'ACK_RECEIVED'
+    && evidence.httpStatus === 200
+    && evidence.postCalls === 1
+    && evidence.requestBodySha256 === WRITE2_REQUEST_BODY_SHA256
+    && evidence.responseBodySha256 === WRITE2_RESPONSE_BODY_SHA256
+    && evidence.submitTimestamp === WRITE2_SUBMIT_TIMESTAMP
+    && evidence.canonicalTextSha256 === WRITE2_TEXT_SHA256
+    && evidence.signedNonce === WRITE2_NONCE
+    && evidence.room === WRITE2_ROOM
+    && evidence.did === WRITE2_DID
+    && evidence.retentionObservation === WRITE2_RETENTION_OBSERVATION
+    && evidence.publicSeq === 'UNKNOWN'
+    && evidence.publicTimestamp === 'UNKNOWN'
+    && evidence.evidenceLimitation === 'PUBLIC_RECORD_NO_LONGER_RETAINED';
+  if (evidence.classification !== 'OBSERVED_PUBLIC' && !acceptedHistoricalRetention) {
+    throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
+  }
   return evidence;
+}
+
+export function retentionEvidence({ operationId = 'phase3b-write-2', responseBodySha256, stateRoot = SUBMIT_STATE_ROOT } = {}) {
+  if (operationId !== 'phase3b-write-2') throw new Error('RETENTION_EVIDENCE_OPERATION_INVALID');
+  if (typeof responseBodySha256 !== 'string' || !/^[0-9a-f]{64}$/.test(responseBodySha256)) {
+    throw new Error('RETENTION_EVIDENCE_RESPONSE_HASH_REQUIRED');
+  }
+  const evidence = { schema: 'tclk/phase3b-retention-evidence/v1', operationId,
+    classification: WRITE2_RETENTION_CLASSIFICATION, originalSubmitClassification: 'ACK_RECEIVED',
+    httpStatus: 200, requestBodySha256: WRITE2_REQUEST_BODY_SHA256, responseBodySha256,
+    submitTimestamp: WRITE2_SUBMIT_TIMESTAMP, canonicalTextSha256: WRITE2_TEXT_SHA256,
+    signedNonce: WRITE2_NONCE, room: WRITE2_ROOM, did: WRITE2_DID,
+    retentionObservation: WRITE2_RETENTION_OBSERVATION, publicSeq: 'UNKNOWN', publicTimestamp: 'UNKNOWN',
+    evidenceLimitation: 'PUBLIC_RECORD_NO_LONGER_RETAINED' };
+  persistObservation(evidence, stateRoot);
+  return Object.freeze(evidence);
+}
+
+export function reconcileMissingWrite3Receipt({ stateRoot = SUBMIT_STATE_ROOT, budgetRoot = BUDGET_ROOT,
+  pendingPath = genericPendingPath('phase3b-write-3'), codeCommit = '19596da7e4755d2f45dde7b604464c9c02fc07bf' } = {}) {
+  if (existsSync(resolve(stateRoot, 'phase3b-write-3.json'))) {
+    throw new Error('RECONCILIATION_REFUSED:MISSING_RESULT_PATH_MUST_REMAIN_ABSENT');
+  }
+  const path = resolve(stateRoot, 'phase3b-write-3-reconciliation.json');
+  if (existsSync(path)) return Object.freeze(JSON.parse(readFileSync(path, 'utf8')));
+  const pending = genericPending(pendingPath, 'phase3b-write-3');
+  const request = requestFor(pending.record);
+  if (request.bodySha256 !== WRITE3_ATTEMPT1_REQUEST_BODY_SHA256) throw new Error('RECONCILIATION_REFUSED:PENDING_REQUEST_MISMATCH');
+  const markerIdentity = { purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: 'phase3b-write-3-submit' };
+  const marker = inspectOneShotAttempt(budgetIdentity(markerIdentity), { root: budgetRoot });
+  if (marker.state !== 'SPENT' || marker.budgetId !== WRITE3_ATTEMPT1_BUDGET_ID) {
+    throw new Error('RECONCILIATION_REFUSED:SPENT_MARKER_MISMATCH');
+  }
+  const evidence = { schema: 'tclk/phase3b-submit-reconciliation/v1', operationId: 'phase3b-write-3',
+    classification: HISTORICAL_SUBMIT_RECEIPT_NOT_PERSISTED,
+    immutableSpentMarker: { budgetId: WRITE3_ATTEMPT1_BUDGET_ID, purpose: 'PHASE3B_SUBMIT',
+      operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: 'phase3b-write-3-submit',
+      acquiredAt: '2026-09-08T23:51:40.604Z', state: 'SPENT' },
+    historicalCodeProvenance: { commit: codeCommit, endpoint: 'https://technocore.chat/r/tclk-offers?format=json',
+      wrongRoom: 'tclk-offers', expectedEndpoint: `https://technocore.chat/r/${WRITE3_EXPECTED_ROOM}?format=json`,
+      expectedRoom: WRITE3_EXPECTED_ROOM },
+    operatorTerminalEvidence: { classification: 'REJECTED', httpStatus: 403, postCalls: 1,
+      requestBodySha256: WRITE3_ATTEMPT1_REQUEST_BODY_SHA256,
+      responseBodySha256: WRITE3_ATTEMPT1_RESPONSE_BODY_SHA256 },
+    source: 'OPERATOR_TERMINAL_TRANSCRIPT_PLUS_DURABLE_BUDGET_MARKER',
+    pendingArtifactSha256: pending.rawSha256, pendingIntegrity: pending.integrity,
+    nonce: pending.record.nonce, manifestRoot: pending.record.manifestRoot,
+    signature: pending.record.signature, text: pending.record.text };
+  mkdirSync(stateRoot, { recursive: true });
+  const temp = `${path}.tmp-${process.pid}`;
+  const fd = openSync(temp, 'wx', 0o600);
+  try { writeSync(fd, `${JSON.stringify(evidence, null, 2)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
+  renameSync(temp, path);
+  return Object.freeze(evidence);
 }
 
 function assertRecoveryEligibility(pending, request, stateRoot) {
@@ -307,9 +412,9 @@ function assertRecoveryEligibility(pending, request, stateRoot) {
   return historical;
 }
 
-function assertGenericRecoveryEligibility(operationId, pending, request, stateRoot) {
+function assertGenericRecoveryEligibility(operationId, pending, request, stateRoot, budgetRoot) {
   if (operationId !== 'phase3b-write-3') return null;
-  const historical = historicalRecoveryAttempt1(operationId, stateRoot);
+  const historical = historicalRecoveryAttempt1(operationId, stateRoot, budgetRoot);
   requireObservedPublic(operationId, stateRoot);
   const ownObservation = observationStatePath(operationId, stateRoot);
   if (existsSync(ownObservation)) {
@@ -322,8 +427,8 @@ function assertGenericRecoveryEligibility(operationId, pending, request, stateRo
     || historical.result.manifestRoot !== pending.record.manifestRoot
     || historical.result.signature !== pending.record.signature
     || historical.result.text !== pending.record.text
-    || historical.result.requestBodySha256 !== request.bodySha256
-    || request.endpoint === historical.result.endpoint) {
+    || historical.result.operatorTerminalEvidence?.requestBodySha256 !== request.bodySha256
+    || historical.result.historicalCodeProvenance?.endpoint === request.endpoint) {
     throw new Error('RECOVERY_ELIGIBILITY_REFUSED:TRANSPORT_CHANGE_NOT_EXACT');
   }
   return historical;
@@ -475,7 +580,22 @@ export async function runRealObserve({ operationId = WRITE1_OPERATION, transport
     const exportEndpoint = `${SUBMIT_ORIGIN}/r/${encodeURIComponent(pending.record.room)}/export`;
     const exported = await observeExportEndpoint(pending, exportEndpoint, exportTransport);
     const observed = { operationId, ...exported, observationSource: exported.match ? 'RETAINED_RING_EXPORT' : 'NOT_FOUND_IN_RETAINED_RING' };
-    if (!exported.match) return Object.freeze(observed);
+    if (!exported.match) {
+      if (operationId === 'phase3b-write-2') {
+        const retention = { ...observed, classification: 'SERVER_APPENDED_THEN_NOT_RETAINED',
+          originalSubmitClassification: 'ACK_RECEIVED', httpStatus: 200,
+          requestBodySha256: WRITE2_REQUEST_BODY_SHA256, submitTimestamp: WRITE2_SUBMIT_TIMESTAMP,
+          responseBodySha256: WRITE2_RESPONSE_BODY_SHA256,
+          canonicalTextSha256: textSha(pending.record.text), signedNonce: pending.record.nonce,
+          publicSeq: 'UNKNOWN', publicTimestamp: 'UNKNOWN',
+          retentionObservation: WRITE2_RETENTION_OBSERVATION,
+          evidenceLimitation: 'PUBLIC_RECORD_NO_LONGER_RETAINED' };
+        const evidencePath = persistObservation(retention, stateRoot);
+        return Object.freeze({ ...retention, evidencePath });
+      }
+      const evidencePath = persistObservation(observed, stateRoot);
+      return Object.freeze({ ...observed, evidencePath });
+    }
     const evidencePath = persistObservation(observed, stateRoot);
     return Object.freeze({ ...observed, evidencePath });
   }

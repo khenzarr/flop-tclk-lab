@@ -45,7 +45,16 @@ export function runFixtureJourney({ secret = loadDealSecret(), includeWrite1 = t
     const observed = fixtureObserve(signed, [signed]);
     if (observed.classification !== 'OBSERVED_PUBLIC') throw new Error(`FIXTURE_OBSERVATION_FAILED:${id}`);
     completed.push(id); records.push(signed);
-    observations.push({ operationId: id, ...signedObservation(signed, observations.length + 1166870), classification: observed.classification });
+    const observation = id === 'phase3b-write-2'
+      ? { operationId: id, classification: 'SERVER_APPENDED_THEN_NOT_RETAINED', originalSubmitClassification: 'ACK_RECEIVED',
+        httpStatus: 200, postCalls: 1, room: 'tclk-offers', did: 'did:key:z6Mkk9tS1bieLjbRmh7fa4hy7BQRapTG9rp7q8En9o4GvmfK', nonce: 1,
+        requestBodySha256: '64e2a38c38b6249b2655e9c17c7b02025706d0b64fff883d97025bf06e70fc3b',
+        responseBodySha256: '26fcf45898a3c7fb037a74552afe968de49df36832c9f776279da9eb42bcbbb6',
+        submitTimestamp: '2026-09-08T23:51:00.618Z', canonicalTextSha256: sha256(signed.text), signedNonce: signed.nonce,
+        retentionObservation: 'NOT_FOUND_IN_RETAINED_RING', publicSeq: 'UNKNOWN', publicTimestamp: 'UNKNOWN',
+        evidenceLimitation: 'PUBLIC_RECORD_NO_LONGER_RETAINED' }
+      : { operationId: id, ...signedObservation(signed, observations.length + 1166870), classification: observed.classification };
+    observations.push(observation);
   }
   if (completed.join('|') !== PUBLIC_ORDER.join('|')) throw new Error('FINALIZE_INCOMPLETE');
   return Object.freeze({ schema: 'tclk/phase3b-fixture-journey/v1', manifestRoot: manifest.manifestRoot,
@@ -55,9 +64,15 @@ export function runFixtureJourney({ secret = loadDealSecret(), includeWrite1 = t
 
 export function finalizeFixtureJourney(options = {}) {
   const capsule = runFixtureJourney(options);
+  const retentionGaps = capsule.observations.filter(observation => observation.classification === 'SERVER_APPENDED_THEN_NOT_RETAINED');
   const path = resolve('evidence/local-phase3b-final-capsule.json');
   mkdirSync(resolve('evidence'), { recursive: true });
   if (existsSync(path)) throw new Error('FINAL_CAPSULE_ALREADY_EXISTS');
-  writeFileSync(path, `${JSON.stringify({ ...capsule, acceptance: 'PHASE3B_PUBLIC_TRANSCRIPT_COMPLETE', distinctions: ['SIGNED != SUBMITTED', 'ACK_RECEIVED != OBSERVED_PUBLIC', 'PaperRail != PAYMENT', 'signature != HUMAN IDENTITY'] }, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
-  return Object.freeze({ ...capsule, path, acceptance: 'PHASE3B_PUBLIC_TRANSCRIPT_COMPLETE' });
+  const final = { ...capsule, acceptance: 'PHASE3B_PUBLIC_TRANSCRIPT_COMPLETE',
+    PUBLIC_TRANSCRIPT_EVIDENCE_COMPLETE: 'YES', CURRENT_PUBLIC_RETENTION_COMPLETE: retentionGaps.length === 0 ? 'YES' : 'NO',
+    RETENTION_GAP_COUNT: retentionGaps.length,
+    RETENTION_GAP_OPERATION: retentionGaps.length === 1 ? retentionGaps[0].operationId : retentionGaps.map(item => item.operationId),
+    distinctions: ['SIGNED != SUBMITTED', 'ACK_RECEIVED != OBSERVED_PUBLIC', 'SERVER_APPENDED_THEN_NOT_RETAINED != OBSERVED_PUBLIC', 'PaperRail != PAYMENT', 'signature != HUMAN IDENTITY'] };
+  writeFileSync(path, `${JSON.stringify(final, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+  return Object.freeze({ ...final, path });
 }

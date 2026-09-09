@@ -32,8 +32,9 @@ export function fixtureRailWrite(id, { completed = [], stateRoot } = {}) {
   const operation = railOperation(id);
   assertExecutionOrder(completed, id);
   requireRailPredecessorObserved(id, stateRoot);
-  mkdirSync(ROOT, { recursive: true });
-  const path = resolve(ROOT, `${id}.json`);
+  const railRoot = stateRoot ? resolve(stateRoot, 'paper-rail') : ROOT;
+  mkdirSync(railRoot, { recursive: true });
+  const path = resolve(railRoot, `${id}.json`);
   if (existsSync(path)) throw new Error('PAPERRAIL_DUPLICATE_WRITE');
   const evidence = { schema: 'tclk/phase3b-paper-rail-observation/v1', operationId: id,
     manifestRoot: manifest.manifestRoot, key: operation.note, signed: false, worldWritable: true,

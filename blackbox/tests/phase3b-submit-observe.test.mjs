@@ -6,12 +6,14 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { createOperation, fixtureSign, namedProfile, writePendingSignedOperation } from '../phase3b2.mjs';
 import { fixtureRailWrite } from '../phase3b-rail.mjs';
-import { acquireOneShotAttempt } from '../airlock/attempt-budget.mjs';
+import { runFixtureJourney } from '../phase3b-fixture.mjs';
+import { acquireOneShotAttempt, budgetIdentity, inspectOneShotAttempt } from '../airlock/attempt-budget.mjs';
 import {
   inspectSubmitResult, observeMatch, parseJsonLines, requestFor, requireObservedPublic, reviewData, runRealObserve, runRealSubmit,
   submitBudgetIdentity, submitBudgetStatus, SUBMIT_ATTEMPT_IDENTITY, SUBMIT_ENDPOINT,
   validatePendingOperation, WRITE1_OPERATION, validateTransportBody, CORRECTED_REQUEST_BODY_SHA256,
-  HISTORICAL_ATTEMPT1_BODY_SHA256, SUBMIT_ATTEMPT_2_IDENTITY,
+  HISTORICAL_ATTEMPT1_BODY_SHA256, SUBMIT_ATTEMPT_2_IDENTITY, reconcileMissingWrite3Receipt,
+  WRITE2_RETENTION_CLASSIFICATION, WRITE2_RESPONSE_BODY_SHA256,
 } from '../phase3b-submit-observe.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -100,8 +102,8 @@ test('F/G: uncertain statuses, redirect and malformed response never retry; clea
 
 test('H-M: all pending mutations refuse before budget and transport', async () => {
   const mutations = [
-    record => ({ ...record, integrity: `0${record.integrity.slice(1)}` }),
-    record => ({ ...record, signature: `${record.signature.slice(0, -1)}A` }),
+    record => ({ ...record, integrity: `${record.integrity[0] === '0' ? '1' : '0'}${record.integrity.slice(1)}` }),
+    record => ({ ...record, signature: `${record.signature}A` }),
     record => ({ ...record, text: `${record.text}x` }),
     record => ({ ...record, manifestRoot: hash('wrong-root') }),
     record => ({ ...record, did: `${record.did}x` }),
@@ -214,10 +216,28 @@ test('hotfix: WRITE #2 retained-ring JSONL exact match persists OBSERVED_PUBLIC 
 test('hotfix: dependency requires OBSERVED_PUBLIC rather than ACK', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'phase3b-dependency-'));
   try {
-    writeFileSync(resolve(root, 'phase3b-write-2-observation.json'), JSON.stringify({ classification: 'ACK_RECEIVED' }));
+    writeFileSync(resolve(root, 'phase3b-write-2-observation.json'), JSON.stringify({ operationId: 'phase3b-write-2', classification: 'ACK_RECEIVED' }));
     assert.throws(() => requireObservedPublic('phase3b-write-3', root), /OBSERVED_PUBLIC_REQUIRED/);
-    writeFileSync(resolve(root, 'phase3b-write-2-observation.json'), JSON.stringify({ classification: 'OBSERVED_PUBLIC' }));
+    writeFileSync(resolve(root, 'phase3b-write-2-observation.json'), JSON.stringify({ operationId: 'phase3b-write-2', classification: 'OBSERVED_PUBLIC' }));
     assert.equal(requireObservedPublic('phase3b-write-3', root).classification, 'OBSERVED_PUBLIC');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('retention hotfix: historical WRITE #2 retention evidence is reduced grade and uniquely satisfies WRITE #3', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase3b-retention-dependency-'));
+  try {
+    const evidence = { operationId: 'phase3b-write-2', classification: WRITE2_RETENTION_CLASSIFICATION,
+      originalSubmitClassification: 'ACK_RECEIVED', httpStatus: 200, postCalls: 1, room: 'tclk-offers', did: 'did:key:z6Mkk9tS1bieLjbRmh7fa4hy7BQRapTG9rp7q8En9o4GvmfK', signedNonce: 1,
+      requestBodySha256: '64e2a38c38b6249b2655e9c17c7b02025706d0b64fff883d97025bf06e70fc3b',
+      responseBodySha256: WRITE2_RESPONSE_BODY_SHA256, submitTimestamp: '2026-09-08T23:51:00.618Z', canonicalTextSha256: '172fb6e08e946e91a169a76e8b32b5474df31f8f0cb86e7865d953de624ad93f', retentionObservation: 'NOT_FOUND_IN_RETAINED_RING',
+      publicSeq: 'UNKNOWN', publicTimestamp: 'UNKNOWN', evidenceLimitation: 'PUBLIC_RECORD_NO_LONGER_RETAINED' };
+    writeFileSync(resolve(root, 'phase3b-write-2-observation.json'), JSON.stringify(evidence));
+    assert.notEqual(evidence.classification, 'OBSERVED_PUBLIC');
+    assert.equal(requireObservedPublic('phase3b-write-3', root).classification, WRITE2_RETENTION_CLASSIFICATION);
+    writeFileSync(resolve(root, 'phase3b-write-3-observation.json'), JSON.stringify({ operationId: 'phase3b-write-3', classification: WRITE2_RETENTION_CLASSIFICATION,
+      originalSubmitClassification: 'ACK_RECEIVED', httpStatus: 200, retentionObservation: 'NOT_FOUND_IN_RETAINED_RING',
+      publicSeq: 'UNKNOWN', publicTimestamp: 'UNKNOWN', evidenceLimitation: 'PUBLIC_RECORD_NO_LONGER_RETAINED' }));
+    assert.throws(() => requireObservedPublic('phase3b-write-4', root), /OBSERVED_PUBLIC_REQUIRED/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -238,21 +258,46 @@ test('hotfix: WRITE #3 recovery preserves attempt #1 and pending bytes while pre
   const budgetRoot = resolve(root, 'budget'); const stateRoot = resolve(root, 'state'); mkdirSync(stateRoot);
   const pendingPath = resolve('blackbox/state/phase3b-pending-signed/phase3b-write-3.json');
   const raw = readFileSync(pendingPath, 'utf8'); const pending = JSON.parse(raw);
-  const attempt1Path = resolve(stateRoot, 'phase3b-write-3.json');
-  const attempt1 = { submitAttemptIdentity: 'phase3b-write-3-submit-attempt-1', classification: 'REJECTED', httpStatus: 403,
-    postCalls: 1, endpoint: SUBMIT_ENDPOINT, requestBodySha256: requestFor(pending).bodySha256,
-    pendingArtifactSha256: hash(raw), pendingIntegrity: pending.integrity,
-    nonce: pending.nonce, manifestRoot: pending.manifestRoot, signature: pending.signature, text: pending.text };
-  writeFileSync(attempt1Path, JSON.stringify(attempt1));
-  writeFileSync(resolve(stateRoot, 'phase3b-write-2-observation.json'), JSON.stringify({ classification: 'OBSERVED_PUBLIC' }));
+  const missingAttempt1Path = resolve(stateRoot, 'phase3b-write-3.json');
+  const attempt1Identity = budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: 'phase3b-write-3-submit' });
+  acquireOneShotAttempt(attempt1Identity, { root: budgetRoot });
+  const markerPath = inspectOneShotAttempt(attempt1Identity, { root: budgetRoot }).path;
+  const markerBefore = readFileSync(markerPath, 'utf8');
+  writeFileSync(resolve(stateRoot, 'phase3b-write-2-observation.json'), JSON.stringify({ operationId: 'phase3b-write-2',
+    classification: WRITE2_RETENTION_CLASSIFICATION, originalSubmitClassification: 'ACK_RECEIVED', httpStatus: 200, postCalls: 1,
+    room: 'tclk-offers', did: 'did:key:z6Mkk9tS1bieLjbRmh7fa4hy7BQRapTG9rp7q8En9o4GvmfK', signedNonce: 1,
+    requestBodySha256: '64e2a38c38b6249b2655e9c17c7b02025706d0b64fff883d97025bf06e70fc3b',
+    responseBodySha256: WRITE2_RESPONSE_BODY_SHA256, submitTimestamp: '2026-09-08T23:51:00.618Z',
+    canonicalTextSha256: '172fb6e08e946e91a169a76e8b32b5474df31f8f0cb86e7865d953de624ad93f',
+    retentionObservation: 'NOT_FOUND_IN_RETAINED_RING', publicSeq: 'UNKNOWN', publicTimestamp: 'UNKNOWN',
+    evidenceLimitation: 'PUBLIC_RECORD_NO_LONGER_RETAINED' }));
   try {
+    const reconciliation = reconcileMissingWrite3Receipt({ stateRoot, budgetRoot, pendingPath });
+    assert.equal(reconciliation.classification, 'HISTORICAL_SUBMIT_RECEIPT_NOT_PERSISTED');
+    assert.equal(reconciliation.source, 'OPERATOR_TERMINAL_TRANSCRIPT_PLUS_DURABLE_BUDGET_MARKER');
+    assert.equal(reconciliation.historicalCodeProvenance.wrongRoom, 'tclk-offers');
+    assert.equal(reconciliation.historicalCodeProvenance.expectedRoom, 'mb-p-tclk-62b08bcfe4331e3a');
     let review;
     const result = await runRealSubmit({ operationId: 'phase3b-write-3', preflight: true, pendingPath, budgetRoot, stateRoot,
       reviewSink: value => { review = value; } });
     assert.equal(result.submitAttemptIdentity, 'phase3b-write-3-submit-attempt-2');
     assert.equal(result.endpoint, 'https://technocore.chat/r/mb-p-tclk-62b08bcfe4331e3a?format=json');
     assert.equal(review.frame, 'lock'); assert.equal(review.exactPath, '/r/mb-p-tclk-62b08bcfe4331e3a');
-    assert.equal(readFileSync(pendingPath, 'utf8'), raw); assert.deepEqual(JSON.parse(readFileSync(attempt1Path, 'utf8')), attempt1);
+    assert.equal(result.submitBudget, 'AVAILABLE'); assert.equal(result.budgetMutations, 0); assert.equal(result.networkCalls, 0);
+    assert.equal(readFileSync(pendingPath, 'utf8'), raw); assert.equal(existsSync(missingAttempt1Path), false);
+    assert.equal(readFileSync(markerPath, 'utf8'), markerBefore);
     assert.equal(existsSync(resolve(stateRoot, 'phase3b-write-3-submit-attempt-2.json')), false);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('final capsule input preserves exactly one WRITE #2 retention gap', () => {
+  const capsule = runFixtureJourney();
+  const gaps = capsule.observations.filter(item => item.classification === 'SERVER_APPENDED_THEN_NOT_RETAINED');
+  assert.equal(gaps.length, 1);
+  assert.equal(gaps[0].operationId, 'phase3b-write-2');
+  assert.equal(gaps[0].publicSeq, 'UNKNOWN');
+  assert.equal(capsule.observations.find(item => item.operationId === 'phase3b-write-1').classification, 'OBSERVED_PUBLIC');
+  for (const id of ['phase3b-write-3', 'phase3b-write-4', 'phase3b-write-5', 'phase3b-write-6']) {
+    assert.equal(capsule.observations.find(item => item.operationId === id).classification, 'OBSERVED_PUBLIC');
+  }
 });
