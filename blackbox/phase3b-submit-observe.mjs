@@ -100,39 +100,46 @@ function genericPending(path, operationId) {
   return Object.freeze({ record, rawSha256: sha256(readFileSync(path, 'utf8')), integrity: record.integrity, path });
 }
 
-function genericSubmitPreflight(operationId, budgetRoot) {
+function genericSubmitPreflight(operationId, budgetRoot, stateRoot = SUBMIT_STATE_ROOT) {
   const spec = operationSpec(operationId);
+  const dependency = requireObservedPublic(operationId, stateRoot);
   const path = genericPendingPath(operationId);
   const identity = attemptIdentityFor(operationId);
   const budget = inspectOneShotAttempt(budgetIdentity(identity), { root: budgetRoot });
   if (!existsSync(path)) return Object.freeze({ operationId, room: spec.room, expectedSignerDid: spec.canonicalFrame.from,
     pendingVerification: 'NOT_YET_SIGNED', pendingPath: path, submitBudget: budget.state,
+    dependencyResolution: dependency?.classification === WRITE2_RETENTION_CLASSIFICATION
+      ? 'HISTORICAL_RETENTION_EXCEPTION' : dependency ? 'OBSERVED_PUBLIC' : 'NONE',
     posted: false, budgetMutations: 0, networkCalls: 0 });
   const pending = genericPending(path, operationId);
   const request = requestFor(pending.record);
   return Object.freeze({ operationId, room: spec.room, did: pending.record.did, nonce: pending.record.nonce,
     pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint, exactPath: request.path,
     submitAttemptIdentity: identity.subject,
-    submitBudget: budget.state, posted: false, budgetMutations: 0, networkCalls: 0 });
+    submitBudget: budget.state, dependencyResolution: dependency?.classification === WRITE2_RETENTION_CLASSIFICATION
+      ? 'HISTORICAL_RETENTION_EXCEPTION' : dependency ? 'OBSERVED_PUBLIC' : 'NONE',
+    posted: false, budgetMutations: 0, networkCalls: 0 });
 }
 
 async function runGenericSubmit({ operationId, preflight, transport, budgetRoot, stateRoot, pendingPath, confirm, afterApproval, reviewSink }) {
   const spec = operationSpec(operationId);
   const path = pendingPath === PENDING_PATH ? genericPendingPath(operationId) : pendingPath;
-  if (!existsSync(path)) return genericSubmitPreflight(operationId, budgetRoot);
+  if (!existsSync(path)) return genericSubmitPreflight(operationId, budgetRoot, stateRoot);
   const pending = genericPending(path, operationId);
   const request = requestFor(pending.record);
   const submitAttemptIdentity = attemptIdentityFor(operationId);
   const identity = budgetIdentity(submitAttemptIdentity);
   const budget = inspectOneShotAttempt(identity, { root: budgetRoot });
   const historical = assertGenericRecoveryEligibility(operationId, pending, request, stateRoot, budgetRoot);
-  if (operationId !== 'phase3b-write-3') requireObservedPublic(operationId, stateRoot);
+  const dependency = requireObservedPublic(operationId, stateRoot);
   const review = reviewData(pending, request, budget, submitAttemptIdentity);
   reviewSink(review);
   if (preflight) return Object.freeze({ operationId, room: spec.room, did: pending.record.did, nonce: pending.record.nonce,
     pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint, exactPath: request.path,
     attempt1: historical ? 'REJECTED / SPENT' : undefined, submitAttemptIdentity: submitAttemptIdentity.subject,
-    submitBudget: budget.state, posted: false, budgetMutations: 0, networkCalls: 0 });
+    submitBudget: budget.state, dependencyResolution: dependency?.classification === WRITE2_RETENTION_CLASSIFICATION
+      ? 'HISTORICAL_RETENTION_EXCEPTION' : dependency ? 'OBSERVED_PUBLIC' : 'NONE',
+    posted: false, budgetMutations: 0, networkCalls: 0 });
   if (budget.state !== 'AVAILABLE') throw new Error(`SUBMIT_REFUSED:BUDGET_${budget.state}`);
   if (!await confirm(review)) throw new Error('OPERATOR_CANCELLED: no submit budget or network was used');
   await afterApproval();
@@ -315,22 +322,19 @@ export function requireObservedPublic(operationId, stateRoot = SUBMIT_STATE_ROOT
   if (!existsSync(path)) throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
   let evidence;
   try { evidence = JSON.parse(readFileSync(path, 'utf8')); } catch { throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVATION_UNREADABLE`); }
+  // This is deliberately an operation-pair predicate, not a classification
+  // predicate.  ACK_RECEIVED is never sufficient by itself.
   const acceptedHistoricalRetention = predecessor === 'phase3b-write-2'
+    && operationId === 'phase3b-write-3'
     && evidence.operationId === predecessor
     && evidence.classification === WRITE2_RETENTION_CLASSIFICATION
     && evidence.originalSubmitClassification === 'ACK_RECEIVED'
     && evidence.httpStatus === 200
-    && evidence.postCalls === 1
     && evidence.requestBodySha256 === WRITE2_REQUEST_BODY_SHA256
     && evidence.responseBodySha256 === WRITE2_RESPONSE_BODY_SHA256
-    && evidence.submitTimestamp === WRITE2_SUBMIT_TIMESTAMP
     && evidence.canonicalTextSha256 === WRITE2_TEXT_SHA256
     && evidence.signedNonce === WRITE2_NONCE
-    && evidence.room === WRITE2_ROOM
-    && evidence.did === WRITE2_DID
     && evidence.retentionObservation === WRITE2_RETENTION_OBSERVATION
-    && evidence.publicSeq === 'UNKNOWN'
-    && evidence.publicTimestamp === 'UNKNOWN'
     && evidence.evidenceLimitation === 'PUBLIC_RECORD_NO_LONGER_RETAINED';
   if (evidence.classification !== 'OBSERVED_PUBLIC' && !acceptedHistoricalRetention) {
     throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
