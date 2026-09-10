@@ -1,0 +1,12 @@
+{
+  "schema": "tclk-blackbox/phase3b-s2-execution-preview/v1",
+  "lineageId": "phase3b-s2",
+  "manifestRoot": "9cecec898926157c0fd85c1304b0a87a2867d4213dc7c87293d916d29f1c41b4",
+  "runtime": {
+    "attestation": "PASS",
+    "sourceSha": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "signingCommit": "e0005e5d6aa3df309743c5469012afa1d0f726f9"
+  },
+  "signed": false,
+  "posted": false
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "tclk-blackbox/execution-supersession/v1",
+  "classification": "SUPERSEDED_EXECUTION_LINEAGE",
+  "reason": "WRITE3_PRODUCTION_REJECTION_ROOT_CAUSE_UNAVAILABLE",
+  "historicalManifestRoot": "d452f8fcc877f9bb5ba199c20a0d96d3b220075be48d3ffd8aa625bb10ece694",
+  "successorLineage": "phase3b-s2",
+  "historicalOutcome": "NOT_SUCCESSFUL",
+  "preservedEvidence": {
+    "write1": "blackbox/state/phase3b-submit/phase3b-write-1.json",
+    "write2": "blackbox/state/phase3b-submit/phase3b-write-2-observation.json",
+    "write3Attempt1": {
+      "budgetId": "ed114cc92c3b23d9ba8e25bf89a3492f4fd67134f265756dff838664794c2003",
+      "reconciliation": "blackbox/state/phase3b-submit/phase3b-write-3-reconciliation.json",
+      "classification": "REJECTED_HTTP403_WRONG_ROOM_SPENT"
+    },
+    "write3Attempt2": {
+      "budgetId": "856f37dd9f1ed54104206a4a714fa1984611d1ade7c64a28e95d0a6cdf7641f9",
+      "result": "blackbox/state/phase3b-submit/phase3b-write-3-submit-attempt-2.json",
+      "classification": "REJECTED_HTTP400_CORRECT_ROOM_SPENT"
+    },
+    "paperRailWrite5": {
+      "reconciliation": "blackbox/state/phase3b-paper-rail/phase3b-write-5-reconciliation.json",
+      "classification": "FALSE_POSITIVE_OBSERVER_HISTORICAL"
+    }
+  }
+}
