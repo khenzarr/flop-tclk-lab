@@ -1,7 +1,7 @@
-import capsule from './capsule.js';
-import { createFlightRecorderModel } from './public-capsule-adapter.js';
+import referenceCapsule from './capsule.js';
+import { cachedPublicRecord, publicRecordRequest } from './connector-client.js';
+import { createFlightRecorderModel, createHubFlightRecorderModel } from './public-capsule-adapter.js';
 
-const model = createFlightRecorderModel(capsule);
 const byId = id => document.getElementById(id);
 const make = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -9,11 +9,43 @@ const make = (tag, className, text) => {
   if (text !== undefined) node.textContent = text;
   return node;
 };
+const dynamicSessionId = location.pathname.match(/^\/deal\/record\/(bbx-[0-9a-f]{16})\/?$/)?.[1] ?? null;
+const sha256 = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))))
+  .map(byte => byte.toString(16).padStart(2, '0')).join('');
+let capsule = referenceCapsule; let model; let loadError = null;
+try {
+  if (dynamicSessionId) {
+    capsule = cachedPublicRecord(dynamicSessionId) ?? (await publicRecordRequest(dynamicSessionId)).record;
+    model = createHubFlightRecorderModel(capsule, await sha256(JSON.stringify(capsule)));
+  } else model = createFlightRecorderModel(capsule);
+} catch (error) { loadError = error; }
 const shorten = (value, start = 12, end = 8) => `${value.slice(0, start)}…${value.slice(-end)}`;
 const timestamp = value => new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'UTC' }).format(new Date(value));
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let selectedIndex = 0;
 let replayTimer;
+
+function configureSource() {
+  if (!dynamicSessionId) return;
+  document.title = `${dynamicSessionId} · TCLK BLACKBOX Flight Record`;
+  const eyebrow = document.querySelector('.eyebrow'); eyebrow.replaceChildren(make('span', 'rec-dot'), document.createTextNode(' Hub-created completed record · local playback'));
+  byId('hero-title').textContent = 'The flight record for this Hub deal.';
+  document.querySelector('.hero-lede').textContent = 'This read-only playback comes from the completed public-safe record held by your local BLACKBOX connector.';
+  byId('record-label').textContent = `BBX / ${dynamicSessionId.toUpperCase()}`;
+  byId('footer-record-id').textContent = dynamicSessionId;
+  byId('reference-recovery').hidden = true;
+  document.querySelector('.heading-note').textContent = 'Public-safe identifiers from this Hub-created completed record.';
+}
+
+function renderUnavailable() {
+  document.title = 'Local flight record unavailable · TCLK BLACKBOX';
+  document.querySelector('.eyebrow').textContent = 'Local completed record unavailable';
+  byId('hero-title').textContent = 'Reconnect the local BLACKBOX connector.';
+  document.querySelector('.hero-lede').textContent = 'This Hub-created record is read-only and needs the local connector that holds its public-safe completed capsule. No pairing secret or signer access is required.';
+  document.querySelector('.recorder-preview').hidden = true;
+  document.querySelectorAll('.hero-actions, .narrative, main > section:not(.hero)').forEach(node => { node.hidden = true; });
+  console.warn(`Flight record unavailable: ${loadError?.message ?? 'UNKNOWN'}`);
+}
 
 function showToast(message) {
   const toast = byId('toast');
@@ -127,6 +159,10 @@ function wireEvidenceDialog() {
   document.querySelector('[data-close-evidence]').addEventListener('click', () => dialog.close());
   document.querySelector('[data-copy-json]').addEventListener('click', () => copyText(raw, 'Evidence JSON copied'));
   document.querySelector('[data-copy-sha]').addEventListener('click', () => copyText(model.capsuleSha256, 'Capsule hash copied'));
+  if (dynamicSessionId) {
+    const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+    document.querySelectorAll('[data-download-evidence]').forEach(link => { link.href = url; link.download = `${dynamicSessionId}-public-record.json`; });
+  }
   dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 }
 
@@ -138,7 +174,10 @@ function wireMotion() {
   document.querySelectorAll('.reveal').forEach(node => observer.observe(node));
 }
 
-renderPreview(); renderTimeline(); renderDeal(); wireEvidenceDialog(); wireMotion();
-byId('console-root').textContent = shorten(model.deal.manifestRoot, 8, 6);
-byId('complete-summary').textContent = `${model.summary.totalSteps} actions recorded · ${model.summary.verifiedSteps} verified · ${model.summary.unresolvedSteps} unresolved`;
-byId('replay-button').addEventListener('click', replay);
+if (loadError) renderUnavailable();
+else {
+  configureSource(); renderPreview(); renderTimeline(); renderDeal(); wireEvidenceDialog(); wireMotion();
+  byId('console-root').textContent = shorten(model.deal.manifestRoot, 8, 6);
+  byId('complete-summary').textContent = `${model.summary.totalSteps} actions recorded · ${model.summary.verifiedSteps} verified · ${model.summary.unresolvedSteps} unresolved`;
+  byId('replay-button').addEventListener('click', replay);
+}

@@ -49,6 +49,32 @@ function railFields(evidence) {
   ];
 }
 
+function assertPublicSafe(value) {
+  if (!value || typeof value !== 'object') return;
+  for (const [key, child] of Object.entries(value)) {
+    if (/^(?:secret|preimage|privateKey|signerSecret|passphrase|seed|localPath)$/i.test(key)) throw new TypeError('Private field refused in public flight record');
+    assertPublicSafe(child);
+  }
+}
+
+function hubSignedFields(evidence) {
+  return [
+    ['Actor DID', evidence.did], ['Signed nonce', String(evidence.signedNonce)],
+    ['Public sequence', String(evidence.publicSeq)], ['Public timestamp', evidence.publicTimestamp],
+    ['Canonical text SHA-256', evidence.canonicalTextSha256], ['Exact public matches', String(evidence.exactMatchCount)],
+    ['Observation', evidence.classification], ['Public source', evidence.observationSource],
+  ];
+}
+
+function hubRailFields(capsule, evidence) {
+  return [
+    ['Namespace / key', `${capsule.deal.paperRail.namespace} / ${capsule.deal.paperRail.key}`], ['Receipt SHA-256', evidence.receiptSha256],
+    ['Expected value SHA-256', evidence.expectedValueSha256], ['Observed value SHA-256', evidence.observedValueSha256],
+    ['Exact value match', evidence.exactValueMatch ? 'Yes' : 'No'], ['Receipt time', evidence.writtenAt],
+    ['Public observation time', evidence.observedAt], ['Observation', evidence.classification],
+  ];
+}
+
 export function createFlightRecorderModel(capsule) {
   assertCapsule(capsule);
   const steps = capsule.flightRecord.map(item => {
@@ -79,4 +105,30 @@ export function createFlightRecorderModel(capsule) {
     policy: capsule.evidencePolicy,
     steps,
   });
+}
+
+export function createHubFlightRecorderModel(capsule, capsuleSha256) {
+  assertPublicSafe(capsule);
+  if (!capsule || capsule.schema !== 'tclk-blackbox/public-deal-capsule/v1' || capsule.complete !== true
+    || !/^bbx-[0-9a-f]{16}$/.test(capsule.sessionId) || !/^[0-9a-f]{64}$/.test(capsuleSha256)
+    || capsule.operations?.length !== 6 || capsule.operations.some(item => item.state !== 'COMPLETE')
+    || JSON.stringify(capsule.operations.map(item => item.step)) !== JSON.stringify(expectedSteps)) {
+    throw new TypeError('Unsupported Hub public flight record');
+  }
+  const didA = capsule.operations.find(item => item.step === 'OFFER')?.evidence.did;
+  const didB = capsule.operations.find(item => item.step === 'ACCEPT')?.evidence.did;
+  if (!didA || !didB || didA === didB) throw new TypeError('Hub identity map invalid');
+  const steps = capsule.operations.map(item => {
+    const kind = item.step.startsWith('RAIL_') ? 'rail' : 'signed'; const [actor, action, statusDetail] = copy[item.step];
+    return Object.freeze({ operationId: item.operationId, code: item.step, label: item.step.replace('_', ' '), actor, action,
+      status: kind === 'rail' ? 'Receipt and public observation verified' : 'Publicly verified', statusDetail, kind,
+      timestamp: kind === 'rail' ? item.evidence.observedAt : item.evidence.publicTimestamp, evidence: item.evidence,
+      fields: kind === 'rail' ? hubRailFields(capsule, item.evidence) : hubSignedFields(item.evidence) });
+  });
+  return Object.freeze({ product: 'TCLK BLACKBOX', capsule, capsuleSha256, sourceKind: 'HUB_CREATED_LOCAL_RECORD', status: 'Complete',
+    summary: Object.freeze({ totalSteps: 6, verifiedSteps: 6, unresolvedSteps: 0 }),
+    deal: Object.freeze({ lineageId: capsule.sessionId, contractId: capsule.deal.contractId, venueOrigin: capsule.venueOrigin,
+      venueHost: new URL(capsule.venueOrigin).host, manifestRoot: capsule.manifestRoot, dealRoom: capsule.deal.dealRoom }),
+    trust: Object.freeze({ operatorModel: capsule.operatorModel, sameHumanOperator: true, independentHumanCounterparty: false, didA, didB }),
+    policy: Object.freeze({ completionRule: 'All six operations require exact recorded evidence.' }), steps });
 }

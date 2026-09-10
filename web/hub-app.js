@@ -1,4 +1,4 @@
-import { clearPairing, connectionStatus, connectorRequest, importPairing } from './connector-client.js';
+import { cachePublicRecord, clearPairing, connectionStatus, connectorRequest, importPairing, publicRecordRoute } from './connector-client.js';
 
 const byId = id => document.getElementById(id);
 const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
@@ -61,7 +61,11 @@ async function renderLive() {
     for (const id of ['open-record', 'open-evidence', 'export-record', 'completion-summary', 'public-evidence']) byId(id).hidden = !deal.finalized;
     if (deal.finalized) {
       const json = JSON.stringify(deal.publicCapsule, null, 2); byId('public-evidence-json').textContent = json;
+      cachePublicRecord(deal.publicCapsule);
+      const recordRoute = publicRecordRoute(deal.id); const openRecord = byId('open-record'); openRecord.href = recordRoute;
+      openRecord.onclick = event => { event.preventDefault(); location.assign(recordRoute); };
       byId('export-record').href = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`; byId('export-record').download = `${deal.id}-public-record.json`;
+      message('Flight record finalized. No local approval pending.', 'success');
     }
   } catch (error) { message(error.message, 'error'); }
 }
@@ -85,7 +89,7 @@ async function renderRecords() {
   try {
     const { deals } = await connectorRequest('/deals'); const list = byId('record-list');
     for (const deal of deals) {
-      const item = make('a', 'record-row'); item.href = `/deal/live/${deal.id}`;
+      const item = make('a', 'record-row'); item.href = deal.finalized ? publicRecordRoute(deal.id) : `/deal/live/${deal.id}`;
       item.append(make('strong', '', deal.id), make('span', '', `${deal.deal.amount} ${deal.deal.asset}`), make('em', '', deal.finalized ? 'COMPLETE' : 'IN PROGRESS')); list.append(item);
     }
     byId('empty-records').hidden = deals.length > 0;

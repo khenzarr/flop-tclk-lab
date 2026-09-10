@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'tclk-blackbox/pairing/v1';
 const PAIRING_SCHEMA = 'tclk-blackbox/connector-pairing/v1';
+const recordKey = id => `tclk-blackbox/public-record/${id}`;
 
 function validate(record) {
   if (!record || record.schema !== PAIRING_SCHEMA) throw new Error('PAIRING_FILE_INVALID');
@@ -34,6 +35,32 @@ export async function connectorRequest(path, { method = 'GET', body } = {}) {
   });
   let value; try { value = await response.json(); } catch { throw new Error('CONNECTOR_RESPONSE_INVALID'); }
   if (!response.ok) throw new Error(value.error ?? `CONNECTOR_HTTP_${response.status}`);
+  return value;
+}
+
+export function publicRecordRoute(id) {
+  if (!/^bbx-[0-9a-f]{16}$/.test(id)) throw new Error('INVALID_SESSION_ID');
+  return `/deal/record/${id}`;
+}
+
+export function cachePublicRecord(record) {
+  const id = record?.sessionId; publicRecordRoute(id);
+  if (record.schema !== 'tclk-blackbox/public-deal-capsule/v1' || record.complete !== true) throw new Error('PUBLIC_RECORD_INVALID');
+  sessionStorage.setItem(recordKey(id), JSON.stringify(record));
+}
+
+export function cachedPublicRecord(id) {
+  publicRecordRoute(id);
+  try { const record = JSON.parse(sessionStorage.getItem(recordKey(id))); return record?.sessionId === id && record.complete === true ? record : null; }
+  catch { return null; }
+}
+
+export async function publicRecordRequest(id) {
+  publicRecordRoute(id);
+  const response = await fetch(`http://127.0.0.1:8787/records/${id}`, { method: 'GET', credentials: 'omit', redirect: 'error' });
+  let value; try { value = await response.json(); } catch { throw new Error('LOCAL_RECORD_RESPONSE_INVALID'); }
+  if (!response.ok) throw new Error(value.error ?? `LOCAL_RECORD_HTTP_${response.status}`);
+  if (value.readOnly !== true || value.record?.sessionId !== id) throw new Error('LOCAL_RECORD_BINDING_INVALID');
   return value;
 }
 

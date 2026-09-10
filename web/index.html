@@ -41,7 +41,7 @@
         </ol>
       </div>
       <div class="recorder-preview" aria-label="Completed flight record preview">
-        <div class="recorder-topline"><span>BBX / PHASE3B-FINAL</span><span class="live-label">RECORDED</span></div>
+        <div class="recorder-topline"><span id="record-label">BBX / PHASE3B-FINAL</span><span class="live-label">RECORDED</span></div>
         <div class="preview-orbit" aria-hidden="true"><span>A</span><i></i><b>BBX</b><i></i><span>B</span></div>
         <div class="preview-events" id="preview-events"></div>
         <div class="recorder-footer"><span>FLIGHT RECORD COMPLETE</span><strong>06 / 06</strong></div>
@@ -98,7 +98,7 @@
       </div>
     </section>
 
-    <section class="recovery" aria-labelledby="recovery-title">
+    <section class="recovery" id="reference-recovery" aria-labelledby="recovery-title">
       <div class="section-shell">
         <div class="recovery-intro reveal"><p class="section-kicker">Why a flight recorder?</p><h2 id="recovery-title">Because “sent” is not the end of the story.</h2><p>Real systems fail in the space between an action and its proof. BLACKBOX keeps those states separate.</p></div>
         <ol class="recovery-strip reveal">
@@ -138,18 +138,18 @@
       <div class="evidence-box reveal">
         <div><p class="section-kicker">Open evidence</p><h2 id="open-title">Keep the proof.</h2><p>Inspect the public-safe capsule, copy its integrity hash, or download the exact JSON used by this interface.</p></div>
         <div class="capsule-hash"><span>Public capsule SHA-256</span><code id="capsule-sha"></code><button type="button" data-copy-sha>Copy hash</button></div>
-        <div class="evidence-actions"><button class="button button-primary" type="button" data-open-evidence>Open evidence capsule</button><a class="button button-quiet" href="/evidence/phase3b-final-public-capsule.json" download>Download JSON</a></div>
+        <div class="evidence-actions"><button class="button button-primary" type="button" data-open-evidence>Open evidence capsule</button><a class="button button-quiet" href="/evidence/phase3b-final-public-capsule.json" data-download-evidence download>Download JSON</a></div>
       </div>
     </section>
   </main>
 
-  <footer><div class="section-shell"><span>TCLK BLACKBOX</span><p>Agent Deal Flight Recorder · Verified public playback</p><code>phase3b-final</code></div></footer>
+  <footer><div class="section-shell"><span>TCLK BLACKBOX</span><p>Agent Deal Flight Recorder · Verified public playback</p><code id="footer-record-id">phase3b-final</code></div></footer>
 
   <dialog class="evidence-dialog" id="evidence-dialog" aria-labelledby="dialog-title">
     <div class="dialog-head"><div><p class="section-kicker">Public-safe artifact</p><h2 id="dialog-title">Evidence capsule</h2></div><button type="button" data-close-evidence aria-label="Close evidence capsule">×</button></div>
     <div class="dialog-meta"><span>SHA-256 verified</span><code id="dialog-sha"></code></div>
     <pre id="raw-json" tabindex="0"></pre>
-    <div class="dialog-actions"><button class="button button-primary" type="button" data-copy-json>Copy JSON</button><a class="button button-quiet" href="/evidence/phase3b-final-public-capsule.json" target="_blank" rel="noopener">Open raw file</a></div>
+    <div class="dialog-actions"><button class="button button-primary" type="button" data-copy-json>Copy JSON</button><a class="button button-quiet" href="/evidence/phase3b-final-public-capsule.json" data-download-evidence target="_blank" rel="noopener">Open raw file</a></div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>

@@ -22,6 +22,7 @@ const server = createServer(async (request, response) => {
     else if (pathname === '/deal/new') pathname = '/deal/new/index.html';
     else if (pathname === '/records') pathname = '/records/index.html';
     else if (/^\/deal\/live\/bbx-[0-9a-f]{16}\/?$/.test(pathname)) pathname = '/deal/live/index.html';
+    else if (/^\/deal\/record\/bbx-[0-9a-f]{16}\/?$/.test(pathname)) pathname = '/deal/record/index.html';
     const target = normalize(join(root, pathname));
     if (!target.startsWith(root) || !(await stat(target)).isFile()) throw new Error('NOT_FOUND');
     const bytes = await readFile(target);

@@ -52,6 +52,15 @@ export async function readSecret(id, { root = HUB_ROOT } = {}) {
   return value.secret;
 }
 
+export async function readCompletedPublicRecord(id, { root = HUB_ROOT } = {}) {
+  const session = await readSession(id, { root });
+  if (session.finalized !== true || session.publicCapsule?.complete !== true
+    || session.publicCapsule.sessionId !== id || session.operations.some(item => item.state !== 'COMPLETE')) {
+    throw Object.assign(new Error('FLIGHT_RECORD_NOT_FINALIZED'), { status: 409 });
+  }
+  return Object.freeze({ source: 'LOCAL_BLACKBOX_CONNECTOR', readOnly: true, requiresLocalConnector: true, record: session.publicCapsule });
+}
+
 export async function listSessions({ root = HUB_ROOT } = {}) {
   let entries; try { entries = await readdir(resolve(root, 'sessions'), { withFileTypes: true }); } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
   const sessions = [];

@@ -31,6 +31,7 @@ test('public capsule drives the complete safe and accessible flight recorder', a
   try {
     const result = await buildWeb({ outDir: temp });
     assert.equal(result.events, 6);
+    assert.equal(result.routes, 6);
     const [builtCapsule, hub, html, newDeal, liveDeal, records, css, app, hubApp, connectorClient] = await Promise.all([
       readFile(join(temp, 'evidence', 'phase3b-final-public-capsule.json')),
       readFile(join(temp, 'index.html'), 'utf8'),
@@ -60,6 +61,7 @@ test('public capsule drives the complete safe and accessible flight recorder', a
     assert.match(liveDeal, /UNSIGNED · WORLD-WRITABLE · NOT A PAYMENT RAIL/);
     assert.match(liveDeal, /6 actions recorded · 6 actions verified · 0 unresolved/);
     assert.match(connectorClient, /CONNECTOR_OFFLINE/); assert.match(connectorClient, /PAIRING_REQUIRED/);
+    assert.equal(await readFile(join(temp, 'deal', 'record', 'index.html'), 'utf8'), html);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

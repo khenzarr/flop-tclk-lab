@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DealEngine, SimulatedExecutor } from './engine.mjs';
 import { RealExecutor } from './real-executor.mjs';
-import { createDealSession, HUB_ROOT, listSessions, PROFILES } from './session.mjs';
+import { createDealSession, HUB_ROOT, listSessions, PROFILES, readCompletedPublicRecord } from './session.mjs';
 
 export const CONNECTOR_HOST = '127.0.0.1';
 export const CONNECTOR_PORT = 8787;
@@ -54,6 +54,13 @@ export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, 
     const url = new URL(request.url ?? '/', `http://${CONNECTOR_HOST}:${port}`);
     if (request.method === 'GET' && url.pathname === '/health') return json(response, 200, { status: 'CONNECTOR_FOUND', pairingRequired: true, loopbackOnly: true });
     if (!origin) return json(response, 403, { error: 'ORIGIN_REQUIRED' });
+    const publicRecord = request.method === 'GET' && url.pathname.match(/^\/records\/(bbx-[0-9a-f]{16})$/);
+    if (publicRecord) {
+      const bucket = `public:${origin}:${Math.floor(now() / 60000)}`; const count = (rate.get(bucket) ?? 0) + 1; rate.set(bucket, count);
+      if (count > 120) return json(response, 429, { error: 'RATE_LIMITED' });
+      try { return json(response, 200, await readCompletedPublicRecord(publicRecord[1], { root })); }
+      catch (error) { return json(response, error.status ?? 404, { error: error.message }); }
+    }
     const authorization = request.headers.authorization ?? ''; const supplied = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
     if (now() >= Date.parse(pairing.record.expiresAt) || !tokenEqual(supplied, pairing.record.token)) return json(response, 401, { error: 'PAIRING_REQUIRED' });
     const bucket = `${pairing.record.sessionId}:${Math.floor(now() / 60000)}`; const count = (rate.get(bucket) ?? 0) + 1; rate.set(bucket, count);
