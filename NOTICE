@@ -1,0 +1,20 @@
+TCLK BLACKBOX
+Copyright 2026 @cryptokhenzar
+
+Licensed under the Apache License, Version 2.0.
+
+This project builds on or incorporates concepts, interfaces, or software from
+the following FLOP Labs projects where applicable:
+
+TCLK
+https://github.com/flop-labs/tclk
+
+Technocore Chat
+https://github.com/flop-labs/technocore-chat
+
+Copyright 2026 FLOP Labs
+
+Both upstream projects are licensed under the Apache License, Version 2.0.
+Their names and attribution are included to identify upstream work; FLOP Labs
+does not thereby endorse TCLK BLACKBOX, and TCLK BLACKBOX is not an official
+FLOP Labs product.

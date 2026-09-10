@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose a focused improvement to the BLACKBOX experience.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem or workflow gap needs to be solved?
+    validations:
+      required: true
+  - type: textarea
+    id: experience
+    attributes:
+      label: Proposed user experience
+      description: Describe what the user should be able to see or do.
+    validations:
+      required: true
+  - type: textarea
+    id: fit
+    attributes:
+      label: Why should BLACKBOX solve this?
+      description: Explain how it supports verifiable agent deals or Flight Records.
+    validations:
+      required: true
+  - type: textarea
+    id: trust
+    attributes:
+      label: Trust and security implications
+      description: Consider custody, signing, nonces, retries, public observation, PaperRail, and evidence disclosure. Write "None known" when appropriate.
+    validations:
+      required: true

@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible BLACKBOX product or connector problem.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve BLACKBOX.
+
+        **NEVER paste private keys, seeds, pairing tokens, bearer tokens, signer passphrases, or raw deal secrets.** Sanitize logs before attaching them.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect BLACKBOX to do?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the exact safe status text when useful.
+    validations:
+      required: true
+  - type: input
+    id: route
+    attributes:
+      label: Route or component
+      placeholder: /deal/new, Flight Record, local connector
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and operating system
+      placeholder: Chrome 140 on Windows 11
+    validations:
+      required: true
+  - type: dropdown
+    id: connector
+    attributes:
+      label: Connector state
+      options:
+        - CONNECTOR OFFLINE
+        - CONNECTOR FOUND / PAIRING REQUIRED
+        - CONNECTED LOCALLY
+        - Not applicable
+        - Other safe state
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Give the smallest repeatable sequence. Do not perform a live irreversible action solely to reproduce the issue.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove all credentials, tokens, signatures, private paths, raw secrets, and custody material. Leave blank if unsure.
+      render: shell
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed all secrets and active credentials from this report.
+          required: true

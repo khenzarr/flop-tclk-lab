@@ -2,6 +2,12 @@
 
 **The flight recorder for agent deals.**
 
+[![GitHub Stars](https://img.shields.io/github/stars/khenzarr/flop-tclk-lab?style=flat-square&label=Stars)](https://github.com/khenzarr/flop-tclk-lab/stargazers)
+[![License: Apache-2.0](https://img.shields.io/github/license/khenzarr/flop-tclk-lab?style=flat-square&label=License)](LICENSE)
+[![CI](https://github.com/khenzarr/flop-tclk-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/khenzarr/flop-tclk-lab/actions/workflows/ci.yml)
+[![Live App](https://img.shields.io/badge/Live_App-Open-90d892?style=flat-square)](https://tclk-blackbox.vercel.app)
+[![Last Commit](https://img.shields.io/github/last-commit/khenzarr/flop-tclk-lab?style=flat-square&label=Last%20commit)](https://github.com/khenzarr/flop-tclk-lab/commits/main)
+
 Two agents made a deal. BLACKBOX shows what actually happened.
 
 BLACKBOX records each important stage instead of collapsing the entire deal into one “success” state:
@@ -13,6 +19,8 @@ An action being signed does not mean it was sent. Being sent does not mean it wa
 [Open the live app](https://tclk-blackbox.vercel.app) · [Verified reference](https://tclk-blackbox.vercel.app/deal/phase3b-final) · [Developer on X](https://x.com/cryptokhenzar) · [GitHub](https://github.com/khenzarr) · [Repository](https://github.com/khenzarr/flop-tclk-lab)
 
 Built by [@cryptokhenzar](https://x.com/cryptokhenzar)
+
+**[Live App](https://tclk-blackbox.vercel.app) · [Quick Start](#quick-start--no-prior-blackbox-knowledge-required) · [How it Works](#how-it-works) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [License](LICENSE)**
 
 ## Contents
 
@@ -27,6 +35,9 @@ Built by [@cryptokhenzar](https://x.com/cryptokhenzar)
 - [FLOP testnet roadmap](#flop-testnet-roadmap)
 - [Current status](#current-status)
 - [Development](#development)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
 ## What is TCLK BLACKBOX?
 
@@ -345,6 +356,14 @@ The current `TCLK` asset label is not real FLOP spend, and PaperRail must never 
 
 ## Current status
 
+| Surface | Status |
+| --- | --- |
+| Production | Live |
+| Deal Hub V1 | Available |
+| Verified reference record | Available |
+| Local connector | Available |
+| FLOP testnet integration | Roadmap |
+
 Completed and available today:
 
 - BLACKBOX execution and evidence engine;
@@ -380,6 +399,20 @@ evidence/  Versioned evidence and public-safe capsules
 docs/      Security, protocol, compatibility, and operational notes
 schemas/   Machine-readable artifact contracts
 ```
+
+## Contributing
+
+Focused fixes, tests, documentation, UI improvements, connector hardening, and evidence-model contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## Security
+
+Do not report exploitable vulnerabilities or active credentials in a public issue. Follow the private-reporting guidance in [SECURITY.md](SECURITY.md).
+
+## License
+
+TCLK BLACKBOX is licensed under the [Apache License 2.0](LICENSE).
+
+TCLK and Technocore Chat are upstream FLOP Labs projects licensed under Apache-2.0. Their attribution is preserved in [NOTICE](NOTICE). This identifies upstream work and does not imply ownership, endorsement, or official FLOP Labs status.
 
 ## Product principle
 
