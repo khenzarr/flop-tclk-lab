@@ -19,7 +19,10 @@ const roots=['blackbox','lab','web']; const banned=/\b(?:innerHTML|outerHTML|eva
 // the dependency-free attempt-budget module under a temporary fixture root.
 const spawnApi=/\bnode:child_process\b/;
 const spawnAllowed=new Set([join('blackbox','typecheck.mjs'),join('lab','compat-matrix.mjs'),join('lab','candidate-probe.mjs'),join('blackbox','airlock','detached-bridge.mjs'),join('blackbox','tests','phase3a7.test.mjs'),join('blackbox','tests','phase3a9.test.mjs'),join('blackbox','tests','phase3a103.test.mjs'),join('blackbox','tests','phase3a104.test.mjs')]);
-const networkAllowed=new Set([join('web','dev-server.mjs')]);
+// Deal Hub V1 has three narrow network boundaries: the loopback connector,
+// its browser client, and focused connector tests. Real execution remains
+// terminal-approved inside the connector and has no browser custody access.
+const networkAllowed=new Set([join('web','dev-server.mjs'),join('web','connector-client.js'),join('blackbox','hub','connector.mjs'),join('blackbox','tests','deal-hub-v1.test.mjs')]);
 
 async function walk(dir){let out=[];for(const e of await readdir(dir,{withFileTypes:true})){const p=join(dir,e.name);if(e.isDirectory()&&e.name!=='out')out.push(...await walk(p));else if(e.isFile()&&/\.m?js$/.test(e.name))out.push(p)}return out}
 const files=[];for(const root of roots)files.push(...await walk(root));let failed=false;for(const f of files){const text=await readFile(f,'utf8');const exempt=f.endsWith('render.mjs')||f.endsWith('lint.mjs')||f.endsWith('typecheck.mjs')||networkAllowed.has(f);if(banned.test(text)&&!exempt){console.error(`lint: banned construct in ${f}`);failed=true}if(spawnApi.test(text)&&!spawnAllowed.has(f)&&!f.endsWith('lint.mjs')){console.error(`lint: unapproved subprocess use in ${f}`);failed=true}if(/[ \t]+$/m.test(text)){console.error(`lint: trailing whitespace in ${f}`);failed=true}}

@@ -25,17 +25,27 @@ export async function buildWeb({ outDir = join(repoRoot, 'dist') } = {}) {
 
   const assetsDir = join(outDir, 'assets');
   const evidenceDir = join(outDir, 'evidence');
-  await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(evidenceDir, { recursive: true })]);
+  const referenceDir = join(outDir, 'deal', 'phase3b-final');
+  const newDealDir = join(outDir, 'deal', 'new');
+  const liveDealDir = join(outDir, 'deal', 'live');
+  const recordsDir = join(outDir, 'records');
+  await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(evidenceDir, { recursive: true }), mkdir(referenceDir, { recursive: true }), mkdir(newDealDir, { recursive: true }), mkdir(liveDealDir, { recursive: true }), mkdir(recordsDir, { recursive: true })]);
   await Promise.all([
-    copyFile(join(webDir, 'index.html'), join(outDir, 'index.html')),
+    copyFile(join(webDir, 'hub.html'), join(outDir, 'index.html')),
+    copyFile(join(webDir, 'index.html'), join(referenceDir, 'index.html')),
+    copyFile(join(webDir, 'new-deal.html'), join(newDealDir, 'index.html')),
+    copyFile(join(webDir, 'live-deal.html'), join(liveDealDir, 'index.html')),
+    copyFile(join(webDir, 'records.html'), join(recordsDir, 'index.html')),
     copyFile(join(webDir, 'styles.css'), join(assetsDir, 'styles.css')),
     copyFile(join(webDir, 'app.js'), join(assetsDir, 'app.js')),
+    copyFile(join(webDir, 'hub-app.js'), join(assetsDir, 'hub-app.js')),
+    copyFile(join(webDir, 'connector-client.js'), join(assetsDir, 'connector-client.js')),
     copyFile(join(webDir, 'public-capsule-adapter.js'), join(assetsDir, 'public-capsule-adapter.js')),
     copyFile(sourceCapsule, join(evidenceDir, 'phase3b-final-public-capsule.json')),
     copyFile(sourceHash, join(evidenceDir, 'phase3b-final-public-capsule.sha256')),
     writeFile(join(assetsDir, 'capsule.js'), `export default ${JSON.stringify(capsule)};\n`),
   ]);
-  return Object.freeze({ capsuleSha256, events: capsule.flightRecord.length, output: outDir });
+  return Object.freeze({ capsuleSha256, events: capsule.flightRecord.length, routes: 5, output: outDir });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

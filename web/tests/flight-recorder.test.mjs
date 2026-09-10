@@ -31,13 +31,20 @@ test('public capsule drives the complete safe and accessible flight recorder', a
   try {
     const result = await buildWeb({ outDir: temp });
     assert.equal(result.events, 6);
-    const [builtCapsule, html, css, app] = await Promise.all([
+    const [builtCapsule, hub, html, newDeal, liveDeal, records, css, app, hubApp, connectorClient] = await Promise.all([
       readFile(join(temp, 'evidence', 'phase3b-final-public-capsule.json')),
-      readFile(join(temp, 'index.html'), 'utf8'), readFile(join(temp, 'assets', 'styles.css'), 'utf8'),
+      readFile(join(temp, 'index.html'), 'utf8'),
+      readFile(join(temp, 'deal', 'phase3b-final', 'index.html'), 'utf8'),
+      readFile(join(temp, 'deal', 'new', 'index.html'), 'utf8'),
+      readFile(join(temp, 'deal', 'live', 'index.html'), 'utf8'),
+      readFile(join(temp, 'records', 'index.html'), 'utf8'),
+      readFile(join(temp, 'assets', 'styles.css'), 'utf8'),
       readFile(join(temp, 'assets', 'app.js'), 'utf8'),
+      readFile(join(temp, 'assets', 'hub-app.js'), 'utf8'),
+      readFile(join(temp, 'assets', 'connector-client.js'), 'utf8'),
     ]);
     assert.deepEqual(builtCapsule, sourceBefore);
-    const publicSurface = `${html}\n${css}\n${app}\n${builtCapsule.toString('utf8')}`;
+    const publicSurface = `${hub}\n${html}\n${newDeal}\n${liveDeal}\n${records}\n${css}\n${app}\n${hubApp}\n${connectorClient}\n${builtCapsule.toString('utf8')}`;
     assert.doesNotMatch(publicSurface, /(?:C:\\Users|C:\/Users|blackbox[\\/]state[\\/])/i);
     assert.doesNotMatch(publicSurface, /-----BEGIN [A-Z ]*PRIVATE KEY-----|\bxprv[A-Za-z0-9]{20,}|AQAAA[A-Za-z0-9+/=]{40,}/i);
     assert.match(html, /PaperRail is not a payment rail|Not a payment rail/);
@@ -45,6 +52,11 @@ test('public capsule drives the complete safe and accessible flight recorder', a
     assert.match(html, /data-open-evidence/); assert.match(html, /id="timeline"/);
     assert.match(app, /ArrowRight/); assert.match(app, /ArrowLeft/); assert.match(app, /aria-current/);
     assert.match(css, /prefers-reduced-motion/); assert.match(css, /@media \(max-width: 720px\)/);
+    assert.match(hub, /pnpm connector/); assert.match(hub, /Import pairing file/);
+    assert.match(newDeal, /two distinct local cryptographic profiles/i); assert.match(liveDeal, /Signed ≠ submitted ≠ observed ≠ complete/);
+    assert.match(records, /Verified public reference/); assert.match(connectorClient, /sessionStorage/);
+    assert.doesNotMatch(connectorClient, /localStorage/); assert.match(connectorClient, /PAIRING_ENDPOINT_REFUSED/);
+    assert.match(liveDeal, /SIMULATED \/ LOCAL TEST/); assert.match(hubApp, /Waiting for explicit approval in the local terminal/);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

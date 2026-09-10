@@ -17,7 +17,11 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? '/', 'http://localhost');
     let pathname = decodeURIComponent(url.pathname);
-    if (pathname === '/' || pathname === '/deal/phase3b-final') pathname = '/index.html';
+    if (pathname === '/') pathname = '/index.html';
+    else if (pathname === '/deal/phase3b-final') pathname = '/deal/phase3b-final/index.html';
+    else if (pathname === '/deal/new') pathname = '/deal/new/index.html';
+    else if (pathname === '/records') pathname = '/records/index.html';
+    else if (/^\/deal\/live\/bbx-[0-9a-f]{16}\/?$/.test(pathname)) pathname = '/deal/live/index.html';
     const target = normalize(join(root, pathname));
     if (!target.startsWith(root) || !(await stat(target)).isFile()) throw new Error('NOT_FOUND');
     const bytes = await readFile(target);
@@ -27,4 +31,4 @@ const server = createServer(async (request, response) => {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); response.end('Not found');
   }
 });
-server.listen(port, '127.0.0.1', () => process.stdout.write(`Local: http://127.0.0.1:${port}/deal/phase3b-final\n`));
+server.listen(port, '127.0.0.1', () => process.stdout.write(`Deal Hub: http://127.0.0.1:${port}/\n`));
