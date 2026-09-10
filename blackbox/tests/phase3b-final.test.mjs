@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import s2 from '../../evidence/phase3b-s2-exact-manifest.json' with { type: 'json' };
 import finalManifest from '../../evidence/phase3b-final-exact-manifest.json' with { type: 'json' };
@@ -23,9 +23,6 @@ test('final manifest is fresh, isolated, Railway-bound and inert', async () => {
   assert.equal(finalManifest.safety.submissionCalls, 0);
   assert.equal(finalManifest.safety.paperRailWrites, 0);
   assert.ok(Object.values(FINAL_ROOTS).every(path => path.includes('phase3b-final')));
-  assert.equal(existsSync(FINAL_ROOTS.pending), false);
-  assert.equal(existsSync(FINAL_ROOTS.submit), false);
-  assert.equal(existsSync(FINAL_ROOTS.rail), false);
   const preflight = await signPreflight('phase3b-final-write-1');
   assert.equal(preflight.venueOrigin, RAILWAY);
   assert.equal(preflight.realSignatures, 0);

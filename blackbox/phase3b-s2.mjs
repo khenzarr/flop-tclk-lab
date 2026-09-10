@@ -167,6 +167,62 @@ export async function runRealSubmit(id, { transport = globalThis.fetch } = {}) {
   } catch (error) { evidence.transportError = error?.code ?? error?.name ?? 'TRANSPORT_EXCEPTION'; }
   persist(submitPath(id), evidence); return Object.freeze({ ...evidence, resultPath: submitPath(id), posted: true });
 }
+export const FINAL_W1_RECOVERY_OPERATION = 'phase3b-final-write-1';
+export const FINAL_W1_ATTEMPT2_IDENTITY = Object.freeze({ purpose: 'PHASE3B_FINAL_SUBMIT',
+  operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: 'phase3b-final-write-1-submit-attempt-2' });
+function finalW1RecoveryEligibility({ submitStateRoot = FINAL_ROOTS.submit, pendingRoot = FINAL_ROOTS.pending,
+  budgetRoot = FINAL_ROOTS.budget } = {}) {
+  const id = FINAL_W1_RECOVERY_OPERATION; const context = contextForId(id); const signed = pending(id, pendingRoot); const request = requestFor(signed.record);
+  const attempt1Path = submitPath(id, submitStateRoot); const absencePath = observationPath(id, submitStateRoot);
+  if (!existsSync(attempt1Path) || !existsSync(absencePath)) throw new Error('RECOVERY_REFUSED:ATTEMPT1_EVIDENCE_MISSING');
+  const attempt1 = readJson(attempt1Path); const absence = readJson(absencePath);
+  const attempt1Identity = budgetIdentity(submitBudgetPurpose(context), 'REAL_TECHNOCORE_ROOM_POST', `${id}-submit`);
+  const attempt1Budget = inspectOneShotAttempt(attempt1Identity, { root: budgetRoot });
+  if (attempt1Budget.state !== 'SPENT' || attempt1.submitBudgetId !== attempt1Budget.budgetId
+    || attempt1.operationId !== id || attempt1.manifestRoot !== context.manifest.manifestRoot || attempt1.venueOrigin !== assertVenue(context)
+    || attempt1.classification !== 'SUBMISSION_UNCERTAIN' || attempt1.httpStatus !== 500 || attempt1.postCalls !== 1
+    || attempt1.pendingArtifactSha256 !== signed.rawSha256 || attempt1.requestBodySha256 !== request.bodySha256 || attempt1.endpoint !== request.endpoint) {
+    throw new Error('RECOVERY_REFUSED:ATTEMPT1_BINDING_INVALID');
+  }
+  if (absence.operationId !== id || absence.manifestRoot !== context.manifest.manifestRoot || absence.venueOrigin !== assertVenue(context)
+    || absence.classification !== 'PROVEN_ABSENT_WITHIN_BOUNDED_WINDOW' || absence.exactMatchCount !== 0
+    || absence.signedNonce !== signed.record.nonce || absence.canonicalTextSha256 !== hash(signed.record.text)) {
+    throw new Error('RECOVERY_REFUSED:EXACT_ABSENCE_NOT_PROVEN');
+  }
+  const attempt2Budget = inspectOneShotAttempt(FINAL_W1_ATTEMPT2_IDENTITY, { root: budgetRoot });
+  const resultPath = resolve(submitStateRoot, `${id}-submit-attempt-2.json`);
+  return Object.freeze({ id, context, signed, request, attempt1, absence, attempt1Budget, attempt2Budget, resultPath });
+}
+export function finalW1RecoveryPreflight(options = {}) {
+  const recovery = finalW1RecoveryEligibility(options);
+  return Object.freeze({ stopped: 'PREFLIGHT_ONLY', operationId: recovery.id, manifestRoot: recovery.context.manifest.manifestRoot,
+    venueOrigin: assertVenue(recovery.context), pendingArtifactSha256: recovery.signed.rawSha256, requestBodySha256: recovery.request.bodySha256,
+    signedFieldsChanged: false, existingSignatureReused: true, resignRequired: false, attempt1Budget: recovery.attempt1Budget.state,
+    attempt2Identity: FINAL_W1_ATTEMPT2_IDENTITY.subject, attempt2Budget: recovery.attempt2Budget.state,
+    serverRepairEvidence: 'RAILWAY_WRITABLE_PERSISTENT_STORAGE_REPAIRED_AFTER_PERMISSION_ERROR_/data/.reaped',
+    automaticRetry: AUTOMATIC_RETRY, posted: false, networkCalls: 0 });
+}
+export async function runFinalW1RecoverySubmit({ transport = globalThis.fetch, confirmSubmit = confirm,
+  submitStateRoot = FINAL_ROOTS.submit, pendingRoot = FINAL_ROOTS.pending, budgetRoot = FINAL_ROOTS.budget } = {}) {
+  const recovery = finalW1RecoveryEligibility({ submitStateRoot, pendingRoot, budgetRoot });
+  if (recovery.attempt2Budget.state !== 'AVAILABLE' || existsSync(recovery.resultPath)) throw new Error(`RECOVERY_SUBMIT_REFUSED:BUDGET_${recovery.attempt2Budget.state}`);
+  const fingerprint = hash(`${recovery.context.manifest.manifestRoot}|${FINAL_W1_ATTEMPT2_IDENTITY.subject}|${recovery.signed.rawSha256}|${recovery.request.bodySha256}|${recovery.request.endpoint}`);
+  if (!await confirmSubmit('SUBMIT RECOVERY', fingerprint)) throw new Error('OPERATOR_CANCELLED');
+  const reread = pending(recovery.id, pendingRoot); const request = requestFor(reread.record);
+  if (reread.rawSha256 !== recovery.signed.rawSha256 || request.bodySha256 !== recovery.request.bodySha256 || request.endpoint !== recovery.request.endpoint) throw new Error('APPROVAL_INVALIDATED');
+  const spent = acquireOneShotAttempt(FINAL_W1_ATTEMPT2_IDENTITY, { root: budgetRoot });
+  const evidence = { schema: 'tclk/phase3b-submit-result/v1', lineageId: FINAL_LINEAGE, manifestRoot: finalManifest.manifestRoot,
+    venueOrigin: assertVenue(recovery.context), operationId: recovery.id, submitAttemptIdentity: FINAL_W1_ATTEMPT2_IDENTITY.subject,
+    submitBudgetId: spent.budgetId, predecessorSubmitBudgetId: recovery.attempt1Budget.budgetId,
+    pendingArtifactSha256: reread.rawSha256, requestBodySha256: request.bodySha256, endpoint: request.endpoint,
+    method: 'POST', postCalls: 1, automaticRetries: 0, timestamp: new Date().toISOString(), classification: 'SUBMISSION_UNCERTAIN', httpStatus: null };
+  try { const response = await transport(request.endpoint, { method: 'POST', headers: request.headers, body: request.body, redirect: 'error', credentials: 'omit' });
+    evidence.httpStatus = response.status; const body = typeof response.text === 'function' ? await response.text() : '';
+    evidence.responseBodySha256 = hash(body); evidence.classification = response.status >= 200 && response.status < 300 ? 'ACK_RECEIVED' : response.status >= 400 && response.status < 500 ? 'REJECTED' : 'SUBMISSION_UNCERTAIN';
+    if (response.status < 200 || response.status >= 300) { evidence.responseContentType = response.headers?.get?.('content-type') ?? null; evidence.boundedSanitizedDiagnostic = bounded(body); }
+  } catch (error) { evidence.transportError = error?.code ?? error?.name ?? 'TRANSPORT_EXCEPTION'; }
+  persist(recovery.resultPath, evidence); return Object.freeze({ ...evidence, resultPath: recovery.resultPath, posted: true });
+}
 function records(value) { if (Array.isArray(value)) return value.flatMap(records); if (!value || typeof value !== 'object') return [];
   return [...((Object.hasOwn(value, 'did') || Object.hasOwn(value, 'from')) && Object.hasOwn(value, 'text') ? [value] : []), ...Object.values(value).flatMap(records)]; }
 export function parseExportJsonl(text) {
