@@ -46,7 +46,12 @@ export const WRITE2_NONCE = 1;
 export const WRITE3_EXPECTED_ROOM = 'mb-p-tclk-62b08bcfe4331e3a';
 export const WRITE3_ATTEMPT1_REQUEST_BODY_SHA256 = 'ee2d2370586cf351f6a3265f8e1be273caa299596f53db0b05485ce4e264f9f8';
 export const WRITE3_ATTEMPT1_RESPONSE_BODY_SHA256 = '70076eb7c3465e1caf45a17fb7006382de8ec00228294e582ba105afa24f6440';
+export const WRITE3_ATTEMPT2_REQUEST_BODY_SHA256 = 'ee2d2370586cf351f6a3265f8e1be273caa299596f53db0b05485ce4e264f9f8';
+export const WRITE3_ATTEMPT2_RESPONSE_BODY_SHA256 = '405e570a1b50152d8a53283025050b60c4b9af6bf8b6008947082b9a39151a9c';
 export const WRITE3_ATTEMPT1_BUDGET_ID = 'ed114cc92c3b23d9ba8e25bf89a3492f4fd67134f265756dff838664794c2003';
+export const WRITE3_ATTEMPT2_BUDGET_ID = '856f37dd9f1ed54104206a4a714fa1984611d1ade7c64a28e95d0a6cdf7641f9';
+export const WRITE3_ATTEMPT3_IDENTITY = Object.freeze({ purpose: 'PHASE3B_SUBMIT',
+  operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: 'phase3b-write-3-submit-attempt-3' });
 
 const BLACKBOX_ROOT = resolve(fileURLToPath(new URL('./', import.meta.url)));
 export const PENDING_ROOT = resolve(BLACKBOX_ROOT, 'state', 'phase3b-pending-signed');
@@ -54,6 +59,11 @@ export const SUBMIT_STATE_ROOT = resolve(BLACKBOX_ROOT, 'state', 'phase3b-submit
 const PENDING_PATH = resolve(PENDING_ROOT, `${WRITE1_OPERATION}.json`);
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const textSha = text => sha256(Buffer.from(text, 'utf8'));
+const sanitizeServerDiagnostic = value => Buffer.from(value ?? '', 'utf8')
+  .subarray(0, SERVER_DIAGNOSTIC_MAX_BYTES).toString('utf8')
+  .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi, '[REDACTED_PRIVATE_KEY]')
+  .replace(/\bxprv[A-Za-z0-9]{20,}\b/g, '[REDACTED_EXTENDED_PRIVATE_KEY]')
+  .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '?');
 const PUBLIC_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
@@ -78,7 +88,7 @@ function assertPendingRoom(operationId, pending) {
 
 function attemptIdentityFor(operationId) {
   return Object.freeze({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST',
-    subject: operationId === 'phase3b-write-3' ? 'phase3b-write-3-submit-attempt-2' : `${operationId}-submit` });
+    subject: operationId === 'phase3b-write-3' ? WRITE3_ATTEMPT3_IDENTITY.subject : `${operationId}-submit` });
 }
 
 function observationStatePath(operationId, root = SUBMIT_STATE_ROOT) {
@@ -136,10 +146,21 @@ async function runGenericSubmit({ operationId, preflight, transport, budgetRoot,
   reviewSink(review);
   if (preflight) return Object.freeze({ operationId, room: spec.room, did: pending.record.did, nonce: pending.record.nonce,
     pendingVerification: 'PASS', requestBodySha256: request.bodySha256, endpoint: request.endpoint, exactPath: request.path,
-    attempt1: historical ? 'REJECTED / SPENT' : undefined, submitAttemptIdentity: submitAttemptIdentity.subject,
+    attempt1: historical ? 'REJECTED / SPENT' : undefined,
+    attempt2: historical ? 'REJECTED / SPENT' : undefined,
+    rootCause: historical?.diagnosis.rootCause,
+    signatureOfflineVerify: operationId === 'phase3b-write-3' ? verifyWrite3SignatureOffline({ path }) : undefined,
+    signedFieldsChanged: historical?.diagnosis.signedFieldsChanged,
+    unsignedTransportFixIdentified: historical?.diagnosis.unsignedTransportFixIdentified,
+    attempt3Eligible: historical?.diagnosis.attempt3Eligible,
+    humanDecisionRequired: historical?.diagnosis.humanDecisionRequired,
+    submitAttemptIdentity: submitAttemptIdentity.subject,
     submitBudget: budget.state, dependencyResolution: dependency?.classification === WRITE2_RETENTION_CLASSIFICATION
       ? 'HISTORICAL_RETENTION_EXCEPTION' : dependency ? 'OBSERVED_PUBLIC' : 'NONE',
     posted: false, budgetMutations: 0, networkCalls: 0 });
+  if (historical && historical.diagnosis.attempt3Eligible !== true) {
+    throw new Error('SUBMIT_REFUSED:WRITE3_ROOT_CAUSE_NOT_UNSIGNED_TRANSPORT');
+  }
   if (budget.state !== 'AVAILABLE') throw new Error(`SUBMIT_REFUSED:BUDGET_${budget.state}`);
   if (!await confirm(review)) throw new Error('OPERATOR_CANCELLED: no submit budget or network was used');
   await afterApproval();
@@ -162,6 +183,10 @@ async function runGenericSubmit({ operationId, preflight, transport, budgetRoot,
     evidence.classification = classifyResponse(response.status);
     const body = typeof response.text === 'function' ? await response.text() : '';
     evidence.responseBodySha256 = sha256(body);
+    if (response.status >= 400) {
+      evidence.responseContentType = typeof response.headers?.get === 'function' ? response.headers.get('content-type') : null;
+      evidence.diagnosticExcerpt = sanitizeServerDiagnostic(body);
+    }
   } catch (error) { evidence.transportError = error?.code ?? error?.name ?? 'TRANSPORT_EXCEPTION'; }
   const resultPath = writeResult(evidence, stateRoot, operationId);
   return Object.freeze({ ...evidence, resultPath, posted: true });
@@ -229,6 +254,37 @@ export function validateTransportBody(body) {
     || typeof body.nonce !== 'string' || !/^[0-9]{1,19}$/.test(body.nonce)
     || typeof body.text !== 'string') throw new Error('TRANSPORT_SCHEMA_REFUSED');
   return true;
+}
+
+// Offline reproduction of the pinned Technocore route's request gates. The
+// preserved request passes schema and signature verification and reaches the
+// append branch in the pinned source, so the historical production 400 cannot
+// be attributed to an unsigned transport field without inventing evidence.
+export function diagnoseWrite3Attempt2({ path = genericPendingPath('phase3b-write-3') } = {}) {
+  const pending = JSON.parse(readFileSync(path, 'utf8'));
+  const historicalBody = JSON.stringify({ did: pending.did, sig: pending.signature,
+    nonce: String(pending.nonce), text: pending.text });
+  validateTransportBody(JSON.parse(historicalBody));
+  const historicalRequestBodySha256 = sha256(historicalBody);
+  if (historicalRequestBodySha256 !== WRITE3_ATTEMPT2_REQUEST_BODY_SHA256) {
+    throw new Error('WRITE3_DIAGNOSIS_REFUSED:PRESERVED_REQUEST_HASH_MISMATCH');
+  }
+  const signatureOfflineVerify = verifyWrite3SignatureOffline({ path });
+  if (!signatureOfflineVerify) throw new Error('WRITE3_DIAGNOSIS_REFUSED:SIGNATURE_INVALID');
+  return Object.freeze({ operationId: 'phase3b-write-3', historicalRequestBodySha256,
+    candidateRequestBodySha256: historicalRequestBodySha256, transportNonceJsonType: 'string',
+    transportSchema: 'PASS', signatureOfflineVerify, pinnedRouteBranch: 'APPEND_REACHED',
+    pinnedRouteReproductionStatus: 200, historicalProductionStatus: 400,
+    rootCause: 'NOT_REPRODUCIBLE_FROM_PRESERVED_REQUEST_AND_PINNED_ROUTE',
+    unsignedTransportFixIdentified: false, attempt3Eligible: false,
+    humanDecisionRequired: true, signedFieldsChanged: false });
+}
+
+export function verifyWrite3SignatureOffline({ path = genericPendingPath('phase3b-write-3') } = {}) {
+  const pending = JSON.parse(readFileSync(path, 'utf8'));
+  return verifyPendingRecord(pending) && verify(null,
+    Buffer.from(`${pending.room}|${pending.nonce}|${pending.text}`), didPublicKey(pending.did),
+    Buffer.from(pending.signature, 'base64url'));
 }
 
 function approvalFingerprint({ pending, request, submitAttemptIdentity }) {
@@ -313,6 +369,25 @@ function historicalRecoveryAttempt1(operationId, root, budgetRoot) {
     throw new Error('RECOVERY_ELIGIBILITY_REFUSED:RECONCILIATION_EVIDENCE_MISMATCH');
   }
   return Object.freeze({ path, result: reconciliation });
+}
+
+function historicalRecoveryAttempt2(operationId, root, budgetRoot, pending) {
+  const path = resolve(root, `${operationId}-submit-attempt-2.json`);
+  if (!existsSync(path)) throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT2_NOT_PRESENT');
+  const result = JSON.parse(readFileSync(path, 'utf8'));
+  const marker = inspectOneShotAttempt(budgetIdentity({ purpose: 'PHASE3B_SUBMIT',
+    operationClass: 'REAL_TECHNOCORE_ROOM_POST', subject: 'phase3b-write-3-submit-attempt-2' }), { root: budgetRoot });
+  if (marker.state !== 'SPENT' || marker.budgetId !== WRITE3_ATTEMPT2_BUDGET_ID
+    || result.operationId !== operationId || result.submitAttemptIdentity !== 'phase3b-write-3-submit-attempt-2'
+    || result.submitBudgetId !== WRITE3_ATTEMPT2_BUDGET_ID || result.classification !== 'REJECTED'
+    || result.httpStatus !== 400 || result.postCalls !== 1
+    || result.requestBodySha256 !== WRITE3_ATTEMPT2_REQUEST_BODY_SHA256
+    || result.responseBodySha256 !== WRITE3_ATTEMPT2_RESPONSE_BODY_SHA256
+    || result.endpoint !== `https://technocore.chat/r/${WRITE3_EXPECTED_ROOM}?format=json`
+    || result.pendingArtifactSha256 !== pending.rawSha256 || result.pendingIntegrity !== pending.integrity) {
+    throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ATTEMPT2_EVIDENCE_MISMATCH');
+  }
+  return Object.freeze({ path, result, marker });
 }
 
 export function requireObservedPublic(operationId, stateRoot = SUBMIT_STATE_ROOT) {
@@ -418,29 +493,40 @@ function assertRecoveryEligibility(pending, request, stateRoot) {
 
 function assertGenericRecoveryEligibility(operationId, pending, request, stateRoot, budgetRoot) {
   if (operationId !== 'phase3b-write-3') return null;
-  const historical = historicalRecoveryAttempt1(operationId, stateRoot, budgetRoot);
+  const attempt1 = historicalRecoveryAttempt1(operationId, stateRoot, budgetRoot);
+  const attempt2 = historicalRecoveryAttempt2(operationId, stateRoot, budgetRoot, pending);
   requireObservedPublic(operationId, stateRoot);
   const ownObservation = observationStatePath(operationId, stateRoot);
   if (existsSync(ownObservation)) {
     const evidence = JSON.parse(readFileSync(ownObservation, 'utf8'));
     if (evidence.classification === 'OBSERVED_PUBLIC') throw new Error('RECOVERY_ELIGIBILITY_REFUSED:ALREADY_OBSERVED_PUBLIC');
   }
-  if (historical.result.pendingArtifactSha256 !== pending.rawSha256
-    || historical.result.pendingIntegrity !== pending.integrity
-    || historical.result.nonce !== pending.record.nonce
-    || historical.result.manifestRoot !== pending.record.manifestRoot
-    || historical.result.signature !== pending.record.signature
-    || historical.result.text !== pending.record.text
-    || historical.result.operatorTerminalEvidence?.requestBodySha256 !== request.bodySha256
-    || historical.result.historicalCodeProvenance?.endpoint === request.endpoint) {
+  const diagnosis = diagnoseWrite3Attempt2({ path: pending.path });
+  if (attempt1.result.pendingArtifactSha256 !== pending.rawSha256
+    || attempt1.result.pendingIntegrity !== pending.integrity
+    || attempt1.result.nonce !== pending.record.nonce
+    || attempt1.result.manifestRoot !== pending.record.manifestRoot
+    || attempt1.result.signature !== pending.record.signature
+    || attempt1.result.text !== pending.record.text
+    || attempt1.result.operatorTerminalEvidence?.requestBodySha256 !== attempt2.result.requestBodySha256
+    || attempt1.result.historicalCodeProvenance?.endpoint === request.endpoint
+    || diagnosis.historicalRequestBodySha256 !== request.bodySha256
+    || diagnosis.candidateRequestBodySha256 !== request.bodySha256
+    || diagnosis.transportSchema !== 'PASS'
+    || diagnosis.signatureOfflineVerify !== true
+    || diagnosis.pinnedRouteBranch !== 'APPEND_REACHED'
+    || diagnosis.unsignedTransportFixIdentified !== false
+    || diagnosis.attempt3Eligible !== false
+    || diagnosis.signedFieldsChanged !== false) {
     throw new Error('RECOVERY_ELIGIBILITY_REFUSED:TRANSPORT_CHANGE_NOT_EXACT');
   }
-  return historical;
+  return Object.freeze({ attempt1, attempt2, diagnosis });
 }
 
 function writeResult(result, root = SUBMIT_STATE_ROOT, operationId = WRITE1_OPERATION) {
   mkdirSync(root, { recursive: true });
-  const path = resolve(root, `${operationId}-submit-attempt-2.json`);
+  const suffix = result.submitAttemptIdentity?.match(/submit-(attempt-\d+)$/)?.[1] ?? 'attempt-2';
+  const path = resolve(root, `${operationId}-submit-${suffix}.json`);
   const temp = `${path}.tmp-${process.pid}`;
   const fd = openSync(temp, 'wx', 0o600);
   try { writeSync(fd, `${JSON.stringify(result, null, 2)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
@@ -502,7 +588,7 @@ export async function runRealSubmit({ operationId = WRITE1_OPERATION, preflight 
     evidence.responseBodySha256 = sha256(responseBody);
     if (response.status >= 400) {
       evidence.responseContentType = typeof response.headers?.get === 'function' ? response.headers.get('content-type') : null;
-      evidence.diagnosticExcerpt = Buffer.from(responseBody, 'utf8').subarray(0, SERVER_DIAGNOSTIC_MAX_BYTES).toString('utf8');
+      evidence.diagnosticExcerpt = sanitizeServerDiagnostic(responseBody);
     }
     evidence.postCalls = 1;
   } catch (error) {

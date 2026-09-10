@@ -13,7 +13,7 @@ if (invoked) {
     process.exitCode = 2;
   } else {
     try {
-      const result = preflight ? productionRailPreflight(operationId) : await productionRailWrite(operationId);
+      const result = preflight ? await productionRailPreflight(operationId) : await productionRailWrite(operationId);
       process.stdout.write(`${JSON.stringify(result)}\n`);
     } catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; }
   }

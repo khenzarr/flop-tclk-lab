@@ -188,7 +188,7 @@ test('hotfix: endpoint and operation-specific review follow pending room/frame/a
   const review3 = reviewData(pending(write3), requestFor(write3), budget);
   assert.equal(review2.frame, 'accept'); assert.equal(review3.frame, 'lock');
   assert.equal(review2.submitAttemptIdentity, 'phase3b-write-2-submit');
-  assert.equal(review3.submitAttemptIdentity, 'phase3b-write-3-submit-attempt-2');
+  assert.equal(review3.submitAttemptIdentity, 'phase3b-write-3-submit-attempt-3');
   assert.notEqual(review2.approvalFingerprint, review3.approvalFingerprint);
   assert.doesNotMatch(JSON.stringify([review2, review3]), /phase3b-write-1-submit-attempt-2/);
 });
@@ -277,16 +277,33 @@ test('hotfix: WRITE #3 recovery preserves attempt #1 and pending bytes while pre
     assert.equal(reconciliation.source, 'OPERATOR_TERMINAL_TRANSCRIPT_PLUS_DURABLE_BUDGET_MARKER');
     assert.equal(reconciliation.historicalCodeProvenance.wrongRoom, 'tclk-offers');
     assert.equal(reconciliation.historicalCodeProvenance.expectedRoom, 'mb-p-tclk-62b08bcfe4331e3a');
+    const attempt2Identity = budgetIdentity({ purpose: 'PHASE3B_SUBMIT', operationClass: 'REAL_TECHNOCORE_ROOM_POST',
+      subject: 'phase3b-write-3-submit-attempt-2' });
+    const attempt2Marker = acquireOneShotAttempt(attempt2Identity, { root: budgetRoot });
+    writeFileSync(resolve(stateRoot, 'phase3b-write-3-submit-attempt-2.json'), JSON.stringify({
+      schema: 'tclk/phase3b-submit-result/v1', operationId: 'phase3b-write-3',
+      submitAttemptIdentity: 'phase3b-write-3-submit-attempt-2', submitBudgetId: attempt2Marker.budgetId,
+      pendingIntegrity: pending.integrity, pendingArtifactSha256: hash(raw),
+      requestBodySha256: 'ee2d2370586cf351f6a3265f8e1be273caa299596f53db0b05485ce4e264f9f8',
+      endpoint: 'https://technocore.chat/r/mb-p-tclk-62b08bcfe4331e3a?format=json', method: 'POST', postCalls: 1,
+      timestamp: '2026-09-09T04:29:03.584Z', classification: 'REJECTED', httpStatus: 400,
+      responseBodySha256: '405e570a1b50152d8a53283025050b60c4b9af6bf8b6008947082b9a39151a9c',
+    }));
     let review;
     const result = await runRealSubmit({ operationId: 'phase3b-write-3', preflight: true, pendingPath, budgetRoot, stateRoot,
       reviewSink: value => { review = value; } });
-    assert.equal(result.submitAttemptIdentity, 'phase3b-write-3-submit-attempt-2');
+    assert.equal(result.submitAttemptIdentity, 'phase3b-write-3-submit-attempt-3');
     assert.equal(result.endpoint, 'https://technocore.chat/r/mb-p-tclk-62b08bcfe4331e3a?format=json');
+    assert.equal(result.unsignedTransportFixIdentified, false);
+    assert.equal(result.attempt3Eligible, false);
+    assert.equal(result.humanDecisionRequired, true);
     assert.equal(review.frame, 'lock'); assert.equal(review.exactPath, '/r/mb-p-tclk-62b08bcfe4331e3a');
     assert.equal(result.submitBudget, 'AVAILABLE'); assert.equal(result.budgetMutations, 0); assert.equal(result.networkCalls, 0);
     assert.equal(readFileSync(pendingPath, 'utf8'), raw); assert.equal(existsSync(missingAttempt1Path), false);
     assert.equal(readFileSync(markerPath, 'utf8'), markerBefore);
-    assert.equal(existsSync(resolve(stateRoot, 'phase3b-write-3-submit-attempt-2.json')), false);
+    assert.equal(existsSync(resolve(stateRoot, 'phase3b-write-3-submit-attempt-3.json')), false);
+    await assert.rejects(runRealSubmit({ operationId: 'phase3b-write-3', pendingPath, budgetRoot, stateRoot,
+      reviewSink: () => {}, confirm: async () => true }), /WRITE3_ROOT_CAUSE_NOT_UNSIGNED_TRANSPORT/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
