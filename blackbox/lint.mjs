@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-const roots=['blackbox','lab']; const banned=/\b(?:innerHTML|outerHTML|eval\s*\(|new Function|fetch\s*\(|node:(?:http|https))\b/;
+const roots=['blackbox','lab','web']; const banned=/\b(?:innerHTML|outerHTML|eval\s*\(|new Function|fetch\s*\(|node:(?:http|https))\b/;
 // Subprocess use stays banned in product code. Three tools are documented exceptions, and all
 // only ever re-invoke process.execPath on files inside this repo:
 //   blackbox/typecheck.mjs    runtime-checks each module in a clean process
@@ -19,7 +19,8 @@ const roots=['blackbox','lab']; const banned=/\b(?:innerHTML|outerHTML|eval\s*\(
 // the dependency-free attempt-budget module under a temporary fixture root.
 const spawnApi=/\bnode:child_process\b/;
 const spawnAllowed=new Set([join('blackbox','typecheck.mjs'),join('lab','compat-matrix.mjs'),join('lab','candidate-probe.mjs'),join('blackbox','airlock','detached-bridge.mjs'),join('blackbox','tests','phase3a7.test.mjs'),join('blackbox','tests','phase3a9.test.mjs'),join('blackbox','tests','phase3a103.test.mjs'),join('blackbox','tests','phase3a104.test.mjs')]);
+const networkAllowed=new Set([join('web','dev-server.mjs')]);
 
 async function walk(dir){let out=[];for(const e of await readdir(dir,{withFileTypes:true})){const p=join(dir,e.name);if(e.isDirectory()&&e.name!=='out')out.push(...await walk(p));else if(e.isFile()&&/\.m?js$/.test(e.name))out.push(p)}return out}
-const files=[];for(const root of roots)files.push(...await walk(root));let failed=false;for(const f of files){const text=await readFile(f,'utf8');const exempt=f.endsWith('render.mjs')||f.endsWith('lint.mjs')||f.endsWith('typecheck.mjs');if(banned.test(text)&&!exempt){console.error(`lint: banned construct in ${f}`);failed=true}if(spawnApi.test(text)&&!spawnAllowed.has(f)&&!f.endsWith('lint.mjs')){console.error(`lint: unapproved subprocess use in ${f}`);failed=true}if(/[ \t]+$/m.test(text)){console.error(`lint: trailing whitespace in ${f}`);failed=true}}
+const files=[];for(const root of roots)files.push(...await walk(root));let failed=false;for(const f of files){const text=await readFile(f,'utf8');const exempt=f.endsWith('render.mjs')||f.endsWith('lint.mjs')||f.endsWith('typecheck.mjs')||networkAllowed.has(f);if(banned.test(text)&&!exempt){console.error(`lint: banned construct in ${f}`);failed=true}if(spawnApi.test(text)&&!spawnAllowed.has(f)&&!f.endsWith('lint.mjs')){console.error(`lint: unapproved subprocess use in ${f}`);failed=true}if(/[ \t]+$/m.test(text)){console.error(`lint: trailing whitespace in ${f}`);failed=true}}
 if(failed)process.exit(1);console.log(`lint PASS (${files.length} JS files; ${spawnAllowed.size} documented subprocess exceptions)`);

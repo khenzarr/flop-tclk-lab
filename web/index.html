@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080908">
+  <meta name="description" content="TCLK BLACKBOX is the flight recorder for agent deals. Replay and inspect a verified six-step public record.">
+  <title>TCLK BLACKBOX — Agent Deal Flight Recorder</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script type="module" src="/assets/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#flight-record">Skip to flight record</a>
+  <div class="ambient-grid" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="TCLK BLACKBOX home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+      <span>TCLK <strong>BLACKBOX</strong></span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#flight-record">Flight record</a>
+      <a href="#evidence">Evidence</a>
+      <button class="nav-evidence" type="button" data-open-evidence>Open capsule</button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero section-shell" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="rec-dot"></span> Verified real record · playback</div>
+        <h1 id="hero-title">The flight recorder<br>for <em>agent deals.</em></h1>
+        <p class="hero-lede">Two agents made a deal. BLACKBOX shows what actually happened—step by step, with the proof kept attached.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#flight-record">Open flight record <span aria-hidden="true">↓</span></a>
+          <button class="button button-quiet" type="button" data-open-evidence>View evidence</button>
+        </div>
+        <ol class="narrative" aria-label="How BLACKBOX works">
+          <li><span>01</span> Start the deal</li><li><span>02</span> Watch it happen</li>
+          <li><span>03</span> Verify every step</li><li><span>04</span> Keep the proof</li>
+        </ol>
+      </div>
+      <div class="recorder-preview" aria-label="Completed flight record preview">
+        <div class="recorder-topline"><span>BBX / PHASE3B-FINAL</span><span class="live-label">RECORDED</span></div>
+        <div class="preview-orbit" aria-hidden="true"><span>A</span><i></i><b>BBX</b><i></i><span>B</span></div>
+        <div class="preview-events" id="preview-events"></div>
+        <div class="recorder-footer"><span>FLIGHT RECORD COMPLETE</span><strong>06 / 06</strong></div>
+      </div>
+    </section>
+
+    <section class="flight-section" id="flight-record" aria-labelledby="flight-title">
+      <div class="section-shell">
+        <div class="section-heading reveal">
+          <div><p class="section-kicker">Verified playback</p><h2 id="flight-title">Every action. In order.</h2></div>
+          <button class="replay-button" id="replay-button" type="button"><span aria-hidden="true">▶</span> Replay record</button>
+        </div>
+        <div class="flight-console reveal">
+          <div class="console-status">
+            <span><i></i> Record integrity verified</span>
+            <span>MANIFEST <code id="console-root"></code></span>
+          </div>
+          <div class="flight-layout">
+            <div class="timeline-wrap">
+              <div class="timeline" id="timeline" role="list" aria-label="Six verified deal events"></div>
+              <div class="flight-complete">
+                <div class="complete-seal" aria-hidden="true">✓</div>
+                <div><p>Flight record complete</p><span id="complete-summary"></span></div>
+              </div>
+            </div>
+            <aside class="inspector" id="inspector" aria-labelledby="inspector-title" aria-live="polite">
+              <div class="inspector-head"><span id="inspector-index"></span><span class="verified-chip">Verified</span></div>
+              <p class="inspector-actor" id="inspector-actor"></p>
+              <h3 id="inspector-title"></h3>
+              <p class="inspector-explain" id="inspector-explain"></p>
+              <div id="rail-proof" class="rail-proof" hidden></div>
+              <details class="technical" open>
+                <summary>Technical evidence <span aria-hidden="true">+</span></summary>
+                <dl id="evidence-fields"></dl>
+              </details>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="overview section-shell" id="evidence" aria-labelledby="overview-title">
+      <div class="section-heading reveal"><div><p class="section-kicker">Deal overview</p><h2 id="overview-title">One record. Six proofs.</h2></div><p class="heading-note">Public-safe identifiers from the final evidence capsule.</p></div>
+      <div class="overview-grid reveal">
+        <article class="deal-card">
+          <div class="deal-status"><span>Status</span><strong><i></i> Complete</strong></div>
+          <dl id="deal-fields"></dl>
+        </article>
+        <article class="identity-card">
+          <p class="card-label">Identity map</p>
+          <div class="identity-track"><div><span>A</span><p>Agent A</p><code id="did-a"></code></div><i></i><div class="bbx-node">BBX</div><i></i><div><span>B</span><p>Agent B</p><code id="did-b"></code></div></div>
+          <p class="identity-note">Two cryptographic identities. One human operator. No claim of independent counterparties.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="recovery" aria-labelledby="recovery-title">
+      <div class="section-shell">
+        <div class="recovery-intro reveal"><p class="section-kicker">Why a flight recorder?</p><h2 id="recovery-title">Because “sent” is not the end of the story.</h2><p>Real systems fail in the space between an action and its proof. BLACKBOX keeps those states separate.</p></div>
+        <ol class="recovery-strip reveal">
+          <li><span>Attempt</span><strong>Server returned 500</strong><p>The action stayed uncertain—not complete.</p></li>
+          <li><span>Public check</span><strong>Exact record absent</strong><p>No evidence was promoted without observation.</p></li>
+          <li><span>Root cause</span><strong>Storage permission failure</strong><p>The venue was repaired before recovery.</p></li>
+          <li><span>Reviewed retry</span><strong>Same signed operation</strong><p>No blind retry and no rewritten signed fields.</p></li>
+          <li><span>Result</span><strong>Public record verified</strong><p>The evidence—not the attempt—closed the step.</p></li>
+        </ol>
+        <div class="lineage-note reveal"><span>Earlier lineage preserved</span><p>The official venue accepted the offer and acceptance, then refused the new deal room when its service-wide room cap was reached. BLACKBOX kept that failed lineage instead of presenting it as complete.</p></div>
+      </div>
+    </section>
+
+    <section class="semantics section-shell" aria-labelledby="semantics-title">
+      <div class="semantics-copy reveal"><p class="section-kicker">The completion gap</p><h2 id="semantics-title">An acknowledgement is a clue.<br>Evidence is the answer.</h2><p>A normal integration may stop at an HTTP response. BLACKBOX follows the action until the required public evidence exists.</p></div>
+      <div class="state-chain reveal" aria-label="Signed is not the same as submitted, observed, or complete">
+        <div><span>01</span><strong>Signed</strong><p>Intent exists</p></div><b>≠</b><div><span>02</span><strong>Submitted</strong><p>Request left custody</p></div><b>≠</b><div><span>03</span><strong>Observed</strong><p>Exact public record found</p></div><b>≠</b><div class="chain-complete"><span>04</span><strong>Complete</strong><p>All required evidence exists</p></div>
+      </div>
+    </section>
+
+    <section class="trust" aria-labelledby="trust-title">
+      <div class="section-shell trust-grid">
+        <div class="trust-copy reveal"><p class="section-kicker">Trust model</p><h2 id="trust-title">Clear about what the signatures mean.</h2><p>This demonstration uses two separate cryptographic identities controlled by one human operator.</p><div class="trust-fact"><strong>1</strong><span>human operator</span><strong>2</strong><span>distinct cryptographic DIDs</span></div></div>
+        <div class="boundary-card reveal"><p class="card-label">Evidence boundary</p><h3>BLACKBOX proves the recorded sequence and its stated verification evidence.</h3><p>It does not infer:</p><ul><li>Human identity</li><li>Wallet ownership</li><li>Independent counterparties</li><li>Reputation or eligibility</li><li>Economic settlement</li></ul></div>
+      </div>
+    </section>
+
+    <section class="rail section-shell" aria-labelledby="rail-title">
+      <div class="rail-card reveal">
+        <div><p class="section-kicker">PaperRail disclosure</p><h2 id="rail-title">Receipt plus exact public observation.</h2><p>That is what completion means for the two rail events in this record.</p></div>
+        <div class="rail-flow" aria-label="PaperRail verification flow"><span>Receipt</span><i>→</i><span>Public read</span><i>→</i><span>Exact match</span><i>→</i><strong>Verified</strong></div>
+        <div class="rail-caveats"><span>Not a payment rail</span><span>Unsigned</span><span>World-writable</span><span>No human identity proof</span><span>No wallet ownership proof</span></div>
+      </div>
+    </section>
+
+    <section class="open-evidence section-shell" aria-labelledby="open-title">
+      <div class="evidence-box reveal">
+        <div><p class="section-kicker">Open evidence</p><h2 id="open-title">Keep the proof.</h2><p>Inspect the public-safe capsule, copy its integrity hash, or download the exact JSON used by this interface.</p></div>
+        <div class="capsule-hash"><span>Public capsule SHA-256</span><code id="capsule-sha"></code><button type="button" data-copy-sha>Copy hash</button></div>
+        <div class="evidence-actions"><button class="button button-primary" type="button" data-open-evidence>Open evidence capsule</button><a class="button button-quiet" href="/evidence/phase3b-final-public-capsule.json" download>Download JSON</a></div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="section-shell"><span>TCLK BLACKBOX</span><p>Agent Deal Flight Recorder · Verified public playback</p><code>phase3b-final</code></div></footer>
+
+  <dialog class="evidence-dialog" id="evidence-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-head"><div><p class="section-kicker">Public-safe artifact</p><h2 id="dialog-title">Evidence capsule</h2></div><button type="button" data-close-evidence aria-label="Close evidence capsule">×</button></div>
+    <div class="dialog-meta"><span>SHA-256 verified</span><code id="dialog-sha"></code></div>
+    <pre id="raw-json" tabindex="0"></pre>
+    <div class="dialog-actions"><button class="button button-primary" type="button" data-copy-json>Copy JSON</button><a class="button button-quiet" href="/evidence/phase3b-final-public-capsule.json" target="_blank" rel="noopener">Open raw file</a></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

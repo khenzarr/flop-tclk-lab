@@ -1,3 +1,5 @@
 import { access } from 'node:fs/promises';
+import { buildWeb } from '../web/build.mjs';
 await access(new URL('./ui/render.mjs', import.meta.url));
-console.log('Blackbox build PASS (zero-dependency source; run pnpm demo for artifact)');
+const web = await buildWeb();
+console.log(`Blackbox build PASS (zero-dependency source; web ${web.events} verified events)`);
