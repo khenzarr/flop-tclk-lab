@@ -16,6 +16,8 @@ import { runtimeAttestation, runtimeIdentity, tclk, baseline } from './upstream.
 
 const ROOT = new URL('../', import.meta.url);
 const PIN = 'd48e87343200e3115e243df39e8f295f5ce2e645';
+const EXPECTED_PAPER_LOCK_VALUE_COMMITMENT = '93412def8f8fe56258d90e77c40805c416a0fde434637f9366079dd230ce6c9e';
+const EXPECTED_PAPER_CLAIM_VALUE_COMMITMENT = 'ee22cd643ecf35841960c77eb747b4cb9c591f80415d848e350a32a16c36479e';
 const DID_A = 'did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi';
 const DID_B = 'did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW';
 const NOW = 1800000000000;
@@ -94,10 +96,17 @@ const paperTerms = {
 };
 const paperRef = await paperRail.lock(paperTerms);
 const paperLockNote = tclk.paperNote(paperRef);
+const paperLockValueCommitment = sha256(tclk.canonicalJson(await paperNotes.get(paperLockNote.ns, paperLockNote.key)));
 await paperRail.claim(paperRef, PREIMAGE);
 const paperClaimNote = tclk.paperNote(paperRef);
+const paperClaimValueCommitment = sha256(tclk.canonicalJson(await paperNotes.get(paperClaimNote.ns, paperClaimNote.key)));
 if (JSON.stringify(paperLockNote) !== JSON.stringify(paperClaimNote)) {
   throw new Error('phase3b manifest: PaperRail lock and claim did not target one note');
+}
+if (paperLockValueCommitment !== EXPECTED_PAPER_LOCK_VALUE_COMMITMENT
+  || paperClaimValueCommitment !== EXPECTED_PAPER_CLAIM_VALUE_COMMITMENT
+  || paperLockValueCommitment === paperClaimValueCommitment) {
+  throw new Error('phase3b manifest: PaperRail lock/claim commitments are not distinct frozen values');
 }
 
 const frameSpecs = [
@@ -124,8 +133,8 @@ if (trajectory.join(' -> ') !== 'proposed -> accepted -> locked -> claimed') {
 }
 
 const paperRailWrites = [
-  { write: 5, operationId: 'phase3b-write-5', ordinal: 4, operation: 'lock', note: paperLockNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false, valueCommitment: sha256(tclk.canonicalJson(await paperNotes.get(paperLockNote.ns, paperLockNote.key))) },
-  { write: 6, operationId: 'phase3b-write-6', ordinal: 6, operation: 'claim', note: paperClaimNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false, valueCommitment: sha256(tclk.canonicalJson(await paperNotes.get(paperClaimNote.ns, paperClaimNote.key))) },
+  { write: 5, operationId: 'phase3b-write-5', ordinal: 4, operation: 'lock', note: paperLockNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false, valueCommitment: paperLockValueCommitment },
+  { write: 6, operationId: 'phase3b-write-6', ordinal: 6, operation: 'claim', note: paperClaimNote, signed: false, worldWritable: true, authorshipProof: 'NONE', evidenceClass: 'UNSIGNED_RAIL_OBSERVATION', valueMoved: false, valueCommitment: paperClaimValueCommitment },
 ];
 
 const manifest = {
@@ -231,4 +240,3 @@ console.log(JSON.stringify({
   trajectory,
   signed: false, posted: false, publicActions: 0,
 }, null, 2));
-

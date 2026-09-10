@@ -142,3 +142,17 @@ test('frozen manifest derives from attested runtime and remains inert', () => {
   assert.equal(manifest.safety.secretsInArtifact, false);
   assert.equal(JSON.stringify(manifest).includes('abababab'), false);
 });
+
+test('manifest generator snapshots distinct PaperRail lock and claim commitments around claim mutation', () => {
+  const source = readFileSync(at('lab', 'freeze-phase3b-manifest.mjs'), 'utf8');
+  const lockCapture = source.indexOf('const paperLockValueCommitment =');
+  const claimMutation = source.indexOf('await paperRail.claim(paperRef, PREIMAGE);');
+  const claimCapture = source.indexOf('const paperClaimValueCommitment =');
+  assert.ok(lockCapture >= 0 && lockCapture < claimMutation && claimMutation < claimCapture);
+  assert.match(source, /EXPECTED_PAPER_LOCK_VALUE_COMMITMENT = '93412def8f8fe56258d90e77c40805c416a0fde434637f9366079dd230ce6c9e'/);
+  assert.match(source, /EXPECTED_PAPER_CLAIM_VALUE_COMMITMENT = 'ee22cd643ecf35841960c77eb747b4cb9c591f80415d848e350a32a16c36479e'/);
+  assert.match(source, /operationId: 'phase3b-write-5'[\s\S]*?valueCommitment: paperLockValueCommitment/);
+  assert.match(source, /operationId: 'phase3b-write-6'[\s\S]*?valueCommitment: paperClaimValueCommitment/);
+  assert.notEqual('93412def8f8fe56258d90e77c40805c416a0fde434637f9366079dd230ce6c9e',
+    'ee22cd643ecf35841960c77eb747b4cb9c591f80415d848e350a32a16c36479e');
+});
