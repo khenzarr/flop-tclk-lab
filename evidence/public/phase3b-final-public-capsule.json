@@ -1,0 +1,195 @@
+{
+  "schema": "tclk-blackbox/public-evidence-capsule/v1",
+  "product": "TCLK BLACKBOX",
+  "artifactType": "PUBLIC_EVIDENCE_CAPSULE",
+  "lineageId": "phase3b-final",
+  "status": {
+    "acceptance": "PHASE3B_FINAL_PUBLIC_TRANSCRIPT_COMPLETE",
+    "complete": true,
+    "publicTranscriptEvidenceComplete": true,
+    "currentPublicRetentionComplete": true,
+    "retentionGapCount": 0
+  },
+  "summary": {
+    "flightRecordComplete": true,
+    "totalSteps": 6,
+    "verifiedSteps": 6,
+    "unresolvedSteps": 0
+  },
+  "deal": {
+    "lineageId": "phase3b-final",
+    "manifestRoot": "887eb9996c701260e5d78f1798b6577f62575db20a625bcaee7b12523d3ecd2f",
+    "venueOrigin": "https://technocore-chat-production.up.railway.app",
+    "contractId": "0xda8ce09467a733d80d33512327c5a14ac9317cd6067d9cd8fe561ff64464a45f",
+    "dealRoom": "mb-p-tclk-da8ce09467a733d8",
+    "dealCommitment": "0xfe204e0aa9a41142c57bef4f5ad5dbf9a3747f9f08bb4b4c1e84b1f0190b492e"
+  },
+  "trustModel": {
+    "operatorModel": "ONE_HUMAN_OPERATOR_TWO_DISTINCT_CRYPTOGRAPHIC_DIDS",
+    "sameHumanOperator": true,
+    "independentHumanCounterparty": false,
+    "didA": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
+    "didB": "did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW",
+    "signaturesDoNotProve": [
+      "HUMAN_IDENTITY",
+      "WALLET_OWNERSHIP",
+      "REPUTATION",
+      "ELIGIBILITY",
+      "FLOP_IDENTITY"
+    ]
+  },
+  "flightRecord": [
+    {
+      "operationId": "phase3b-final-write-1",
+      "step": "OFFER",
+      "status": "PUBLICLY_VERIFIED",
+      "display": {
+        "label": "Offer",
+        "verification": "Publicly verified"
+      },
+      "evidence": {
+        "did": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
+        "room": "tclk-offers",
+        "signedNonce": 3,
+        "canonicalTextSha256": "13f0b0f06f2ceb4f35bc6a7c3d27944c5dc22ddd54a83694bcb2b648abcaf5d9",
+        "publicSeq": 1,
+        "publicTimestamp": "2026-09-10T16:44:16.653219Z",
+        "signatureSeen": true,
+        "classification": "OBSERVED_PUBLIC",
+        "observationSource": "https://technocore-chat-production.up.railway.app/r/tclk-offers?format=json"
+      }
+    },
+    {
+      "operationId": "phase3b-final-write-2",
+      "step": "ACCEPT",
+      "status": "PUBLICLY_VERIFIED",
+      "display": {
+        "label": "Accept",
+        "verification": "Publicly verified"
+      },
+      "evidence": {
+        "did": "did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW",
+        "room": "tclk-offers",
+        "signedNonce": 3,
+        "canonicalTextSha256": "c26c0c2a8f33d9f03b89887a18f9951e58fe609c6fdec01707c0ec0bfd91cdba",
+        "publicSeq": 2,
+        "publicTimestamp": "2026-09-10T16:54:06.380229Z",
+        "signatureSeen": true,
+        "classification": "OBSERVED_PUBLIC",
+        "observationSource": "https://technocore-chat-production.up.railway.app/r/tclk-offers?format=json"
+      }
+    },
+    {
+      "operationId": "phase3b-final-write-3",
+      "step": "LOCK",
+      "status": "PUBLICLY_VERIFIED",
+      "display": {
+        "label": "Lock",
+        "verification": "Publicly verified"
+      },
+      "evidence": {
+        "did": "did:key:z6MknGqyhtD6cq2HwwWypgrsFyfXHLq4xuGVD845wzDDPTqi",
+        "room": "mb-p-tclk-da8ce09467a733d8",
+        "signedNonce": 1,
+        "canonicalTextSha256": "33d28849d8f03b9141e371b6db35817a1e62b45392062edd273467a4ffb3e110",
+        "publicSeq": 1,
+        "publicTimestamp": "2026-09-10T16:56:41.178712Z",
+        "signatureSeen": true,
+        "classification": "OBSERVED_PUBLIC",
+        "observationSource": "https://technocore-chat-production.up.railway.app/r/mb-p-tclk-da8ce09467a733d8?format=json"
+      }
+    },
+    {
+      "operationId": "phase3b-final-write-5",
+      "step": "RAIL_LOCK",
+      "status": "RECEIPT_AND_PUBLIC_OBSERVATION_VERIFIED",
+      "display": {
+        "label": "PaperRail lock",
+        "verification": "Receipt and public observation verified"
+      },
+      "evidence": {
+        "namespace": "tclk-paper-da",
+        "key": "8ce09467a733d8",
+        "classification": "OBSERVED_PUBLIC",
+        "valueCommitment": "e990472d11821a8d38fa80c80ccea1a472c8bb635ae3055691572d7cb728048a",
+        "expectedValueSha256": "22ea598c8bd8cc25ba340b2acf73447450558db214bd121df50be9d12774df01",
+        "observedValueSha256": "22ea598c8bd8cc25ba340b2acf73447450558db214bd121df50be9d12774df01",
+        "exactValueMatch": true,
+        "receiptSha256": "6a6ad75356d7d235576dbdd7f4a7d997179601a0bb9cf149fd9148e9facf3290",
+        "receiptWrittenAt": "2026-09-10T16:58:43.551Z",
+        "observedAt": "2026-09-10T16:59:29.865Z",
+        "signed": false,
+        "worldWritable": true,
+        "authorshipProof": "NONE",
+        "valueMoved": false,
+        "evidenceClass": "UNSIGNED_RAIL_OBSERVATION"
+      }
+    },
+    {
+      "operationId": "phase3b-final-write-4",
+      "step": "REVEAL",
+      "status": "PUBLICLY_VERIFIED",
+      "display": {
+        "label": "Reveal",
+        "verification": "Publicly verified"
+      },
+      "evidence": {
+        "did": "did:key:z6MkoetPhd5Aa1pKFCR2a8SinCWaL64U7ytcPP6zg5pnnDoW",
+        "room": "mb-p-tclk-da8ce09467a733d8",
+        "signedNonce": 1,
+        "canonicalTextSha256": "b51faea50ce6db350ff630a2320261a3b9f7b189b73706593b258061d253757c",
+        "publicSeq": 2,
+        "publicTimestamp": "2026-09-10T17:01:44.538216Z",
+        "signatureSeen": true,
+        "classification": "OBSERVED_PUBLIC",
+        "observationSource": "https://technocore-chat-production.up.railway.app/r/mb-p-tclk-da8ce09467a733d8?format=json"
+      }
+    },
+    {
+      "operationId": "phase3b-final-write-6",
+      "step": "RAIL_CLAIM",
+      "status": "RECEIPT_AND_PUBLIC_OBSERVATION_VERIFIED",
+      "display": {
+        "label": "PaperRail claim",
+        "verification": "Receipt and public observation verified"
+      },
+      "evidence": {
+        "namespace": "tclk-paper-da",
+        "key": "8ce09467a733d8",
+        "classification": "OBSERVED_PUBLIC",
+        "valueCommitment": "79dd5068aef9d1453ac5fbc14451b5f886184e9035c97e3d73e49f83de7125c2",
+        "expectedValueSha256": "eaad17d3451a93667b0ef1f36a45ac2e9eedc4b5cc1a1a015f098f39b1b909de",
+        "observedValueSha256": "eaad17d3451a93667b0ef1f36a45ac2e9eedc4b5cc1a1a015f098f39b1b909de",
+        "exactValueMatch": true,
+        "receiptSha256": "3c7ae423bc3c408bcfde67cffc0fc1259e029db1e42e9b1dce4395e4a3474540",
+        "receiptWrittenAt": "2026-09-10T17:03:38.255Z",
+        "observedAt": "2026-09-10T17:04:36.932Z",
+        "signed": false,
+        "worldWritable": true,
+        "authorshipProof": "NONE",
+        "valueMoved": false,
+        "evidenceClass": "UNSIGNED_RAIL_OBSERVATION"
+      }
+    }
+  ],
+  "evidencePolicy": {
+    "signedDoesNotMeanSubmitted": true,
+    "ackDoesNotMeanPubliclyObserved": true,
+    "publicObservationDoesNotByItselfMeanComplete": true,
+    "paperRail": {
+      "isPaymentRail": false,
+      "provesHumanIdentity": false,
+      "provesWalletOwnership": false,
+      "worldWritable": true,
+      "requiresLocalWriteReceiptForCompletion": true,
+      "requiresSubsequentExactPublicObservation": true
+    }
+  },
+  "integrity": {
+    "sourceProductionCapsuleSha256": "732248a29bd52ad11044e0c315e29fc98a1e9a127ea24d20e583736f38706dbd",
+    "sourceManifestSha256": "9ab1e673604f747a152055f84aa8a59227ef8faf1326b2af44469ee5ce0414cb",
+    "manifestRoot": "887eb9996c701260e5d78f1798b6577f62575db20a625bcaee7b12523d3ecd2f",
+    "canonicalProjectionSha256": "fb0d91ec154fba7459adb78e0db388910873505c7372336363de3aafcc4bef1b",
+    "canonicalization": "SHA-256 of compact JSON UTF-8 before integrity block"
+  }
+}
