@@ -114,7 +114,8 @@ async function routeLoad() {
 }
 
 async function start() {
-  bindPairing(); renderConnection(await connectionStatus());
+  bindPairing(); const status = await connectionStatus(); renderConnection(status);
+  if (status.state === 'CONNECTOR_OFFLINE') message("BLACKBOX couldn't reach your local connector. Make sure `pnpm connector` is running and allow local-network access in your browser if prompted.", 'error');
   const form = byId('new-deal-form');
   if (form) form.addEventListener('submit', async event => {
     event.preventDefault(); if (connection.state !== 'CONNECTED') return message('Connect the local agent first.', 'error');

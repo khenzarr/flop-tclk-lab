@@ -10,6 +10,11 @@ import { createDealSession, HUB_ROOT, listSessions, PROFILES, readCompletedPubli
 export const CONNECTOR_HOST = '127.0.0.1';
 export const CONNECTOR_PORT = 8787;
 export const PAIRING_TTL_MS = 8 * 60 * 60 * 1000;
+export const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
+  'http://127.0.0.1:4173',
+  'http://localhost:4173',
+  'https://tclk-blackbox.vercel.app',
+]);
 const MAX_BODY = 32 * 1024;
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const pairingPath = (root, id) => resolve(root, 'pairing', `blackbox-pairing-${id}.json`);
@@ -36,7 +41,7 @@ async function readBody(request) {
 }
 
 export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, now = () => Date.now(),
-  origins = ['http://127.0.0.1:4173', 'http://localhost:4173'], mode = 'real', transport } = {}) {
+  origins = DEFAULT_ALLOWED_ORIGINS, mode = 'real', transport } = {}) {
   const pairing = await createPairing({ root, now, port });
   const executor = mode === 'simulated' ? new SimulatedExecutor({ submitOutcomes: ['SUBMISSION_UNCERTAIN', 'ACK_RECEIVED'] }) : new RealExecutor({ root, ...(transport ? { transport } : {}) });
   const engine = new DealEngine({ root, executor }); const rate = new Map();
@@ -96,17 +101,24 @@ function json(response, status, value) {
     'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); response.end(body);
 }
 
+export function connectorStartupMessages(connector, mode, port) {
+  return Object.freeze([
+    `BLACKBOX connector ready on http://${CONNECTOR_HOST}:${port}`,
+    `Mode: ${mode === 'simulated' ? 'SIMULATED / LOCAL TEST (NO LIVE ACTIONS)' : 'LOCAL REAL EXECUTION'}`,
+    `Pairing file: ${connector.pairing.path}`,
+    `Pairing expires: ${connector.pairing.record.expiresAt}`,
+    'Import that file in BLACKBOX. Pairing tokens and custody secrets are never printed.',
+  ]);
+}
+
 async function main() {
   const port = Number.parseInt(process.env.BLACKBOX_CONNECTOR_PORT ?? String(CONNECTOR_PORT), 10);
-  const origins = (process.env.BLACKBOX_WEB_ORIGIN ?? 'http://127.0.0.1:4173,http://localhost:4173').split(',').map(item => item.trim()).filter(Boolean);
+  const origins = process.env.BLACKBOX_WEB_ORIGIN === undefined ? DEFAULT_ALLOWED_ORIGINS
+    : process.env.BLACKBOX_WEB_ORIGIN.split(',').map(item => item.trim()).filter(Boolean);
   const mode = process.argv.includes('--simulated') || process.env.BLACKBOX_CONNECTOR_MODE === 'simulated' ? 'simulated' : 'real';
   const connector = await createConnector({ port, origins, mode }); const server = connector.createServer();
   server.listen(port, CONNECTOR_HOST, () => {
-    process.stdout.write(`BLACKBOX connector ready on http://${CONNECTOR_HOST}:${port}\n`);
-    process.stdout.write(`Mode: ${mode === 'simulated' ? 'SIMULATED / LOCAL TEST (NO LIVE ACTIONS)' : 'LOCAL REAL EXECUTION'}\n`);
-    process.stdout.write(`Pairing file: ${connector.pairing.path}\n`);
-    process.stdout.write(`Pairing expires: ${connector.pairing.record.expiresAt}\n`);
-    process.stdout.write('Import that file in BLACKBOX. Pairing tokens and custody secrets are never printed.\n');
+    for (const line of connectorStartupMessages(connector, mode, port)) process.stdout.write(`${line}\n`);
   });
 }
 

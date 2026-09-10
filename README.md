@@ -1,120 +1,388 @@
-# Independent TCLK readiness and verification lab
+# TCLK BLACKBOX
 
-This repository is an **independent TCLK readiness and verification lab**. It pins an exact upstream checkout, runs upstream gates, and uses the built upstream library for a local no-value rehearsal. It is not official FLOP Labs software and does not reimplement TCLK.
+**The flight recorder for agent deals.**
 
-## Scope and safety
+Two agents made a deal. BLACKBOX shows what actually happened.
 
-- Upstream: https://github.com/flop-labs/tclk
-- Pinned baseline: `81a83464bd909fb5cd80de647da4e42fbae177dd` on `main` (untagged; see `evidence/upstream-baseline.json`).
-- No canonical DID key, private seed, wallet, payment key, or signing adapter is stored here.
-- The lab performs no live Technocore writes and moves no value. PaperRail is only a world-writable rehearsal record.
-- PTLC/adaptor code is upstream's unaudited reference cryptography, not production Bitcoin signing.
+BLACKBOX records each important stage instead of collapsing the entire deal into one “success” state:
 
-## Reproduce
+> **SIGNED ≠ SUBMITTED ≠ ACKNOWLEDGED ≠ OBSERVED ≠ COMPLETE**
 
-The upstream checkout is local and ignored at `.upstream/tclk`. From PowerShell:
+An action being signed does not mean it was sent. Being sent does not mean it was accepted or publicly observed. BLACKBOX keeps those states separate, records failures, and completes a deal only when its required evidence is present.
+
+[Open the live app](https://tclk-blackbox.vercel.app) · [Verified reference](https://tclk-blackbox.vercel.app/deal/phase3b-final) · [Developer on X](https://x.com/cryptokhenzar) · [GitHub](https://github.com/khenzarr) · [Repository](https://github.com/khenzarr/flop-tclk-lab)
+
+Built by [@cryptokhenzar](https://x.com/cryptokhenzar)
+
+## Contents
+
+- [What is TCLK BLACKBOX?](#what-is-tclk-blackbox)
+- [What can I do with BLACKBOX?](#what-can-i-do-with-blackbox)
+- [The six-step deal lifecycle](#the-six-step-deal-lifecycle)
+- [Quick Start](#quick-start--no-prior-blackbox-knowledge-required)
+- [How it works](#how-it-works)
+- [Troubleshooting](#troubleshooting)
+- [Security model](#security-model)
+- [V1 limitations](#v1-limitations)
+- [FLOP testnet roadmap](#flop-testnet-roadmap)
+- [Current status](#current-status)
+- [Development](#development)
+
+## What is TCLK BLACKBOX?
+
+TCLK BLACKBOX is like an aircraft flight recorder for agent deals. It preserves the sequence of actions and the evidence needed to understand the outcome later.
+
+A normal integration may treat `HTTP 200` as success. BLACKBOX asks more useful questions:
+
+- Was the action prepared?
+- Was it signed?
+- Was it submitted?
+- Did the server acknowledge it?
+- Did the expected public record actually appear?
+- Is all required evidence present?
+
+Failures and uncertain results stay in the record too. An acknowledgement is useful evidence, but it is not substituted for a required public observation.
+
+## What can I do with BLACKBOX?
+
+### Deal Hub
+
+The Deal Hub is the operator’s working surface. You can:
+
+- connect a local BLACKBOX agent and signer;
+- create an isolated deal;
+- choose the two local cryptographic profiles used by V1;
+- review irreversible actions before they happen;
+- approve signing and submission separately in the local terminal;
+- watch evidence appear step by step;
+- recover safely from an ambiguous failure when the recorded state permits it;
+- complete the deal and generate its Flight Record.
+
+### Flight Record
+
+The Flight Record is read-only playback of a completed deal. You can:
+
+- replay all six events;
+- inspect public evidence, timestamps, sequence numbers, and hashes;
+- inspect PaperRail receipts and exact public observations;
+- export a public-safe evidence capsule.
+
+The app also includes a [verified reference record](https://tclk-blackbox.vercel.app/deal/phase3b-final), so the completed experience can be inspected without starting a deal.
+
+## The six-step deal lifecycle
+
+1. **OFFER** — Agent A publishes the proposed deal terms. BLACKBOX waits for the exact expected public record.
+2. **ACCEPT** — Agent B accepts those terms with its own cryptographic DID. The acceptance is tracked independently from the offer.
+3. **LOCK** — Agent A publishes the protocol lock needed for the agreed exchange. Signed, submitted, acknowledged, and observed remain separate states.
+4. **RAIL LOCK** — BLACKBOX writes the expected lock commitment to PaperRail, preserves the local receipt, then checks for the exact public value.
+5. **REVEAL** — Agent B publishes the reveal required by the deal. BLACKBOX verifies the expected public observation before progressing.
+6. **RAIL CLAIM** — BLACKBOX writes the claim-state commitment to PaperRail, preserves the receipt, and verifies the exact public value.
+
+RAIL LOCK and RAIL CLAIM use PaperRail evidence. PaperRail is **unsigned**, **world-writable**, and **not a payment rail**. It is not proof of wallet ownership, human identity, or economic settlement. A rail operation completes only after both a successful local write receipt and a later exact public observation are present.
+
+## How does BLACKBOX contribute to Technocore?
+
+Technocore provides the underlying public communication and storage primitives. BLACKBOX builds an independent end-user workflow and real multi-step workload on top of that stack.
+
+BLACKBOX contributes by:
+
+- turning protocol primitives into a usable deal workflow;
+- creating real multi-step agent workloads;
+- verifying public observations instead of trusting acknowledgements;
+- preserving failure and recovery history;
+- exercising Technocore behavior under real product conditions;
+- producing evidence that helps debug infrastructure behavior when it differs from expectations.
+
+BLACKBOX is an independent project; this repository does not claim it is part of the official Technocore project. BLACKBOX V1 currently uses the working Technocore venue at `https://technocore-chat-production.up.railway.app`.
+
+## Quick Start — no prior BLACKBOX knowledge required
+
+These steps assume Windows 11 and PowerShell. Keep commands in their own terminal windows where noted.
+
+### 1. Install prerequisites
+
+Install [Git](https://git-scm.com/download/win), [Node.js](https://nodejs.org/), and pnpm. Check what is already installed:
 
 ```powershell
-./scripts/bootstrap-upstream.ps1
-./scripts/verify-upstream.ps1
-node ./lab/run-rehearsal.mjs
+git --version
+node --version
+pnpm --version
 ```
 
-The scripts use pnpm and the upstream-declared version. They do not modify upstream source. `verify-upstream.ps1` runs the exact install/build/test gates documented by upstream AGENTS.md.
-
-## Current Phase 1 result
-
-At the captured baseline, upstream install, build, and tests passed: 13 test files and 124 tests, with no failures. The local rehearsal passed 11 cases: hash-lock claim, refund, supported cancel, six negative/fail-closed cases, canonicalization, and PaperRail lock/claim/refund predicates. The local run is offline and its evidence serializer removes registered secret values.
-
-This does not prove settlement, funding, reward eligibility, testnet access, or production security. Live rehearsal requires explicit operator approval and remains unexecuted.
-
-## Phase 2: TCLK Blackbox
-
-**TCLK Blackbox — Agent Deal Flight Recorder** is an independent, local-first
-verifier/replayer. It reconstructs accepted and rejected frames against the
-pinned upstream implementation, visualizes the protocol/custody/rail lanes,
-and exports a secret-screened evidence capsule. CHAOS mode deterministically
-mutates safe fixtures to expose invariants; it is not a penetration-testing
-suite and makes no identity, payment, reward, or complete-history claims.
-
-Run the offline demo:
+If pnpm is missing after Node.js is installed:
 
 ```powershell
-pnpm demo
+npm install --global pnpm
 ```
 
-Open `blackbox/out/blackbox-demo.html`. No credentials, wallet, network, or
-Technocore write is involved. See `docs/BLACKBOX_PRODUCT_THESIS.md` and
-`docs/REPLAY_DETERMINISM.md`.
+### 2. Download BLACKBOX
 
-Phase 2.1 hardens the demo into a forensic replay instrument: an
-evidence-derived deal flight path, explicit rejection boundary, before/event/
-after inspector, event-bearing protocol/custody/rail tracks, deterministic
-scrubber, CHAOS invariant comparison, incident signal, and evidence drawer.
-Generate the seven local visual-acceptance captures with `pnpm artifacts`;
-outputs live in `blackbox/artifacts/phase-2.1/`.
-
-## Phase 3A: Signature Airlock
-
-**Signature Airlock** is the custody-boundary mechanic. It is not a signer and
-holds no key. It makes the exact bytes that cross into a trusted local signer
-inspectable, approvable, fingerprinted and replayable, so TCLK never takes
-custody of a private key.
-
-Five doors, each one shut unless the previous one opened:
-
-```
-PREPARED → REVIEWED → SIGNED → LOCALLY VERIFIED → POST ELIGIBLE
-```
-
-Run the offline airlock demo:
+Git is preferred because it makes future updates straightforward:
 
 ```powershell
-pnpm airlock
+git clone https://github.com/khenzarr/flop-tclk-lab.git
+cd flop-tclk-lab
 ```
 
-It renders `blackbox/out/airlock-demo.html` and prints one happy dry run plus
-the mutated-payload, wrong-signer, stale-request and replayed-response runs.
-Every failure run ends `POST_ELIGIBLE=NO`.
+If you are uncomfortable with Git, GitHub’s **Code → Download ZIP** option also works. Extract the ZIP and open PowerShell inside the extracted folder.
 
-Load-bearing properties:
+### 3. Install dependencies
 
-- **BYTE FREEZE** — approval binds one exact canonical payload. Any later field
-  change invalidates the approval and the signature, and forces a new request id.
-- **Dual representation** — the human interpretation is displayed next to the
-  exact signed bytes, and the UI states that the bytes, not the interpretation,
-  are what the signature covers.
-- **POST_ELIGIBLE is not POSTED.** Phase 3A stops at eligibility;
-  `PUBLIC POSTING DISABLED` stays visible and no posting path exists in code.
-- The signer used here is a deterministic test-only signer. The real canonical
-  local agent was never called and no private key was accessed.
+```powershell
+pnpm install
+```
 
-Upstream drift for this phase is recorded in
-`evidence/upstream-drift-phase3a.json` and `docs/UPSTREAM_DRIFT_PHASE3A.md`.
-Upstream is wire-format and canonicalization compatible with the pinned
-baseline, but one existing transition tightened (a lock is refused once the
-refund deadline has passed). Reproduce the A/B comparison with
-`pnpm compat:matrix <candidateDir> <candidateSha>`; see
-`docs/BLACKBOX_UPSTREAM_COMPATIBILITY.md`.
+### 4. Start the local connector
 
-## Phase 3A.1: fixture rebaseline
+```powershell
+pnpm connector
+```
 
-The fixture that relied on the loosened transition has been re-authored rather than patched
-around, and fixtures now carry explicit provenance: `legacy-v1` is the frozen Phase 2 timing,
-`current-v2` is authored for the tightened deadline rule and is what the default baseline, demo
-and capsules use. Both sets reach the same terminal states under the compared commits. See
-`docs/PHASE3A1_FIXTURE_MIGRATION.md` and `docs/CROSS_PIN_REPLAY_MATRIX.md`.
+Keep this terminal open. The connector listens only on `127.0.0.1:8787`, generates a short-lived pairing JSON file, and prints that file’s path. Never paste the pairing token publicly. Private keys remain local.
 
-**Blackbox stays pinned at `81a8346`.** Re-verifying upstream during this phase found `main` had
-moved again, to `d48e873`, with four of five new commits changing protocol-observable behaviour
-that has had no drift pass here. Fingerprint lineage across baselines is recorded in
-`evidence/replay-baseline-migration.json`; the stop itself is in
-`evidence/upstream-moved-again-phase3a1.json`. Historical evidence is untouched and remains valid
-against the implementation it was pinned to.
+### 5. Open BLACKBOX
 
-The one future public rehearsal is designed but unexecuted:
-`docs/PHASE3B_ONE_DEAL_PLAN.md`, with its exact proposed public actions in
-`evidence/phase3b-public-footprint-preview.json`. What each artifact does and
-does not prove is in `docs/PHASE3_EVIDENCE_CHAIN.md`.
+Open [https://tclk-blackbox.vercel.app](https://tclk-blackbox.vercel.app). The expected initial status is:
 
-See `docs/` for protocol, security, custody, runbook, and future evidence notes.
+```text
+CONNECTOR FOUND • PAIRING REQUIRED
+```
+
+The browser talks to the connector on your own computer; the Vercel server does not connect to it. If your browser asks for local-network access, allow it for BLACKBOX if you want to use the local connector.
+
+### 6. Import the pairing file
+
+Click **Import Pairing File** and choose the JSON file whose path was printed by the connector. Do not manually copy the token. A successful connection displays:
+
+```text
+CONNECTED LOCALLY • LOCAL REAL EXECUTION
+```
+
+### 7. Start a deal
+
+Click **START A DEAL**.
+
+V1 uses **ONE HUMAN OPERATOR** and **TWO DISTINCT CRYPTOGRAPHIC DIDs**. Agent A and Agent B are separate cryptographic profiles controlled by the same person, not two independent people.
+
+### 8. Define the deal
+
+Enter the amount and asset label. Current examples may use `TCLK`, but that label is deal metadata and a pre-testnet placeholder. It does not prove that a real TCLK or FLOP token transfer occurred. PaperRail activity does not move token value.
+
+### 9. Create the isolated deal session
+
+Click **Create isolated deal session**. This creates local session and commitment material. It does not immediately sign, submit, consume every action, or run the deal automatically.
+
+### 10. Review and approve each action
+
+For a signed operation, the browser guides you through two separate decisions:
+
+```text
+REVIEW LOCAL SIGNATURE
+→ OPEN TERMINAL APPROVAL
+→ SIGNED
+→ REVIEW SUBMIT
+```
+
+The terminal prints the exact approval phrase to type. Submission requires its own phrase beginning with `SUBMIT ONCE ...`. BLACKBOX intentionally separates signing from submitting and never treats a signature as permission to post.
+
+PaperRail writes have a separate terminal approval beginning with `PAPERRAIL WRITE ONCE ...`.
+
+### 11. Refresh public evidence
+
+`ACK_RECEIVED` is not complete. Use **Refresh public evidence** so BLACKBOX can look for the exact expected public record. The operation progresses to `VERIFIED` only when its required evidence is found.
+
+### 12. Complete all six steps
+
+Continue through OFFER, ACCEPT, LOCK, RAIL LOCK, REVEAL, and RAIL CLAIM. The final state is:
+
+```text
+FLIGHT RECORD COMPLETE
+6 actions recorded
+6 actions verified
+0 unresolved
+```
+
+### 13. Open the Flight Record
+
+Click **OPEN FLIGHT RECORD**. The resulting event playback is read-only; it cannot sign, submit, allocate a nonce, or write PaperRail.
+
+### 14. Export evidence
+
+Use **OPEN EVIDENCE** to inspect the public projection and **EXPORT PUBLIC CAPSULE** to download it. The capsule is designed to be shareable: it excludes private keys, seeds, passphrases, raw preimages, pairing tokens, and other custody secrets. Review any artifact before publishing it.
+
+## How it works
+
+```text
+Browser / Vercel
+      │
+      │ safe action request
+      ▼
+Local BLACKBOX Connector
+      │
+      │ explicit human approval
+      ▼
+Local signer / agent
+      │
+      ▼
+Technocore venue
+      │
+      ▼
+Public observation
+      │
+      ▼
+BLACKBOX Flight Record
+```
+
+**PRIVATE KEYS NEVER GO TO VERCEL.**
+
+The production web app runs at `https://tclk-blackbox.vercel.app`, while the browser connects to `http://127.0.0.1:8787` on the same computer. Different users and public IP addresses do not change this: `127.0.0.1` always means the current user’s own machine.
+
+## Troubleshooting
+
+### CONNECTOR OFFLINE
+
+Run:
+
+```powershell
+pnpm connector
+```
+
+Confirm the terminal says:
+
+```text
+BLACKBOX connector ready on http://127.0.0.1:8787
+```
+
+If the browser requests permission to access the local network, allow it for BLACKBOX. Do not disable browser security globally.
+
+### CONNECTOR FOUND • PAIRING REQUIRED
+
+This is healthy. Import the newly generated pairing JSON file whose path appears in the connector terminal.
+
+### Pairing expired
+
+Restart the connector and import the new file:
+
+```powershell
+pnpm connector
+```
+
+### Port 8787 already in use
+
+Inspect the listener in PowerShell:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8787 -State Listen
+```
+
+Note its `OwningProcess` value, then inspect that exact process before deciding what to do:
+
+```powershell
+Get-Process -Id 1234
+```
+
+Replace `1234` with the process ID you observed. Do not stop an unknown process blindly.
+
+### Production site cannot reach the connector
+
+The production origin `https://tclk-blackbox.vercel.app` is allowed by default. Origin matching is exact: wildcard sites and arbitrary Vercel preview deployments are refused.
+
+For a custom deployment, set only its exact origin before starting the connector:
+
+```powershell
+$env:BLACKBOX_WEB_ORIGIN = 'https://blackbox.example.com'
+pnpm connector
+```
+
+To allow multiple exact origins, separate them with commas. Never use `*`. If BLACKBOX moves to a custom domain, add that exact origin to the connector allowlist.
+
+### Browser refuses the local connection
+
+Your browser may require explicit local-network access permission for a secure website to contact `127.0.0.1`. Allow the permission for BLACKBOX if desired. Do not weaken global browser security or expose the connector on a public network interface.
+
+## Security model
+
+- The web app provides orchestration and visualization; sensitive custody stays local.
+- The connector binds to loopback (`127.0.0.1`) only.
+- Approved browser origins are matched exactly. No wildcard origin is trusted.
+- The pairing token is short-lived, stored in session storage by the browser, and never printed by the connector.
+- Privileged connector endpoints require authentication.
+- Irreversible actions require explicit terminal approval.
+- Signing and submitting are separate approvals.
+- Submission has a one-shot budget and no automatic POST retry.
+- An ambiguous network result becomes `SUBMISSION_UNCERTAIN`; an explicit 4xx becomes `REJECTED`.
+- Exact public observation is required wherever the operation definition calls for it.
+- The public capsule excludes custody secrets.
+
+BLACKBOX proves only the recorded sequence and the evidence stated in its capsule. It does not infer facts that the evidence cannot establish.
+
+## V1 limitations
+
+- V1 uses one human operator controlling two distinct cryptographic DIDs.
+- It is not yet an independent remote-counterparty product.
+- PaperRail is unsigned and world-writable; it is not payment or economic settlement.
+- BLACKBOX does not prove human identity or wallet ownership.
+- BLACKBOX does not prove reputation or FLOP eligibility.
+- No workflow or record guarantees airdrop qualification.
+
+## FLOP testnet roadmap
+
+FLOP-specific logic is **not implemented yet**. When official FLOP testnet mechanics are available, BLACKBOX is designed to support a future high-throughput Testnet / Stress Mode:
+
+```text
+Multi-deal orchestrator
+        ↓
+many isolated real deal sessions
+        ↓
+official FLOP-consuming actions
+        ↓
+spend / throughput / failure telemetry
+        ↓
+Flight Record evidence at scale
+```
+
+The current `TCLK` asset label is not real FLOP spend, and PaperRail must never be counted as FLOP spend. A future implementation must use official chain, token, contract, and wallet configuration; real consumption must come from the official FLOP-consuming primitive. BLACKBOX will not invent spend counters or promise airdrop qualification while those specifications are unavailable.
+
+## Current status
+
+Completed and available today:
+
+- BLACKBOX execution and evidence engine;
+- local signing and custody boundary;
+- Deal Hub V1 and the production web app;
+- a real Hub-created deal acceptance test;
+- six-step deal completion;
+- dynamic, read-only Flight Records;
+- public-safe capsule export.
+
+Inspect the [verified six-step reference](https://tclk-blackbox.vercel.app/deal/phase3b-final).
+
+## Development
+
+```powershell
+pnpm dev
+pnpm connector
+pnpm connector:simulated
+pnpm web:test
+pnpm lint
+pnpm typecheck
+pnpm build
+```
+
+`pnpm connector:simulated` exercises the labeled local test path. It does not create real signatures, allocate real nonces, POST live operations, or write PaperRail. Historical Phase 3B commands remain implementation tools rather than beginner onboarding commands.
+
+### Project structure
+
+```text
+blackbox/  Execution, evidence, connector, and custody-boundary logic
+web/       Deal Hub and Flight Record interface
+evidence/  Versioned evidence and public-safe capsules
+docs/      Security, protocol, compatibility, and operational notes
+schemas/   Machine-readable artifact contracts
+```
+
+## Product principle
+
+**START THE DEAL · WATCH IT HAPPEN · VERIFY EVERY STEP · KEEP THE PROOF**
+
+TCLK BLACKBOX is the flight recorder for agent deals.
