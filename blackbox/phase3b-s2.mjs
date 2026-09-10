@@ -41,11 +41,13 @@ const bounded = value => Buffer.from(value ?? '', 'utf8').subarray(0, MAX_DIAGNO
   .replace(/\bxprv[A-Za-z0-9]{20,}\b/g, '[REDACTED_EXTENDED_PRIVATE_KEY]')
   .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '?');
 const budgetIdentity = (purpose, operationClass, subject) => ({ purpose, operationClass, subject });
-const pendingPath = id => resolve(ROOTS.pending, `${id}.json`);
+const pendingPath = (id, root = ROOTS.pending) => resolve(root, `${id}.json`);
 const submitPath = id => resolve(ROOTS.submit, `${id}-submit.json`);
-const observationPath = id => resolve(ROOTS.submit, `${id}-observation.json`);
+const observationPath = (id, root = ROOTS.submit) => resolve(root, `${id}-observation.json`);
+const correctedObservationPath = (id, root = ROOTS.submit) => resolve(root, `${id}-corrected-observation.json`);
+const observationReconciliationPath = (id, root = ROOTS.submit) => resolve(root, `${id}-observation-reconciliation.json`);
 const receiptPath = id => resolve(ROOTS.rail, `${id}-write-receipt.json`);
-const railObservationPath = id => resolve(ROOTS.rail, `${id}-production-observation.json`);
+const railObservationPath = (id, root = ROOTS.rail) => resolve(root, `${id}-production-observation.json`);
 
 function secret() {
   const record = readJson(ROOTS.secret);
@@ -61,17 +63,17 @@ function preparedOperation(id) {
   const request = buildRequest(prepared, { createdAt: '2026-01-01T00:00:00.000Z' });
   return Object.freeze({ spec, prepared, request, room: spec.room, text: prepared.canonicalPayload, expectedSignerDid: prepared.signerDid });
 }
-function pending(id) {
-  const path = pendingPath(id); const record = readJson(path); const spec = op(id);
+function pending(id, root = ROOTS.pending) {
+  const path = pendingPath(id, root); const record = readJson(path); const spec = op(id);
   const integrity = hash(`${record.manifestRoot}|${record.operationId}|${record.did}|${record.room}|${record.nonce}|${record.text}|${record.signature}`);
   if (record.manifestRoot !== manifest.manifestRoot || record.operationId !== id || record.did !== spec.canonicalFrame.from
     || record.room !== spec.room || !Number.isSafeInteger(record.nonce) || record.nonce < 1 || record.integrity !== integrity
     || !verifyEd25519(record.did, canonicalMessage(record.room, record.nonce, record.text), record.signature)) throw new Error('S2_PENDING_BINDING_REFUSED');
   return Object.freeze({ record, path, rawSha256: hash(readFileSync(path)) });
 }
-function requirePredecessor(id) {
+export function requirePredecessor(id, { submitStateRoot = ROOTS.submit, railStateRoot = ROOTS.rail } = {}) {
   const predecessor = ORDER[ORDER.indexOf(id) - 1]; if (!predecessor) return null;
-  const isRail = op(predecessor).actionClass === 'PaperRail'; const path = isRail ? railObservationPath(predecessor) : observationPath(predecessor);
+  const isRail = op(predecessor).actionClass === 'PaperRail'; const path = isRail ? railObservationPath(predecessor, railStateRoot) : effectiveRoomObservationPath(predecessor, submitStateRoot);
   if (!existsSync(path)) throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
   const evidence = readJson(path);
   if (evidence.operationId !== predecessor || evidence.manifestRoot !== manifest.manifestRoot || evidence.classification !== 'OBSERVED_PUBLIC') throw new Error(`DEPENDENCY_REFUSED:${predecessor}:OBSERVED_PUBLIC_REQUIRED`);
@@ -137,18 +139,76 @@ export async function runRealSubmit(id, { transport = globalThis.fetch } = {}) {
   persist(submitPath(id), evidence); return Object.freeze({ ...evidence, resultPath: submitPath(id), posted: true });
 }
 function records(value) { if (Array.isArray(value)) return value.flatMap(records); if (!value || typeof value !== 'object') return [];
-  return [...(Object.hasOwn(value, 'did') && Object.hasOwn(value, 'text') ? [value] : []), ...Object.values(value).flatMap(records)]; }
-const matches = (signed, data) => records(data).some(x => x.did === signed.did && x.text === signed.text && Number(x.nonce ?? x.signedNonce) === signed.nonce && (!x.room || x.room === signed.room));
-export async function runRealObserve(id, { transport = globalThis.fetch } = {}) {
-  if (!existsSync(submitPath(id))) throw new Error('OBSERVE_REFUSED:SUBMIT_EVIDENCE_REQUIRED'); const signed = pending(id).record;
+  return [...((Object.hasOwn(value, 'did') || Object.hasOwn(value, 'from')) && Object.hasOwn(value, 'text') ? [value] : []), ...Object.values(value).flatMap(records)]; }
+export function parseExportJsonl(text) {
+  if (typeof text !== 'string') throw new Error('S2_EXPORT_TEXT_REQUIRED');
+  return text.split(/\r?\n/).filter(line => line.trim()).map((line, index) => {
+    try { return JSON.parse(line); } catch (error) { throw new Error(`S2_EXPORT_JSONL_MALFORMED:LINE_${index + 1}:${error.message}`); }
+  });
+}
+export function exactRoomMatch(signed, data) {
+  const canonicalTextSha256 = hash(signed.text);
+  const matches = records(data).filter(entry => (entry.did ?? entry.from) === signed.did
+    && Number.isSafeInteger(Number(entry.nonce ?? entry.signedNonce))
+    && Number(entry.nonce ?? entry.signedNonce) === signed.nonce
+    && typeof entry.text === 'string' && hash(entry.text) === canonicalTextSha256
+    && (!entry.room || entry.room === signed.room));
+  const match = matches[0] ?? null;
+  return Object.freeze({ match: match !== null, exactMatchCount: matches.length, canonicalTextSha256,
+    publicSeq: match?.seq ?? null, publicTimestamp: match?.ts ?? match?.timestamp ?? null,
+    signatureSeen: typeof (match?.sig ?? match?.signature) === 'string' && (match?.sig ?? match?.signature).length > 0 });
+}
+export function reconcileRoomObservation(id, evidence, { stateRoot = ROOTS.submit } = {}) {
+  const historicalPath = observationPath(id, stateRoot); const correctedPath = correctedObservationPath(id, stateRoot);
+  const reconciliationPath = observationReconciliationPath(id, stateRoot);
+  if (!existsSync(historicalPath)) { persist(historicalPath, evidence); return Object.freeze({ ...evidence, evidencePath: historicalPath }); }
+  const historicalRaw = readFileSync(historicalPath); const historical = JSON.parse(historicalRaw);
+  if (historical.operationId !== id || historical.manifestRoot !== manifest.manifestRoot
+    || historical.classification !== 'PROVEN_ABSENT_WITHIN_BOUNDED_WINDOW' || evidence.classification !== 'OBSERVED_PUBLIC') {
+    throw new Error('S2_OBSERVATION_ALREADY_EXISTS');
+  }
+  if (!existsSync(correctedPath)) persist(correctedPath, evidence);
+  const correctedRaw = readFileSync(correctedPath); const corrected = JSON.parse(correctedRaw);
+  if (corrected.operationId !== id || corrected.manifestRoot !== manifest.manifestRoot || corrected.classification !== 'OBSERVED_PUBLIC') {
+    throw new Error('S2_CORRECTED_OBSERVATION_INVALID');
+  }
+  const reconciliation = { schema: 'tclk/phase3b-s2-room-observation-reconciliation/v1', lineageId: LINEAGE,
+    manifestRoot: manifest.manifestRoot, operationId: id, classification: 'FALSE_NEGATIVE_OBSERVER_HISTORICAL',
+    reason: 'EXPORT_RECORD_USES_FROM_FIELD_INSTEAD_OF_DID', historicalObservationPath: historicalPath,
+    historicalObservationSha256: hash(historicalRaw), correctedObservationPath: correctedPath,
+    correctedObservationSha256: hash(correctedRaw), exactMatchCount: corrected.exactMatchCount,
+    publicSeq: corrected.publicSeq, publicTimestamp: corrected.publicTimestamp, signatureSeen: corrected.signatureSeen };
+  if (!existsSync(reconciliationPath)) persist(reconciliationPath, reconciliation);
+  return Object.freeze({ ...corrected, evidencePath: correctedPath, reconciliationPath });
+}
+export function effectiveRoomObservationPath(id, stateRoot = ROOTS.submit) {
+  const correctedPath = correctedObservationPath(id, stateRoot); const reconciliationPath = observationReconciliationPath(id, stateRoot);
+  if (!existsSync(correctedPath) || !existsSync(reconciliationPath)) return observationPath(id, stateRoot);
+  const historicalPath = observationPath(id, stateRoot); const historicalRaw = readFileSync(historicalPath);
+  const correctedRaw = readFileSync(correctedPath); const reconciliation = readJson(reconciliationPath);
+  const historical = JSON.parse(historicalRaw); const corrected = JSON.parse(correctedRaw);
+  if (historical.classification !== 'PROVEN_ABSENT_WITHIN_BOUNDED_WINDOW'
+    || reconciliation.classification !== 'FALSE_NEGATIVE_OBSERVER_HISTORICAL'
+    || reconciliation.historicalObservationSha256 !== hash(historicalRaw)
+    || reconciliation.correctedObservationSha256 !== hash(correctedRaw)
+    || corrected.classification !== 'OBSERVED_PUBLIC' || corrected.manifestRoot !== manifest.manifestRoot || corrected.operationId !== id) {
+    throw new Error('S2_OBSERVATION_RECONCILIATION_INVALID');
+  }
+  return correctedPath;
+}
+export async function runRealObserve(id, { transport = globalThis.fetch, stateRoot = ROOTS.submit, pendingRoot = ROOTS.pending } = {}) {
+  if (!existsSync(resolve(stateRoot, `${id}-submit.json`))) throw new Error('OBSERVE_REFUSED:SUBMIT_EVIDENCE_REQUIRED'); const signed = pending(id, pendingRoot).record;
   const endpoints = [`${ORIGIN}/r/${encodeURIComponent(signed.room)}?format=json`, `${ORIGIN}/r/${encodeURIComponent(signed.room)}/export`]; let match = false; let source = null;
+  let exact = { exactMatchCount: 0, canonicalTextSha256: hash(signed.text), publicSeq: null, publicTimestamp: null, signatureSeen: false };
   for (const endpoint of endpoints) { const response = await transport(endpoint, { method: 'GET', redirect: 'error', credentials: 'omit', headers: { accept: 'application/json' } });
     if (!response.ok) throw new Error(`PUBLIC_READ_INVALID:HTTP_${response.status}`); const data = endpoint.endsWith('/export')
-      ? (await response.text()).split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)) : await response.json(); if (matches(signed, data)) { match = true; source = endpoint; break; } }
+      ? parseExportJsonl(await response.text()) : await response.json(); exact = exactRoomMatch(signed, data); if (exact.match) { match = true; source = endpoint; break; } }
   const evidence = { schema: 'tclk/phase3b-s2-room-observation/v1', lineageId: LINEAGE, manifestRoot: manifest.manifestRoot, operationId: id,
     classification: match ? 'OBSERVED_PUBLIC' : 'PROVEN_ABSENT_WITHIN_BOUNDED_WINDOW', observationSource: source ?? 'NOT_FOUND_IN_RETAINED_RING',
-    room: signed.room, did: signed.did, signedNonce: signed.nonce, canonicalTextSha256: hash(signed.text), observedAt: new Date().toISOString() };
-  persist(observationPath(id), evidence); return Object.freeze({ ...evidence, evidencePath: observationPath(id) });
+    room: signed.room, did: signed.did, signedNonce: signed.nonce, canonicalTextSha256: exact.canonicalTextSha256,
+    exactMatchCount: exact.exactMatchCount, publicSeq: exact.publicSeq, publicTimestamp: exact.publicTimestamp,
+    signatureSeen: exact.signatureSeen, observedAt: new Date().toISOString() };
+  return reconcileRoomObservation(id, evidence, { stateRoot });
 }
 function expectedRail(id) {
   const operation = op(id); if (operation.actionClass !== 'PaperRail') throw new Error('NOT_S2_PAPERRAIL_OPERATION');
@@ -205,7 +265,7 @@ export async function railObserve(id, { transport = globalThis.fetch } = {}) {
   persist(railObservationPath(id), evidence); return Object.freeze({ ...evidence, observationPath: railObservationPath(id) });
 }
 export function finalize() {
-  const observations = ORDER.map(id => { const rail = op(id).actionClass === 'PaperRail'; const evidence = readJson(rail ? railObservationPath(id) : observationPath(id));
+  const observations = ORDER.map(id => { const rail = op(id).actionClass === 'PaperRail'; const evidence = readJson(rail ? railObservationPath(id) : effectiveRoomObservationPath(id));
     if (evidence.operationId !== id || evidence.manifestRoot !== manifest.manifestRoot || evidence.classification !== 'OBSERVED_PUBLIC') throw new Error(`FINALIZE_NOT_OBSERVED_PUBLIC:${id}`);
     if (rail) { const raw = readFileSync(receiptPath(id)); const receipt = JSON.parse(raw); if (evidence.receiptSha256 !== hash(raw) || receipt.manifestRoot !== manifest.manifestRoot
       || receipt.operationId !== id || evidence.exactValueMatch !== true || evidence.observedValueSha256 !== receipt.expectedValueSha256) throw new Error(`FINALIZE_PAPERRAIL_EVIDENCE_INVALID:${id}`); }
