@@ -33,6 +33,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Bootstrap pinned upstream TCLK
+        run: pwsh -NoProfile -File scripts/bootstrap-upstream.ps1
       - name: Test web product
         run: pnpm web:test
       - name: Lint
