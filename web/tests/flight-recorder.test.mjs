@@ -62,6 +62,11 @@ test('public capsule drives the complete safe and accessible flight recorder', a
     assert.match(liveDeal, /6 actions recorded · 6 actions verified · 0 unresolved/);
     assert.match(connectorClient, /CONNECTOR_OFFLINE/); assert.match(connectorClient, /PAIRING_REQUIRED/);
     assert.equal(await readFile(join(temp, 'deal', 'record', 'index.html'), 'utf8'), html);
+    for (const page of [hub, html, newDeal, liveDeal, records]) {
+      assert.match(page, /Built by <a href="https:\/\/x\.com\/cryptokhenzar" target="_blank" rel="noopener noreferrer">@cryptokhenzar<\/a>/);
+      assert.match(page, /<a href="https:\/\/github\.com\/khenzarr" target="_blank" rel="noopener noreferrer">GitHub<\/a>/);
+      assert.match(page, /class="footer-brand">TCLK BLACKBOX<\/span>/);
+    }
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
