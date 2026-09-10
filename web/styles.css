@@ -234,7 +234,7 @@ footer > span { color: var(--paper); }
 .workspace { min-height: 100vh; }
 .workspace-header nav a[aria-current="page"] { color: var(--amber-soft); }
 .connection-pill { max-width: 260px; padding: 7px 10px; border: 1px solid #3d3f37; border-radius: 20px; color: #8c8e84; font: .62rem var(--mono); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
-.connection-pill[data-state="CONNECTED"] { color: var(--green); border-color: rgba(144,216,146,.35); background: rgba(144,216,146,.05); }
+.connection-pill[data-state="CONNECTED"], .connection-pill[data-state="PAIRING_REQUIRED"] { color: var(--green); border-color: rgba(144,216,146,.35); background: rgba(144,216,146,.05); }
 .connection-pill[data-state="CONNECTOR_UNAVAILABLE"] { color: var(--red); border-color: rgba(255,118,95,.35); }
 .workspace-main { width: min(1240px, calc(100% - 48px)); margin-inline: auto; padding-block: 66px 110px; }
 .workspace-main.narrow { width: min(900px, calc(100% - 48px)); }
@@ -279,6 +279,9 @@ footer > span { color: var(--paper); }
 .live-heading { padding-block: 20px 55px; display: flex; justify-content: space-between; align-items: end; gap: 35px; }.live-heading h1 { max-width: 800px; font-size: clamp(2.2rem, 5vw, 5rem); overflow-wrap: anywhere; }.live-heading p { color: var(--muted); }
 .live-meta { display: grid; gap: 8px; text-align: right; }.live-meta span { color: var(--amber-soft); font: .67rem var(--mono); }.live-meta strong { color: #777970; font-size: .72rem; }
 .live-console { padding: 30px; }.operation-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; }
+.rail-live-disclosure { padding: 14px 0; display: grid; grid-template-columns: auto 1fr auto; gap: 18px; border-bottom: 1px solid var(--line); align-items: center; font: .63rem var(--mono); }.rail-live-disclosure strong { color: var(--amber-soft); text-transform: uppercase; }.rail-live-disclosure span { color: #777970; }.rail-live-disclosure em { color: var(--red); font-style: normal; }
+.completion-summary { margin-top: 24px; padding: 18px; border: 1px solid rgba(144,216,146,.35); background: rgba(144,216,146,.045); }.completion-summary strong { display: block; color: var(--green); text-transform: uppercase; font: .74rem var(--mono); }.completion-summary span { color: #999b92; font-size: .78rem; }
+.public-evidence { margin-top: 20px; border: 1px solid var(--line); background: #0b0c0a; }.public-evidence summary { padding: 14px; cursor: pointer; color: var(--amber-soft); font: .68rem var(--mono); text-transform: uppercase; }.public-evidence pre { max-height: 420px; margin: 0; padding: 18px; overflow: auto; border-top: 1px solid var(--line); color: #9b9d94; font: .68rem/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .operation-card { min-height: 240px; padding: 20px; display: flex; flex-direction: column; border: 1px solid #34362f; background: #131411; }.operation-card.state-verified, .operation-card.state-complete { border-color: rgba(144,216,146,.35); }.operation-card.state-rejected, .operation-card.state-blocked { opacity: .72; }.operation-card.state-submission_uncertain, .operation-card.state-not_observed { border-color: rgba(255,177,59,.45); }
 .operation-head { display: grid; grid-template-columns: 32px 1fr; gap: 4px 10px; }.operation-index { grid-row: 1 / 3; color: #60625a; font: .68rem var(--mono); }.operation-head strong { font: .76rem var(--mono); letter-spacing: .07em; }.operation-head em { color: var(--amber-soft); font: normal .61rem var(--mono); }
 .operation-card.state-verified .operation-head em, .operation-card.state-complete .operation-head em { color: var(--green); }.operation-copy { flex: 1; margin: 35px 0 18px; color: #878980; font-size: .78rem; }.operation-action { width: 100%; }
@@ -350,6 +353,7 @@ footer > span { color: var(--paper); }
   .connector-grid, .hub-records, .field-row, .operation-list { grid-template-columns: 1fr; }.connector-grid .custody-note { grid-column: auto; }
   .working-surface, .deal-form-card, .live-console, .records-card { padding: 20px; }.surface-head, .live-heading, .form-gate, .finalize-row { align-items: stretch; flex-direction: column; }.live-meta { text-align: left; }
   .record-row { grid-template-columns: 1fr; gap: 5px; }.operation-card { min-height: 220px; }
+  .rail-live-disclosure { grid-template-columns: 1fr; gap: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

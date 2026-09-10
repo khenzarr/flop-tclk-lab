@@ -59,6 +59,14 @@ V1 is deliberately honest: one human operator controls two distinct cryptographi
 
 The session model is generic and isolated, so multiple deals can coexist safely, but V1 does not orchestrate them globally. V1.1 can add remote counterparty pairing and a multi-deal scheduler as separate trust and coordination layers without weakening the current evidence gates.
 
+## Future testnet extension
+
+- Future multi-deal orchestration will reuse the same isolated session and allowlisted action primitives.
+- Official FLOP-consuming operations will be integrated only after real testnet semantics are known.
+- Stress mode is not implemented in V1.
+- PaperRail is not FLOP spend and must never be counted as such.
+- Future high-throughput operation must remain protocol-valid and evidence-backed; this guide makes no reward or airdrop claim.
+
 ## Simulated test mode
 
 The connector supports an injected simulated executor for focused automated tests. Any simulated browser session is labeled `SIMULATED / LOCAL TEST` on the creation and live surfaces and in its exported capsule. Simulated state must never be presented as live public evidence.

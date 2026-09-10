@@ -38,7 +38,13 @@ export async function connectorRequest(path, { method = 'GET', body } = {}) {
 }
 
 export async function connectionStatus() {
-  if (!storedPairing()) return { state: 'NOT_CONNECTED' };
+  if (!storedPairing()) {
+    try {
+      const response = await fetch('http://127.0.0.1:8787/health', { method: 'GET', credentials: 'omit', redirect: 'error' });
+      const health = await response.json();
+      return response.ok && health.status === 'CONNECTOR_FOUND' ? { state: 'PAIRING_REQUIRED' } : { state: 'CONNECTOR_OFFLINE' };
+    } catch { return { state: 'CONNECTOR_OFFLINE' }; }
+  }
   try { const session = await connectorRequest('/session'); return { state: 'CONNECTED', ...session }; }
   catch (error) { clearPairing(); return { state: 'CONNECTOR_UNAVAILABLE', error: error.message }; }
 }

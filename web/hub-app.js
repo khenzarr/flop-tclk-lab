@@ -12,7 +12,7 @@ function renderConnection(status) {
   connection = status;
   document.querySelectorAll('[data-connection]').forEach(node => {
     node.dataset.state = status.state;
-    node.textContent = status.state === 'CONNECTED' ? `Connector ready · ${status.mode}` : status.state === 'CONNECTOR_UNAVAILABLE' ? 'Connector unavailable' : 'Not connected';
+    node.textContent = status.state === 'CONNECTED' ? `Connected locally · ${status.mode}` : status.state === 'PAIRING_REQUIRED' ? 'Connector found · pairing required' : status.state === 'CONNECTOR_UNAVAILABLE' ? 'Pairing invalid · reconnect' : 'Connector offline';
   });
   document.querySelectorAll('[data-requires-connection]').forEach(node => { node.disabled = status.state !== 'CONNECTED'; });
   const banner = byId('simulation-banner');
@@ -58,8 +58,11 @@ async function renderLive() {
       list.append(card);
     }
     const finalize = byId('finalize-deal'); finalize.hidden = deal.finalized; finalize.disabled = !deal.operations.every(item => item.state === 'VERIFIED');
-    byId('open-record').hidden = !deal.finalized; byId('export-record').hidden = !deal.finalized;
-    if (deal.finalized) { byId('export-record').href = `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(deal.publicCapsule, null, 2))}`; byId('export-record').download = `${deal.id}-public-record.json`; }
+    for (const id of ['open-record', 'open-evidence', 'export-record', 'completion-summary', 'public-evidence']) byId(id).hidden = !deal.finalized;
+    if (deal.finalized) {
+      const json = JSON.stringify(deal.publicCapsule, null, 2); byId('public-evidence-json').textContent = json;
+      byId('export-record').href = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`; byId('export-record').download = `${deal.id}-public-record.json`;
+    }
   } catch (error) { message(error.message, 'error'); }
 }
 
