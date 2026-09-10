@@ -1,0 +1,13 @@
+{
+  "schema": "tclk-blackbox/phase3b-final-execution-preview/v1",
+  "lineageId": "phase3b-final",
+  "venueOrigin": "https://technocore-chat-production.up.railway.app",
+  "manifestRoot": "887eb9996c701260e5d78f1798b6577f62575db20a625bcaee7b12523d3ecd2f",
+  "runtime": {
+    "attestation": "PASS",
+    "sourceSha": "d48e87343200e3115e243df39e8f295f5ce2e645",
+    "signingCommit": "e0005e5d6aa3df309743c5469012afa1d0f726f9"
+  },
+  "signed": false,
+  "posted": false
+}

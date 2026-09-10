@@ -1,0 +1,18 @@
+{
+  "schema": "tclk-blackbox/phase3b-s2-venue-reconciliation/v1",
+  "lineageId": "phase3b-s2",
+  "classification": "SUPERSEDED_EXECUTION_LINEAGE",
+  "reason": "OFFICIAL_VENUE_NEW_ROOM_CAPACITY_EXHAUSTED",
+  "manifestRoot": "9cecec898926157c0fd85c1304b0a87a2867d4213dc7c87293d916d29f1c41b4",
+  "venueOrigin": "https://technocore.chat",
+  "authoritativeOutcome": {
+    "phase3b-s2-write-1": "OBSERVED_PUBLIC",
+    "phase3b-s2-write-2": "OBSERVED_PUBLIC",
+    "phase3b-s2-write-3": "REJECTED_HTTP400"
+  },
+  "write3Diagnostic": "room limit reached (163840 is the cap, and this would be a new one). Existing rooms still accept writes...",
+  "write3ResponseBodySha256": "405e570a1b50152d8a53283025050b60c4b9af6bf8b6008947082b9a39151a9c",
+  "historicalRawEvidencePreserved": true,
+  "successful": false,
+  "successorLineage": "phase3b-final"
+}
