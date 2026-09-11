@@ -30,7 +30,9 @@ export async function buildWeb({ outDir = join(repoRoot, 'dist') } = {}) {
   const liveDealDir = join(outDir, 'deal', 'live');
   const hubRecordDir = join(outDir, 'deal', 'record');
   const recordsDir = join(outDir, 'records');
-  await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(evidenceDir, { recursive: true }), mkdir(referenceDir, { recursive: true }), mkdir(newDealDir, { recursive: true }), mkdir(liveDealDir, { recursive: true }), mkdir(hubRecordDir, { recursive: true }), mkdir(recordsDir, { recursive: true })]);
+  const identityDir = join(outDir, 'identity');
+  const technocoreDir = join(outDir, 'technocore');
+  await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(evidenceDir, { recursive: true }), mkdir(referenceDir, { recursive: true }), mkdir(newDealDir, { recursive: true }), mkdir(liveDealDir, { recursive: true }), mkdir(hubRecordDir, { recursive: true }), mkdir(recordsDir, { recursive: true }), mkdir(identityDir, { recursive: true }), mkdir(technocoreDir, { recursive: true })]);
   await Promise.all([
     copyFile(join(webDir, 'hub.html'), join(outDir, 'index.html')),
     copyFile(join(webDir, 'index.html'), join(referenceDir, 'index.html')),
@@ -38,6 +40,8 @@ export async function buildWeb({ outDir = join(repoRoot, 'dist') } = {}) {
     copyFile(join(webDir, 'live-deal.html'), join(liveDealDir, 'index.html')),
     copyFile(join(webDir, 'index.html'), join(hubRecordDir, 'index.html')),
     copyFile(join(webDir, 'records.html'), join(recordsDir, 'index.html')),
+    copyFile(join(webDir, 'identity.html'), join(identityDir, 'index.html')),
+    copyFile(join(webDir, 'technocore.html'), join(technocoreDir, 'index.html')),
     copyFile(join(webDir, 'styles.css'), join(assetsDir, 'styles.css')),
     copyFile(join(webDir, 'app.js'), join(assetsDir, 'app.js')),
     copyFile(join(webDir, 'hub-app.js'), join(assetsDir, 'hub-app.js')),
@@ -47,7 +51,7 @@ export async function buildWeb({ outDir = join(repoRoot, 'dist') } = {}) {
     copyFile(sourceHash, join(evidenceDir, 'phase3b-final-public-capsule.sha256')),
     writeFile(join(assetsDir, 'capsule.js'), `export default ${JSON.stringify(capsule)};\n`),
   ]);
-  return Object.freeze({ capsuleSha256, events: capsule.flightRecord.length, routes: 6, output: outDir });
+  return Object.freeze({ capsuleSha256, events: capsule.flightRecord.length, routes: 8, output: outDir });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

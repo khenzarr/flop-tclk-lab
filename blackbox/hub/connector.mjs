@@ -5,7 +5,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DealEngine, SimulatedExecutor } from './engine.mjs';
 import { RealExecutor } from './real-executor.mjs';
-import { createDealSession, HUB_ROOT, listSessions, PROFILES, readCompletedPublicRecord } from './session.mjs';
+import { createDealSession, HUB_ROOT, listSessions, readCompletedPublicRecord } from './session.mjs';
+import { IdentityManager, verifyPublicSignature } from './identity.mjs';
 
 export const CONNECTOR_HOST = '127.0.0.1';
 export const CONNECTOR_PORT = 8787;
@@ -41,10 +42,11 @@ async function readBody(request) {
 }
 
 export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, now = () => Date.now(),
-  origins = DEFAULT_ALLOWED_ORIGINS, mode = 'real', transport } = {}) {
+  origins = DEFAULT_ALLOWED_ORIGINS, mode = 'real', transport, identityManager } = {}) {
   const pairing = await createPairing({ root, now, port });
   const executor = mode === 'simulated' ? new SimulatedExecutor({ submitOutcomes: ['SUBMISSION_UNCERTAIN', 'ACK_RECEIVED'] }) : new RealExecutor({ root, ...(transport ? { transport } : {}) });
   const engine = new DealEngine({ root, executor }); const rate = new Map();
+  const identities = identityManager ?? new IdentityManager({ root, now, ...(mode === 'simulated' ? { identityRoot: null } : {}) });
   const allowedOrigins = new Set(origins);
 
   async function handler(request, response) {
@@ -73,11 +75,20 @@ export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, 
     try {
       if (request.method === 'GET' && url.pathname === '/session') return json(response, 200, { status: 'CONNECTED',
         sessionId: pairing.record.sessionId, expiresAt: pairing.record.expiresAt, mode: mode === 'simulated' ? 'SIMULATED / LOCAL TEST' : 'LOCAL REAL EXECUTION' });
-      if (request.method === 'GET' && url.pathname === '/profiles') return json(response, 200, { operatorModel: 'ONE_HUMAN_OPERATOR_TWO_DISTINCT_CRYPTOGRAPHIC_DIDS', profiles: PROFILES });
+      if (request.method === 'GET' && url.pathname === '/identity') return json(response, 200, await identities.discover());
+      if (request.method === 'POST' && url.pathname === '/identity/primary') { const body = await readBody(request); return json(response, 200, await identities.selectPrimary(body.did)); }
+      if (request.method === 'POST' && url.pathname === '/identity/link') return json(response, 200, await identities.linkExisting());
+      if (request.method === 'POST' && url.pathname === '/identity/create/prepare') return json(response, 200, await identities.prepareCreation());
+      if (request.method === 'POST' && url.pathname === '/identity/create/execute') { const body = await readBody(request); return json(response, 200, await identities.executeCreation(body.actionId)); }
+      if (request.method === 'GET' && url.pathname === '/identity/activity') return json(response, 200, await identities.activity());
+      if (request.method === 'POST' && url.pathname === '/identity/verify') { const body = await readBody(request); return json(response, 200, { valid: verifyPublicSignature(body), proofScope: 'CRYPTOGRAPHIC_KEY_CONTROL_ONLY' }); }
+      if (request.method === 'GET' && url.pathname === '/profiles') return json(response, 200, {
+        operatorModel: 'LOCAL_SELF_TEST_ONE_OPERATOR_TWO_DISTINCT_DIDS', identity: await identities.discover(), profiles: await identities.dealProfiles(),
+      });
       if (request.method === 'GET' && url.pathname === '/deals') return json(response, 200, { deals: await listSessions({ root }) });
       if (request.method === 'POST' && url.pathname === '/deals') {
         const body = await readBody(request); const deal = await createDealSession({ amount: body.amount, asset: body.asset,
-          profileA: body.profileA, profileB: body.profileB, mode }, { root, now }); return json(response, 201, deal);
+          profileA: body.profileA, profileB: body.profileB, mode }, { root, now, profiles: await identities.dealProfiles() }); return json(response, 201, deal);
       }
       const match = url.pathname.match(/^\/deals\/(bbx-[0-9a-f]{16})(?:\/actions\/(bbx-[0-9a-f]{16}-write-[1-6])\/(prepare|execute)|\/(refresh|finalize))?$/);
       if (!match) return json(response, 404, { error: 'ROUTE_NOT_ALLOWED' });

@@ -9,7 +9,9 @@
     { "source": "/deal/live/:id", "destination": "/deal/live/index.html" },
     { "source": "/deal/record/:id", "destination": "/deal/record/index.html" },
     { "source": "/deal/phase3b-final", "destination": "/deal/phase3b-final/index.html" },
-    { "source": "/records", "destination": "/records/index.html" }
+    { "source": "/records", "destination": "/records/index.html" },
+    { "source": "/identity", "destination": "/identity/index.html" },
+    { "source": "/technocore", "destination": "/technocore/index.html" }
   ],
   "headers": [
     {

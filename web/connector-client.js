@@ -27,7 +27,9 @@ export async function importPairing(file) {
 export async function connectorRequest(path, { method = 'GET', body } = {}) {
   const record = storedPairing();
   if (!record) throw new Error('PAIRING_REQUIRED');
-  if (!/^\/(?:session|profiles|deals(?:\/bbx-[0-9a-f]{16}(?:\/actions\/bbx-[0-9a-f]{16}-write-[1-6]\/(?:prepare|execute)|\/(?:refresh|finalize))?)?)$/.test(path)) throw new Error('CONNECTOR_ROUTE_REFUSED');
+  const identityRoute = /^\/identity(?:\/(?:primary|link|activity|verify|create\/(?:prepare|execute)))?$/.test(path);
+  const dealRoute = /^\/(?:session|profiles|deals(?:\/bbx-[0-9a-f]{16}(?:\/actions\/bbx-[0-9a-f]{16}-write-[1-6]\/(?:prepare|execute)|\/(?:refresh|finalize))?)?)$/.test(path);
+  if (!identityRoute && !dealRoute) throw new Error('CONNECTOR_ROUTE_REFUSED');
   const response = await fetch(`${record.connectorUrl}${path}`, {
     method,
     headers: { Authorization: `Bearer ${record.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
