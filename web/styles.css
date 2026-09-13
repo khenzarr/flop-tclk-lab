@@ -262,7 +262,7 @@ footer p { margin: 0; }
 .pairing-drop, .mini-pair { position: relative; cursor: pointer; }
 .pairing-drop { min-height: 180px; display: grid; place-content: center; gap: 12px; text-align: center; border: 1px dashed #54564e; }
 .pairing-drop span, .mini-pair { color: var(--amber-soft); font: 700 .68rem var(--mono); text-transform: uppercase; letter-spacing: .07em; }
-.pairing-drop small { max-width: 290px; color: #777970; font-size: .7rem; }
+.pairing-drop small { max-width: 310px; color: #a4a69c; font-size: .74rem; line-height: 1.5; }
 .pairing-drop input, .mini-pair input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .custody-note strong { color: var(--green); font: 700 .68rem var(--mono); text-transform: uppercase; }
 .custody-note button { padding: 0; border: 0; background: transparent; color: #9a9c92; text-decoration: underline; cursor: pointer; }
@@ -374,7 +374,10 @@ footer p { margin: 0; }
   .footer-meta { width: 100%; align-items: start; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
   .dialog-meta { align-items: start; flex-direction: column; gap: 4px; }
   .workspace-main, .workspace-main.narrow { width: min(100% - 30px, 1240px); padding-block: 45px 75px; }
-  .workspace-header nav { display: none; }.workspace-header > .connection-pill { max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
+  .workspace-header { height: auto; min-height: 70px; padding-block: 12px; flex-wrap: wrap; gap: 10px; }
+  .workspace-header nav { order: 3; width: 100%; display: flex; overflow-x: auto; gap: 18px; padding: 4px 0 8px; white-space: nowrap; }
+  .workspace-header nav > a { display: inline; }
+  .workspace-header > .connection-pill { max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
   .hub-hero { min-height: auto; }.hub-hero h1, .page-title h1 { font-size: clamp(3rem, 14vw, 4.5rem); }
   .connector-grid, .hub-records, .field-row, .operation-list { grid-template-columns: 1fr; }.connector-grid .custody-note { grid-column: auto; }
   .working-surface, .deal-form-card, .live-console, .records-card { padding: 20px; }.surface-head, .live-heading, .form-gate, .finalize-row { align-items: stretch; flex-direction: column; }.live-meta { text-align: left; }

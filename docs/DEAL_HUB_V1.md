@@ -2,6 +2,8 @@
 
 Deal Hub turns the existing verified Flight Recorder into a local-first operating surface. A human can create an isolated deal session, supervise its six actions, verify public evidence, finalize the record, and export a public-safe capsule.
 
+The current actionable path is **Local Self-Test**: one human controls two distinct existing Technocore DIDs. Remote independent counterparties and BLACKBOX DID creation are not implemented. For a fresh checkout, complete the pinned-upstream install and existing-DID prerequisite in [Getting Started](GETTING_STARTED.md) before using this operator guide.
+
 ## Start locally
 
 Open two terminals in the repository:
@@ -29,7 +31,7 @@ To exercise the complete UI without live actions, use `pnpm connector:simulated`
 
 ## Operator journey
 
-1. Use **Start a deal** and select the two distinct local DID profiles.
+1. Confirm an existing local Technocore DID is signer-ready, then use **Start a local self-test** and select two distinct local DID profiles.
 2. Enter amount and asset. Creation writes an isolated local session but performs no real signature, nonce allocation, venue POST, or PaperRail write.
 3. On the live record, **Review** freezes the next action. **Open terminal approval** starts its local terminal approval flow.
 4. A signed action remains visibly signed, not submitted. A venue acknowledgement remains acknowledged, not observed. A PaperRail receipt remains a receipt, not an exact public match.
