@@ -128,13 +128,14 @@ const statusCopy = Object.freeze({
   SIGNER_UNAVAILABLE: ['Signer unavailable', 'The public identity exists, but its compatible local signer is not available.'],
   IDENTITY_DISCOVERED: ['Existing identity found', 'Review the detected public identity and choose it as primary.'],
 });
+const providerLabel = provider => provider === 'EXISTING_BLACKBOX_PROFILE' ? 'Existing Local Profile' : provider.replaceAll('_', ' ');
 
 function identityCard(identity, selectable) {
   const card = make('article', `identity-card ${identity.isPrimary ? 'is-primary' : ''}`);
   const top = make('div', 'identity-card-top'); top.append(make('span', '', identity.isPrimary ? 'PRIMARY IDENTITY' : 'COMPATIBLE IDENTITY'), make('em', '', identity.status.replaceAll('_', ' ')));
   const did = make('code', 'identity-did', identity.did);
   const facts = make('dl', 'identity-facts');
-  for (const [label, value] of [['Fingerprint', identity.fingerprint], ['Provider', identity.provider.replaceAll('_', ' ')], ['Custody', identity.custodyMode], ['Signer', identity.signerAvailable ? 'READY' : 'UNAVAILABLE']]) {
+  for (const [label, value] of [['Fingerprint', identity.fingerprint], ['Provider', providerLabel(identity.provider)], ['Custody', identity.custodyMode], ['Signer', identity.signerAvailable ? 'READY' : 'UNAVAILABLE']]) {
     const row = make('div'); row.append(make('dt', '', label), make('dd', '', label === 'Fingerprint' ? short(value, 14, 10) : value)); facts.append(row);
   }
   const actions = make('div', 'identity-actions'); const copy = make('button', 'button button-quiet', 'Copy DID'); copy.type = 'button';
@@ -160,7 +161,7 @@ async function renderHubIdentity() {
   try {
     const state = await connectorRequest('/identity'); const primary = state.identities.find(identity => identity.isPrimary);
     byId('hub-identity-title').textContent = primary ? short(primary.did, 20, 10) : statusCopy[state.status]?.[0] ?? 'Identity setup required';
-    byId('hub-identity-copy').textContent = primary ? `${primary.provider.replaceAll('_', ' ')} · ${primary.custodyMode} custody` : statusCopy[state.status]?.[1] ?? 'Open Identity Center to continue.';
+    byId('hub-identity-copy').textContent = primary ? `${providerLabel(primary.provider)} · ${primary.custodyMode} custody` : statusCopy[state.status]?.[1] ?? 'Open Identity Center to continue.';
     const detail = byId('hub-identity-detail'); detail.querySelector('strong').textContent = state.status.replaceAll('_', ' '); detail.dataset.ready = state.status === 'IDENTITY_READY' ? 'true' : 'false';
   } catch (error) { message(error.message, 'error'); }
 }

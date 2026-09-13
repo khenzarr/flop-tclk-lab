@@ -32,7 +32,7 @@
       <div class="hero-copy">
         <div class="eyebrow"><span class="rec-dot"></span> Verified reference flight record · playback</div>
         <h1 id="hero-title">The flight recorder<br>for <em>agent deals.</em></h1>
-        <p class="hero-lede">Two agents made a deal. BLACKBOX shows what actually happened—step by step, with the proof kept attached.</p>
+        <p class="hero-lede">This historical Local Self-Test used two cryptographic DIDs controlled by one operator. BLACKBOX shows the recorded actions and exact evidence, step by step.</p>
         <div class="hero-actions">
           <a class="button button-primary" href="#flight-record">Open flight record <span aria-hidden="true">↓</span></a>
           <button class="button button-quiet" type="button" data-open-evidence>View evidence</button>
@@ -86,7 +86,7 @@
     </section>
 
     <section class="overview section-shell" id="evidence" aria-labelledby="overview-title">
-      <div class="section-heading reveal"><div><p class="section-kicker">Deal overview</p><h2 id="overview-title">One record. Six proofs.</h2></div><p class="heading-note">Public-safe identifiers from the final evidence capsule.</p></div>
+      <div class="section-heading reveal"><div><p class="section-kicker">Deal overview</p><h2 id="overview-title">One record. Six evidence gates.</h2></div><p class="heading-note">Public-safe identifiers from the final evidence capsule.</p></div>
       <div class="overview-grid reveal">
         <article class="deal-card">
           <div class="deal-status"><span>Status</span><strong><i></i> Complete</strong></div>
@@ -123,14 +123,14 @@
 
     <section class="trust" aria-labelledby="trust-title">
       <div class="section-shell trust-grid">
-        <div class="trust-copy reveal"><p class="section-kicker">Trust model</p><h2 id="trust-title">Clear about what the signatures mean.</h2><p>This demonstration uses two separate cryptographic identities controlled by one human operator.</p><div class="trust-fact"><strong>1</strong><span>human operator</span><strong>2</strong><span>distinct cryptographic DIDs</span></div></div>
+        <div class="trust-copy reveal"><p class="section-kicker">Trust model</p><h2 id="trust-title">Clear about what the signatures mean.</h2><p>A valid signature proves control of the corresponding key for that message. This historical demonstration uses two cryptographic identities controlled by one human operator.</p><div class="trust-fact"><strong>1</strong><span>human operator</span><strong>2</strong><span>distinct cryptographic DIDs</span></div></div>
         <div class="boundary-card reveal"><p class="card-label">Evidence boundary</p><h3>BLACKBOX proves the recorded sequence and its stated verification evidence.</h3><p>It does not infer:</p><ul><li>Human identity</li><li>Wallet ownership</li><li>Independent counterparties</li><li>Reputation or eligibility</li><li>Economic settlement</li></ul></div>
       </div>
     </section>
 
     <section class="rail section-shell" aria-labelledby="rail-title">
       <div class="rail-card reveal">
-        <div><p class="section-kicker">PaperRail disclosure</p><h2 id="rail-title">Receipt plus exact public observation.</h2><p>That is what completion means for the two rail events in this record.</p></div>
+        <div><p class="section-kicker">PaperRail disclosure</p><h2 id="rail-title">Receipt plus exact public observation.</h2><p>For these two events, “verified” means a local receipt and exact public-value match—not payment, settlement, or value transfer.</p></div>
         <div class="rail-flow" aria-label="PaperRail verification flow"><span>Receipt</span><i>→</i><span>Public read</span><i>→</i><span>Exact match</span><i>→</i><strong>Verified</strong></div>
         <div class="rail-caveats"><span>Not a payment rail</span><span>Unsigned</span><span>World-writable</span><span>No human identity proof</span><span>No wallet ownership proof</span></div>
       </div>
