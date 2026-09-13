@@ -4,6 +4,8 @@ const id = location.pathname.match(/^\/deal\/record\/(w1-[0-9a-f]{32})\/?$/)?.[1
 const make = (tag, className, value) => { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = value; return node; };
 const main = document.querySelector('main');
 document.title = 'Local validation Flight Record · TCLK BLACKBOX';
+document.querySelector('footer .section-shell > p').textContent = 'TCLK BLACKBOX · Local validation evidence';
+document.getElementById('footer-record-id').textContent = id;
 try {
   const response = await connectorRequest(`/workloads/${id}/record`);
   const record = response.record; const evidence = record.artifact;
