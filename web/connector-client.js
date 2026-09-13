@@ -29,14 +29,15 @@ export async function connectorRequest(path, { method = 'GET', body } = {}) {
   if (!record) throw new Error('PAIRING_REQUIRED');
   const identityRoute = /^\/identity(?:\/(?:primary|link|activity|verify|create\/(?:prepare|execute)))?$/.test(path);
   const dealRoute = /^\/(?:session|profiles|deals(?:\/bbx-[0-9a-f]{16}(?:\/actions\/bbx-[0-9a-f]{16}-write-[1-6]\/(?:prepare|execute)|\/(?:refresh|finalize))?)?)$/.test(path);
-  if (!identityRoute && !dealRoute) throw new Error('CONNECTOR_ROUTE_REFUSED');
+  const workloadRoute = /^\/workloads\/w1-[0-9a-f]{32}(?:\/(?:validate|record))?$/.test(path);
+  if (!identityRoute && !dealRoute && !workloadRoute) throw new Error('CONNECTOR_ROUTE_REFUSED');
   const response = await fetch(`${record.connectorUrl}${path}`, {
     method,
     headers: { Authorization: `Bearer ${record.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   let value; try { value = await response.json(); } catch { throw new Error('CONNECTOR_RESPONSE_INVALID'); }
-  if (!response.ok) throw new Error(value.error ?? `CONNECTOR_HTTP_${response.status}`);
+  if (!response.ok) throw new Error(value.code ?? value.error ?? `CONNECTOR_HTTP_${response.status}`);
   return value;
 }
 

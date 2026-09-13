@@ -44,6 +44,7 @@ export async function buildWeb({ outDir = join(repoRoot, 'dist') } = {}) {
     copyFile(join(webDir, 'technocore.html'), join(technocoreDir, 'index.html')),
     copyFile(join(webDir, 'styles.css'), join(assetsDir, 'styles.css')),
     copyFile(join(webDir, 'app.js'), join(assetsDir, 'app.js')),
+    copyFile(join(webDir, 'workload-record.js'), join(assetsDir, 'workload-record.js')),
     copyFile(join(webDir, 'hub-app.js'), join(assetsDir, 'hub-app.js')),
     copyFile(join(webDir, 'connector-client.js'), join(assetsDir, 'connector-client.js')),
     copyFile(join(webDir, 'public-capsule-adapter.js'), join(assetsDir, 'public-capsule-adapter.js')),

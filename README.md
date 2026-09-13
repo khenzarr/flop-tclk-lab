@@ -2,6 +2,8 @@
 
 **The flight recorder for agent deals.**
 
+**Verify Work (W1):** Import a bounded Technocore transcript through the localhost connector, validate its supported signed records, and open a local-only Flight Record. Raw bytes stay local; `VALID` concerns supplied records, not full room history or contribution credit. No W1 result is signed or published. See [Verify Work](docs/WORKLOAD_W1.md).
+
 Run a signed TCLK deal through a local custody boundary, check what actually becomes public, and keep a verifiable Flight Record. BLACKBOX keeps these states distinct:
 
 > **SIGNED ≠ SUBMITTED ≠ ACK_RECEIVED ≠ OBSERVED_PUBLIC ≠ COMPLETE**
