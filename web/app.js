@@ -2,6 +2,10 @@ import referenceCapsule from './capsule.js';
 import { cachedPublicRecord, publicRecordRequest } from './connector-client.js';
 import { createFlightRecorderModel, createHubFlightRecorderModel } from './public-capsule-adapter.js';
 
+if (/^\/deal\/record\/w1-[0-9a-f]{32}\/?$/.test(location.pathname)) {
+  await import('./workload-record.js');
+} else {
+
 const byId = id => document.getElementById(id);
 const make = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -180,4 +184,5 @@ else {
   byId('console-root').textContent = shorten(model.deal.manifestRoot, 8, 6);
   byId('complete-summary').textContent = `${model.summary.totalSteps} actions recorded · ${model.summary.verifiedSteps} verified · ${model.summary.unresolvedSteps} unresolved`;
   byId('replay-button').addEventListener('click', replay);
+}
 }

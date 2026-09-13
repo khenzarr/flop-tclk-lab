@@ -1,9 +1,10 @@
-import { cachePublicRecord, clearPairing, connectionStatus, connectorRequest, importPairing, publicRecordRoute } from './connector-client.js';
+import { cachePublicRecord, clearPairing, connectionStatus, connectorRequest, importPairing, publicRecordRoute, storedPairing } from './connector-client.js';
 
 const byId = id => document.getElementById(id);
 const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
 const page = document.body.dataset.page;
 let connection;
+let workloadImportId = null; let importWindow = null;
 
 function message(text, tone = '') { const node = byId('page-message'); if (!node) return; node.textContent = text; node.dataset.tone = tone; node.hidden = false; }
 function short(value, start = 13, end = 8) { return value.length > start + end ? `${value.slice(0, start)}…${value.slice(-end)}` : value; }
@@ -204,6 +205,43 @@ async function start() {
   });
   const rescan = byId('rescan-identities');
   if (rescan) rescan.addEventListener('click', async () => { try { await connectorRequest('/identity/link', { method: 'POST', body: {} }); await renderIdentity(); message('Local Technocore identity locations rescanned. No private file was uploaded.', 'success'); } catch (error) { message(error.message, 'error'); } });
+  const importButton = byId('workload-import');
+  if (importButton) {
+    importButton.addEventListener('click', () => {
+      if (connection.state !== 'CONNECTED' || !storedPairing()) return message('Pair the local connector first.', 'error');
+      importWindow = window.open('http://127.0.0.1:8787/workloads/import', 'blackbox-local-import', 'width=620,height=560');
+      if (!importWindow) message('Allow the local import window in your browser.', 'error');
+    });
+    window.addEventListener('message', async event => {
+      if (event.origin !== 'http://127.0.0.1:8787' || event.source !== importWindow) return;
+      if (event.data?.type === 'BLACKBOX_W1_IMPORT_READY') {
+        const pairing = storedPairing(); if (pairing) importWindow.postMessage({ type: 'BLACKBOX_W1_PAIR', token: pairing.token }, event.origin);
+      }
+      if (event.data?.type !== 'BLACKBOX_W1_IMPORTED') return;
+      const candidate = event.data.descriptor;
+      if (!/^w1-[0-9a-f]{32}$/.test(candidate?.importId ?? '')) return;
+      try {
+        const exact = await connectorRequest(`/workloads/${candidate.importId}`);
+        if (exact.sha256 !== candidate.sha256 || exact.workloadId !== candidate.workloadId) return;
+        workloadImportId = exact.importId; byId('workload-descriptor').hidden = false;
+        byId('workload-sha').textContent = exact.sha256; byId('workload-bytes').textContent = String(exact.byteLength);
+        byId('workload-records').textContent = String(exact.recordCount); byId('workload-generation').textContent = exact.generationStatus;
+        byId('workload-result').hidden = true; message('Raw transcript imported into localhost only. Validate when ready.', 'success');
+      } catch (error) { message(error.message, 'error'); }
+    });
+    byId('workload-validate').addEventListener('click', async () => {
+      if (!workloadImportId) return;
+      const button = byId('workload-validate'); button.disabled = true;
+      try {
+        const result = await connectorRequest(`/workloads/${workloadImportId}/validate`, { method: 'POST' });
+        byId('workload-result').hidden = false; byId('workload-verdict').textContent = result.verdict;
+        const copy = { VALID: 'Supported signed records passed the checks for these supplied bytes only.', INVALID: 'A required check failed in the supplied transcript.', INDETERMINATE: 'The supplied records cannot support a definite signed-content result.' };
+        byId('workload-explanation').textContent = copy[result.verdict];
+        byId('workload-coverage').textContent = `Coverage: ${result.artifact.coverage.windowStatus}. Complete room history is not proven.`;
+        byId('workload-record-link').href = result.flightRecordRoute;
+      } catch (error) { message(error.message, 'error'); button.disabled = false; }
+    });
+  }
   const verifyForm = byId('verify-form');
   if (verifyForm) verifyForm.addEventListener('submit', async event => {
     event.preventDefault(); const output = byId('verify-result');

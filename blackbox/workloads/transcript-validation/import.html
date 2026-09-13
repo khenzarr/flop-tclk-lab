@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Local transcript import · TCLK BLACKBOX</title><script type="module" src="/workloads/import.js"></script></head>
+<body><main><h1>Import transcript locally</h1><p>This page runs on your localhost connector. Transcript bytes stay on this computer and are never sent to Vercel.</p>
+<form id="import-form"><label>Room <input id="room" required pattern="[a-z0-9][a-z0-9_-]{0,47}"></label><label>Generation header, if captured <input id="generation" inputmode="numeric" pattern="(0|[1-9][0-9]*)"></label><label>Technocore JSONL export <input id="transcript" type="file" required accept=".jsonl,.ndjson,application/x-ndjson"></label><button type="submit">Import on this computer</button></form>
+<p id="status" role="status" aria-live="polite">Waiting for BLACKBOX pairing.</p></main></body></html>
