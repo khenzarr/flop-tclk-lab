@@ -111,3 +111,21 @@ test('local validation replaces inherited historical footer while the reference 
     assert.doesNotMatch(`${footerText.textContent} ${footerId.textContent}`, /Verified public playback|phase3b-final/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('production clean-url routing resolves W1 records and preserves the Phase3B entrypoint', async () => {
+  const config = JSON.parse(await readFile(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  assert.equal(config.cleanUrls, true);
+  const recordRewrite = config.rewrites.find(route => route.source === '/deal/record/:id');
+  assert.deepEqual(recordRewrite, { source: '/deal/record/:id', destination: '/deal/record' });
+  assert.match('/deal/record/w1-test-record', /^\/deal\/record\/[^/]+$/);
+  assert.doesNotMatch(recordRewrite.destination, /\.html$/);
+
+  const root = await mkdtemp(join(tmpdir(), 'blackbox-w1-production-route-'));
+  try {
+    await buildWeb({ outDir: root });
+    const workloadEntrypoint = await readFile(join(root, ...recordRewrite.destination.split('/').filter(Boolean), 'index.html'), 'utf8');
+    assert.match(workloadEntrypoint, /<script type="module" src="\/assets\/app\.js"><\/script>/);
+    const phase3bEntrypoint = await readFile(join(root, 'deal', 'phase3b-final', 'index.html'), 'utf8');
+    assert.match(phase3bEntrypoint, /Agent Deal Flight Recorder · Verified public playback/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
