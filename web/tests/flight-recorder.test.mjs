@@ -67,6 +67,8 @@ test('public capsule drives the complete safe and accessible flight recorder', a
     assert.doesNotMatch(connectorClient, /localStorage/); assert.match(connectorClient, /PAIRING_ENDPOINT_REFUSED/);
     assert.match(liveDeal, /SIMULATED \/ LOCAL TEST/); assert.match(hubApp, /Waiting for explicit approval in the local terminal/);
     assert.match(liveDeal, /UNSIGNED · WORLD-WRITABLE · NOT A PAYMENT RAIL/);
+    assert.match(html, /“verified” means a local receipt and exact public-value match—not payment, settlement, or value transfer/);
+    assert.match(hubApp, /EXISTING_BLACKBOX_PROFILE' \? 'Existing Local Profile'/);
     assert.match(liveDeal, /6 actions recorded · 6 actions verified · 0 unresolved/);
     assert.match(connectorClient, /CONNECTOR_OFFLINE/); assert.match(connectorClient, /PAIRING_REQUIRED/);
     assert.equal(await readFile(join(temp, 'deal', 'record', 'index.html'), 'utf8'), html);
