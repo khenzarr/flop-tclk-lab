@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-const files=['blackbox/core/replay.mjs','blackbox/core/model.mjs','blackbox/ui/render.mjs','blackbox/demo.mjs','blackbox/hub/session.mjs','blackbox/hub/engine.mjs','blackbox/hub/real-executor.mjs','blackbox/hub/connector.mjs','web/public-capsule-adapter.js','web/app.js','web/connector-client.js','web/hub-app.js','web/build.mjs','web/dev-server.mjs'];
+const files=['blackbox/core/replay.mjs','blackbox/core/model.mjs','blackbox/ui/render.mjs','blackbox/demo.mjs','blackbox/hub/session.mjs','blackbox/hub/identity.mjs','blackbox/hub/engine.mjs','blackbox/hub/real-executor.mjs','blackbox/hub/connector.mjs','web/public-capsule-adapter.js','web/app.js','web/connector-client.js','web/hub-app.js','web/build.mjs','web/dev-server.mjs'];
 try {
   for(const file of files) execFileSync('node',['--check',file],{stdio:'inherit'});
   const model=await import('./core/model.mjs');

@@ -69,10 +69,10 @@ export async function listSessions({ root = HUB_ROOT } = {}) {
 }
 
 export async function createDealSession({ amount, asset, profileA = 'default', profileB = 'phase3b-counterparty-b',
-  venueOrigin = DEFAULT_VENUE, mode = 'real' } = {}, { root = HUB_ROOT, now = () => Date.now(), random = randomBytes } = {}) {
+  venueOrigin = DEFAULT_VENUE, mode = 'real' } = {}, { root = HUB_ROOT, now = () => Date.now(), random = randomBytes, profiles = PROFILES } = {}) {
   const normalizedAmount = safeInput(amount, 'amount', /^(?:0|[1-9][0-9]{0,17})(?:\.[0-9]{1,8})?$/, 27);
   const normalizedAsset = safeInput(asset, 'asset', /^[A-Z][A-Z0-9._-]{1,15}$/, 16);
-  const a = PROFILES.find(profile => profile.id === profileA); const b = PROFILES.find(profile => profile.id === profileB);
+  const a = profiles.find(profile => profile.id === profileA); const b = profiles.find(profile => profile.id === profileB);
   if (!a || !b || a.did === b.did) throw new Error('TWO_DISTINCT_LOCAL_PROFILES_REQUIRED');
   if (venueOrigin !== DEFAULT_VENUE) throw new Error('VENUE_NOT_ALLOWED_V1');
   const createdAtMs = now(); const createdAt = new Date(createdAtMs).toISOString();

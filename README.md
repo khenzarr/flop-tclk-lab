@@ -27,6 +27,7 @@ Built by [@cryptokhenzar](https://x.com/cryptokhenzar)
 - [What is TCLK BLACKBOX?](#what-is-tclk-blackbox)
 - [What can I do with BLACKBOX?](#what-can-i-do-with-blackbox)
 - [The six-step deal lifecycle](#the-six-step-deal-lifecycle)
+- [First time using BLACKBOX?](#first-time-using-blackbox)
 - [Quick Start](#quick-start--no-prior-blackbox-knowledge-required)
 - [How it works](#how-it-works)
 - [Troubleshooting](#troubleshooting)
@@ -106,6 +107,32 @@ BLACKBOX contributes by:
 
 BLACKBOX is an independent project; this repository does not claim it is part of the official Technocore project. BLACKBOX V1 currently uses the working Technocore venue at `https://technocore-chat-production.up.railway.app`.
 
+## FIRST TIME USING BLACKBOX?
+
+A DID is your agent's public cryptographic name. In BLACKBOX it begins with `did:key:` and lets other software verify messages signed by the matching local key.
+
+A DID is **not a crypto wallet**. It does not hold tokens and does not by itself prove a human identity, wallet owner, reputation, FLOP eligibility or airdrop eligibility. Your public DID is safe to share. Your private signing material and passphrase are not safe to share and must remain on your computer.
+
+BLACKBOX now handles the identity step directly:
+
+1. Start the local connector:
+
+   ```powershell
+   pnpm connector
+   ```
+
+2. Open [BLACKBOX](https://tclk-blackbox.vercel.app) and import the pairing JSON printed by the connector.
+3. BLACKBOX checks the supported local identity locations automatically.
+4. If a compatible DID already exists, Identity Center shows **EXISTING IDENTITY FOUND** and reuses the exact same DID. It does not replace, rotate or regenerate it.
+5. If several compatible DIDs exist, choose which one is primary. BLACKBOX will not create another identity.
+6. If none exists, Identity Center shows **NO AGENT IDENTITY FOUND**. Choose **Create my identity** or **Use existing identity**.
+7. **Create my identity** prepares the action in the browser, then moves approval and protection setup into your local terminal. The browser receives only the resulting public DID descriptor.
+8. When the page shows **IDENTITY READY**, return to Deal Hub. Your primary DID appears as **Agent A / Me**.
+
+“Use existing identity” means link to compatible local custody. It never means upload a private key to Vercel. BLACKBOX only creates an identity when none exists and you explicitly request it. It never creates a second DID automatically.
+
+The current two-local-DID deal remains available as **LOCAL SELF-TEST**. One operator controls both sides in that mode; normal onboarding asks for only your own primary identity. See [Identity Hub architecture and acceptance](docs/IDENTITY_HUB.md).
+
 ## Quick Start — no prior BLACKBOX knowledge required
 
 These steps assume Windows 11 and PowerShell. Keep commands in their own terminal windows where noted.
@@ -169,21 +196,25 @@ Click **Import Pairing File** and choose the JSON file whose path was printed by
 CONNECTED LOCALLY • LOCAL REAL EXECUTION
 ```
 
-### 7. Start a deal
+### 7. Confirm your identity
+
+Open **Identity**. BLACKBOX reuses one compatible local DID by default. If none exists, explicitly create or link one and finish the local terminal step until the page shows `IDENTITY READY`.
+
+### 8. Start a deal
 
 Click **START A DEAL**.
 
 V1 uses **ONE HUMAN OPERATOR** and **TWO DISTINCT CRYPTOGRAPHIC DIDs**. Agent A and Agent B are separate cryptographic profiles controlled by the same person, not two independent people.
 
-### 8. Define the deal
+### 9. Define the deal
 
 Enter the amount and asset label. Current examples may use `TCLK`, but that label is deal metadata and a pre-testnet placeholder. It does not prove that a real TCLK or FLOP token transfer occurred. PaperRail activity does not move token value.
 
-### 9. Create the isolated deal session
+### 10. Create the isolated deal session
 
 Click **Create isolated deal session**. This creates local session and commitment material. It does not immediately sign, submit, consume every action, or run the deal automatically.
 
-### 10. Review and approve each action
+### 11. Review and approve each action
 
 For a signed operation, the browser guides you through two separate decisions:
 
@@ -198,11 +229,11 @@ The terminal prints the exact approval phrase to type. Submission requires its o
 
 PaperRail writes have a separate terminal approval beginning with `PAPERRAIL WRITE ONCE ...`.
 
-### 11. Refresh public evidence
+### 12. Refresh public evidence
 
 `ACK_RECEIVED` is not complete. Use **Refresh public evidence** so BLACKBOX can look for the exact expected public record. The operation progresses to `VERIFIED` only when its required evidence is found.
 
-### 12. Complete all six steps
+### 13. Complete all six steps
 
 Continue through OFFER, ACCEPT, LOCK, RAIL LOCK, REVEAL, and RAIL CLAIM. The final state is:
 
@@ -213,11 +244,11 @@ FLIGHT RECORD COMPLETE
 0 unresolved
 ```
 
-### 13. Open the Flight Record
+### 14. Open the Flight Record
 
 Click **OPEN FLIGHT RECORD**. The resulting event playback is read-only; it cannot sign, submit, allocate a nonce, or write PaperRail.
 
-### 14. Export evidence
+### 15. Export evidence
 
 Use **OPEN EVIDENCE** to inspect the public projection and **EXPORT PUBLIC CAPSULE** to download it. The capsule is designed to be shareable: it excludes private keys, seeds, passphrases, raw preimages, pairing tokens, and other custody secrets. Review any artifact before publishing it.
 
