@@ -78,17 +78,17 @@ export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, 
       if (request.method === 'GET' && url.pathname === '/identity') return json(response, 200, await identities.discover());
       if (request.method === 'POST' && url.pathname === '/identity/primary') { const body = await readBody(request); return json(response, 200, await identities.selectPrimary(body.did)); }
       if (request.method === 'POST' && url.pathname === '/identity/link') return json(response, 200, await identities.linkExisting());
-      if (request.method === 'POST' && url.pathname === '/identity/create/prepare') return json(response, 200, await identities.prepareCreation());
-      if (request.method === 'POST' && url.pathname === '/identity/create/execute') { const body = await readBody(request); return json(response, 200, await identities.executeCreation(body.actionId)); }
       if (request.method === 'GET' && url.pathname === '/identity/activity') return json(response, 200, await identities.activity());
       if (request.method === 'POST' && url.pathname === '/identity/verify') { const body = await readBody(request); return json(response, 200, { valid: verifyPublicSignature(body), proofScope: 'CRYPTOGRAPHIC_KEY_CONTROL_ONLY' }); }
       if (request.method === 'GET' && url.pathname === '/profiles') return json(response, 200, {
-        operatorModel: 'LOCAL_SELF_TEST_ONE_OPERATOR_TWO_DISTINCT_DIDS', identity: await identities.discover(), profiles: await identities.dealProfiles(),
+        operatorModel: mode === 'simulated' ? 'LOCAL_SELF_TEST_ONE_OPERATOR_TWO_DISTINCT_DIDS' : 'EXISTING_TECHNOCORE_SIGNER_REQUIRED', identity: await identities.discover(), profiles: await identities.dealProfiles({ allowFixtureProfiles: mode === 'simulated' }),
       });
       if (request.method === 'GET' && url.pathname === '/deals') return json(response, 200, { deals: await listSessions({ root }) });
       if (request.method === 'POST' && url.pathname === '/deals') {
+        const identity = await identities.discover();
+        if (mode !== 'simulated' && (identity.status !== 'IDENTITY_READY' || !identity.primaryDid)) throw new Error('SIGNER_READY_IDENTITY_REQUIRED');
         const body = await readBody(request); const deal = await createDealSession({ amount: body.amount, asset: body.asset,
-          profileA: body.profileA, profileB: body.profileB, mode }, { root, now, profiles: await identities.dealProfiles() }); return json(response, 201, deal);
+          profileA: body.profileA, profileB: body.profileB, mode }, { root, now, profiles: await identities.dealProfiles({ allowFixtureProfiles: mode === 'simulated' }) }); return json(response, 201, deal);
       }
       const match = url.pathname.match(/^\/deals\/(bbx-[0-9a-f]{16})(?:\/actions\/(bbx-[0-9a-f]{16}-write-[1-6])\/(prepare|execute)|\/(refresh|finalize))?$/);
       if (!match) return json(response, 404, { error: 'ROUTE_NOT_ALLOWED' });

@@ -4,11 +4,10 @@ Identity Hub gives BLACKBOX a public-safe identity boundary without moving custo
 
 ## Provider model
 
-`IdentityManager` exposes three provider classifications:
+`IdentityManager` exposes provider classifications for identities that already exist locally:
 
 - `EXISTING_TECHNOCORE` — the canonical per-user Technocore location;
 - `EXISTING_BLACKBOX_PROFILE` — a compatible named local profile;
-- `BLACKBOX_NATIVE` — an identity created by an explicit BLACKBOX request through the same canonical local provider.
 
 `BROWSER_INSTANT` is intentionally absent. Private keys are not created or stored in browser or Vercel state. A future provider can implement the same public descriptor boundary without changing Deal Hub consumers.
 
@@ -43,20 +42,13 @@ The browser receives only:
 }
 ```
 
-Private key bytes, protected blobs, passphrases, seeds, pairing tokens, signer secrets and filesystem paths are excluded. Primary-selection and creation-action records are public metadata stored under the already ignored `blackbox/state/` tree.
+Private key bytes, protected blobs, passphrases, seeds, pairing tokens, signer secrets and filesystem paths are excluded. Primary-selection records are public metadata stored under the already ignored `blackbox/state/` tree.
 
-## Native creation
+## Existing identity prerequisite
 
-Creation is a two-step, local-only action:
+BLACKBOX V1 does not create identities. A compatible Technocore DID must already exist locally before signed BLACKBOX operations can run. The connector discovers supported public markers, reuses the exact existing DID unchanged, and reports whether the existing signer is ready, locked or unavailable.
 
-1. the authenticated connector prepares a one-time non-secret action;
-2. execution requires the human-owned terminal and an exact approval phrase;
-3. the canonical Windows local initializer prompts for protection credentials directly in that terminal, creates or reuses its persistent DPAPI-protected identity, and writes its public marker;
-4. BLACKBOX reads only that public marker and returns the public descriptor.
-
-The connector refuses preparation when any compatible identity already exists. It also rechecks discovery before execution. This prevents an action prepared earlier from creating a second identity after another provider has appeared. The canonical initializer is idempotent, so restarts rediscover the same DID.
-
-“Use existing identity” performs a fresh scan of supported local providers. It is not a private-key upload and the browser has no sensitive file importer.
+When no compatible identity is found, the product shows the prerequisite and directs the user to the existing Technocore setup documentation. BLACKBOX does not request private keys, seeds, mnemonics, passphrases or exported custody files, and it does not offer a private-key importer. “Rescan local identities” performs a fresh read-only scan.
 
 ## Deal Hub boundary
 
@@ -83,14 +75,14 @@ Existing machine (read-only until the user chooses a normal product action):
 7. Confirm Deal Hub labels the primary as Agent A / Me and keeps the second profile under LOCAL SELF-TEST.
 8. Confirm the verified reference and dynamic Flight Records still open.
 
-Isolated new-user test:
+Isolated no-identity test:
 
 1. Point a test-only connector fixture at a temporary empty identity store.
 2. Confirm `NO_IDENTITY` and that nothing is created automatically.
-3. Prepare and explicitly approve one test identity creation.
-4. Confirm the public DID is persistent and private fixture material is absent from the API.
-5. Restart against the same temporary store and confirm the same DID is rediscovered.
-6. Confirm a second creation is refused, then delete the temporary fixture.
+3. Confirm no creation action or identity-generation API is exposed.
+4. Confirm the public API contains only the prerequisite/status descriptor.
+5. Rescan against the same temporary store and confirm the state remains unchanged.
+6. Delete the temporary fixture.
 
 ## Reference and attribution
 

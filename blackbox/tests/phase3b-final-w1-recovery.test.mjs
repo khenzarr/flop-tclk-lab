@@ -19,7 +19,8 @@ const fixture = () => {
 };
 
 test('recovery preflight reuses exact signed fields and preserves spent attempt 1', () => {
-  const review = finalW1RecoveryPreflight();
+  const paths = fixture();
+  const review = finalW1RecoveryPreflight(paths);
   assert.equal(review.existingSignatureReused, true);
   assert.equal(review.signedFieldsChanged, false);
   assert.equal(review.resignRequired, false);

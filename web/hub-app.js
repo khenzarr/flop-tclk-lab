@@ -4,7 +4,6 @@ const byId = id => document.getElementById(id);
 const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
 const page = document.body.dataset.page;
 let connection;
-let identityActionId;
 
 function message(text, tone = '') { const node = byId('page-message'); if (!node) return; node.textContent = text; node.dataset.tone = tone; node.hidden = false; }
 function short(value, start = 13, end = 8) { return value.length > start + end ? `${value.slice(0, start)}…${value.slice(-end)}` : value; }
@@ -101,11 +100,13 @@ async function loadProfiles() {
   if (connection.state !== 'CONNECTED') return;
   try {
     const result = await connectorRequest('/profiles');
+    const canExecute = result.identity?.status === 'IDENTITY_READY';
     const primary = result.identity?.identities?.find(identity => identity.isPrimary);
     const primaryCard = byId('deal-primary-identity');
     if (primaryCard) {
       primaryCard.querySelector('strong').textContent = primary ? short(primary.did, 20, 10) : 'Identity setup required';
       primaryCard.dataset.ready = primary?.status === 'IDENTITY_READY' ? 'true' : 'false';
+      primaryCard.querySelector('a').textContent = canExecute ? 'Open Identity Center' : 'Identity prerequisite →';
     }
     const primaryIndex = Math.max(0, result.profiles.findIndex(profile => profile.did === result.identity?.primaryDid));
     const counterpartyIndex = result.profiles.findIndex((profile, index) => index !== primaryIndex && profile.did !== result.identity?.primaryDid);
@@ -113,11 +114,14 @@ async function loadProfiles() {
       const select = byId(selectId); select.replaceChildren();
       result.profiles.forEach((profile, index) => { const option = make('option', '', `${profile.label} · ${short(profile.did, 15, 8)}`); option.value = profile.id; option.selected = index === selected; select.append(option); });
     }
+    const submit = byId('new-deal-form')?.querySelector('button[type="submit"]');
+    if (submit && !canExecute) { submit.disabled = true; submit.title = 'A ready local Technocore signer is required for real execution.'; }
+    if (!canExecute && byId('new-deal-form')) message('Signed deal execution requires a detected, signer-ready local Technocore identity. Open Identity Center to resolve the prerequisite.', 'warn');
   } catch (error) { message(error.message, 'error'); }
 }
 
 const statusCopy = Object.freeze({
-  NO_IDENTITY: ['No agent identity found', 'Create one locally or link a compatible identity already on this computer.'],
+  NO_IDENTITY: ['Agent identity required', 'Create a Technocore DID with the external tooling, then rescan local identities. BLACKBOX never creates one.'],
   MULTIPLE_IDENTITIES_FOUND: ['Choose your primary identity', 'BLACKBOX found more than one compatible DID and will not choose or create another silently.'],
   IDENTITY_READY: ['Your identity is ready', 'BLACKBOX will reuse this DID. Signing material remains protected by the local provider.'],
   IDENTITY_LOCKED: ['Your identity is locked', 'The identity exists, but the local signer must be unlocked before it can sign.'],
@@ -197,19 +201,8 @@ async function start() {
       location.assign(`/deal/live/${deal.id}`);
     } catch (error) { message(error.message, 'error'); button.disabled = false; }
   });
-  const createIdentity = byId('create-identity');
-  if (createIdentity) createIdentity.addEventListener('click', async () => {
-    try { const action = await connectorRequest('/identity/create/prepare', { method: 'POST', body: {} }); identityActionId = action.actionId; byId('creation-approval').hidden = false; message('Identity creation prepared. Nothing has been created yet.', 'warn'); }
-    catch (error) { message(error.message, 'error'); }
-  });
-  const executeIdentity = byId('execute-identity');
-  if (executeIdentity) executeIdentity.addEventListener('click', async () => {
-    executeIdentity.disabled = true;
-    try { message('Continue in the local terminal. Passphrase entry stays outside the browser.', 'warn'); await connectorRequest('/identity/create/execute', { method: 'POST', body: { actionId: identityActionId } }); byId('creation-approval').hidden = true; await renderIdentity(); message('Your identity is ready and will be reused.', 'success'); }
-    catch (error) { message(error.message, 'error'); executeIdentity.disabled = false; }
-  });
-  const linkIdentity = byId('link-identity');
-  if (linkIdentity) linkIdentity.addEventListener('click', async () => { try { await connectorRequest('/identity/link', { method: 'POST', body: {} }); await renderIdentity(); message('Known local identity locations checked. No private file was uploaded.', 'success'); } catch (error) { message(error.message, 'error'); } });
+  const rescan = byId('rescan-identities');
+  if (rescan) rescan.addEventListener('click', async () => { try { await connectorRequest('/identity/link', { method: 'POST', body: {} }); await renderIdentity(); message('Local Technocore identity locations rescanned. No private file was uploaded.', 'success'); } catch (error) { message(error.message, 'error'); } });
   const verifyForm = byId('verify-form');
   if (verifyForm) verifyForm.addEventListener('submit', async event => {
     event.preventDefault(); const output = byId('verify-result');

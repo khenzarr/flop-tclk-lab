@@ -20,7 +20,7 @@ import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { REVIEWED_CANONICAL_COMMIT } from './budget.mjs';
@@ -159,25 +159,7 @@ export function invokeRealDetachedBridge(options = {}) {
   return invokeDetachedBridge({ ...options, custody: 'real' });
 }
 
-/**
- * Runs the canonical Windows-local initializer in the human-owned terminal. BLACKBOX never
- * proxies the passphrase or captures child output; it reads only the initializer's public marker
- * after the child exits successfully.
- */
-export async function initializeCanonicalLocalIdentity({ worktree = CANONICAL_WORKTREE, stateRoot = protectedCustodyStateRoot() } = {}) {
-  requireInteractiveOperatorTerminal();
-  if (resolve(stateRoot) !== protectedCustodyStateRoot()) throw new Error('REFUSE: native identity state root is not canonical');
-  await assertReviewedCanonicalWorktree(worktree);
-  const code = await new Promise((resolveCode, reject) => {
-    const child = spawn(canonicalPython(worktree), ['-m', 'technocore_agent.service.local_init'], {
-      cwd: worktree, env: { ...process.env, PYTHONPATH: 'src' }, windowsHide: true, stdio: 'inherit',
-    });
-    child.on('error', reject); child.on('close', resolveCode);
-  });
-  if (code !== 0) throw new Error('canonical identity initializer failed');
-  const marker = JSON.parse(await readFile(resolve(stateRoot, 'local-install.json'), 'utf8'));
-  if (marker?.schema !== 'technocore-local-install-v1' || typeof marker.public_did !== 'string') throw new Error('canonical identity public marker invalid');
-  return marker.public_did;
-}
+
+
 
 

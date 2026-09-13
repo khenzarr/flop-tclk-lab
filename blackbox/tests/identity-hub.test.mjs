@@ -47,25 +47,18 @@ test('multiple identities require visible primary selection and signer states do
     assert.equal(state.identities.find(item => item.did === first).status, IDENTITY_STATUSES.IDENTITY_LOCKED);
     assert.equal(state.identities.find(item => item.did === second).status, IDENTITY_STATUSES.SIGNER_UNAVAILABLE);
     state = await manager.selectPrimary(second); assert.equal(state.primaryDid, second); assert.equal(state.status, IDENTITY_STATUSES.SIGNER_UNAVAILABLE);
-    await assert.rejects(() => manager.prepareCreation(), /EXISTING_IDENTITY_MUST_BE_REUSED/);
+    assert.equal(typeof manager.prepareCreation, 'undefined');
     assert.equal((await manager.discover()).identityCount, 2);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
 });
 
-test('native creation requires an explicit action, persists once, and rediscovers the same DID', async () => {
+test('BLACKBOX exposes no native identity creation path', async () => {
   const sandbox = await mkdtemp(join(tmpdir(), 'identity-hub-create-'));
-  const hub = join(sandbox, 'hub'); const store = join(sandbox, 'TechnocoreAgent'); const createdDid = did('native'); let creations = 0; let approvals = 0;
-  const creator = async ({ stateRoot }) => { creations += 1; await install(stateRoot, createdDid); return createdDid; };
+  const hub = join(sandbox, 'hub'); const store = join(sandbox, 'TechnocoreAgent');
   try {
-    const manager = new IdentityManager({ root: hub, identityRoot: store, random: size => Buffer.alloc(size, 9), creator,
-      approval: async () => { approvals += 1; return true; } });
-    assert.equal(creations, 0);
-    const prepared = await manager.prepareCreation(); assert.equal(prepared.status, IDENTITY_STATUSES.IDENTITY_NEEDS_LOCAL_APPROVAL); assert.equal(creations, 0);
-    let state = await manager.executeCreation(prepared.actionId); assert.equal(creations, 1); assert.equal(approvals, 1); assert.equal(state.primaryDid, createdDid);
-    assert.equal(state.identities[0].provider, IDENTITY_PROVIDERS.BLACKBOX_NATIVE);
-    const restarted = new IdentityManager({ root: hub, identityRoot: store, creator }); state = await restarted.discover();
-    assert.equal(state.primaryDid, createdDid); assert.equal(state.identityCount, 1); assert.equal(creations, 1);
-    await assert.rejects(() => restarted.prepareCreation(), /EXISTING_IDENTITY_MUST_BE_REUSED/);
+    const manager = new IdentityManager({ root: hub, identityRoot: store });
+    assert.equal(typeof manager.prepareCreation, 'undefined'); assert.equal(typeof manager.executeCreation, 'undefined');
+    const state = await manager.discover(); assert.equal(state.status, IDENTITY_STATUSES.NO_IDENTITY);
     assert.match(await readFile('.gitignore', 'utf8'), /blackbox\/state\//);
     assert.doesNotMatch(JSON.stringify(state), /protected-test-fixture|passphrase|private|seed/i);
   } finally { await rm(sandbox, { recursive: true, force: true }); }
