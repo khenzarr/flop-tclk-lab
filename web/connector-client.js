@@ -29,7 +29,7 @@ export async function connectorRequest(path, { method = 'GET', body } = {}) {
   if (!record) throw new Error('PAIRING_REQUIRED');
   const identityRoute = /^\/identity(?:\/(?:primary|link|activity|verify|create\/(?:prepare|execute)))?$/.test(path);
   const dealRoute = /^\/(?:session|profiles|deals(?:\/bbx-[0-9a-f]{16}(?:\/actions\/bbx-[0-9a-f]{16}-write-[1-6]\/(?:prepare|execute)|\/(?:refresh|finalize))?)?)$/.test(path);
-  const workloadRoute = /^\/workloads\/w1-[0-9a-f]{32}(?:\/(?:validate|record))?$/.test(path);
+  const workloadRoute = /^\/workloads\/w1-[0-9a-f]{32}(?:\/(?:validate|record)|\/publication(?:\/prepare|\/w2op1-[0-9a-f]{64}(?:\/(?:sign|submit|observe|cancel))?))?$/.test(path.split('?')[0]);
   if (!identityRoute && !dealRoute && !workloadRoute) throw new Error('CONNECTOR_ROUTE_REFUSED');
   const response = await fetch(`${record.connectorUrl}${path}`, {
     method,

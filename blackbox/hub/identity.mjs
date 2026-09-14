@@ -82,6 +82,20 @@ export class IdentityManager {
     this.root = root; this.identityRoot = identityRoot; this.now = now;
   }
 
+  async existingSignerProfile(did) {
+    if (!this.identityRoot || typeof did !== 'string') throw new Error('W2_EXISTING_SIGNER_REQUIRED');
+    const main = await candidate(this.identityRoot, 'default', IDENTITY_PROVIDERS.EXISTING_TECHNOCORE);
+    if (main?.did === did && main.signerAvailable) return 'default';
+    const profilesRoot = resolve(this.identityRoot, 'identities');
+    let entries = [];
+    try { entries = await readdir(profilesRoot, { withFileTypes: true }); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    for (const entry of entries) if (entry.isDirectory() && !entry.isSymbolicLink() && PROFILE_NAME.test(entry.name)) {
+      const found = await candidate(resolve(profilesRoot, entry.name), entry.name, IDENTITY_PROVIDERS.EXISTING_BLACKBOX_PROFILE);
+      if (found?.did === did && found.signerAvailable) return entry.name;
+    }
+    throw new Error('W2_EXISTING_SIGNER_REQUIRED');
+  }
+
   async discover() {
     const primaryRecord = await readJson(resolve(this.root, 'identity-primary.json'));
     const found = [];

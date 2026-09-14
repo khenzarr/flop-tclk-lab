@@ -88,7 +88,7 @@ test('local validation replaces inherited historical footer while the reference 
     assert.match(recordPage, /Agent Deal Flight Recorder · Verified public playback/); // shared HTML before W1 rendering
 
     const node = (textContent = '') => ({ textContent, children: [], append(...children) { this.children.push(...children); },
-      replaceChildren(...children) { this.children = children; }, remove() {} });
+      replaceChildren(...children) { this.children = children; }, addEventListener() {}, remove() {} });
     const footerText = node('Agent Deal Flight Recorder · Verified public playback');
     const footerId = node('phase3b-final'); const main = node();
     const document = { title: '', createElement: () => node(), getElementById: name => name === 'footer-record-id' ? footerId : null,
@@ -105,7 +105,7 @@ test('local validation replaces inherited historical footer while the reference 
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
     await new AsyncFunction('document', 'location', 'connectorRequest', 'URL', 'Blob', stripped)(document,
       { pathname: `/deal/record/${recordId}` }, connectorRequest, { createObjectURL: () => 'blob:local-test' }, Blob);
-    assert.equal(main.children.length, 5); // complete LOCAL_VALIDATION presentation, not the unavailable fallback
+    assert.equal(main.children.length, 5); // W2 remains unavailable without a reviewed custody extension
     assert.equal(footerText.textContent, 'TCLK BLACKBOX · Local validation evidence');
     assert.equal(footerId.textContent, recordId);
     assert.doesNotMatch(`${footerText.textContent} ${footerId.textContent}`, /Verified public playback|phase3b-final/);
