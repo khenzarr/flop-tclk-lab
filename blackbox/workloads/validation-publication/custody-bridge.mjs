@@ -10,7 +10,13 @@ import { requireInteractiveOperatorTerminal } from '../../airlock/operator-appro
 import { requireNonce } from './canonical.mjs';
 
 const exec = promisify(execFile);
-export const REVIEWED_W2_SIGNER_COMMIT = 'ca8901aed9d7430a4f7769c9bf2ba844596be859';
+export const REVIEWED_W2_SIGNER_COMMIT = 'ceee25b573c9385e79b50b46ddd044204185aa3e';
+
+function reservationCreatedAt(value) {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return new Date(value * 1000).toISOString();
+  if (typeof value === 'string' && Number.isFinite(Date.parse(value))) return new Date(value).toISOString();
+  throw new Error('W2_CUSTODY_RESERVATION_MISMATCH');
+}
 
 async function inspectSigner(worktree) {
   const root = resolve(worktree, '..');
@@ -69,8 +75,9 @@ export class W2TrustedCustody {
       requestId, profile, expectedSignerDid: signerDid, targetRoom: room, targetVenueOrigin: venueOrigin, signedTextSha256 });
     requireNonce(value.nonce, { allowZero: false });
     if (value.schema !== 'technocore-w2-reservation/v1' || value.state !== 'RESERVED'
-      || value.signerDid !== signerDid || value.room !== room || value.venueOrigin !== venueOrigin) throw new Error('W2_CUSTODY_RESERVATION_MISMATCH');
-    return value;
+      || value.signerDid !== signerDid || value.room !== room || value.venueOrigin !== venueOrigin
+      || !Number.isSafeInteger(value.generation) || value.generation < 1) throw new Error('W2_CUSTODY_RESERVATION_MISMATCH');
+    return { ...value, createdAt: reservationCreatedAt(value.createdAt) };
   }
 
   async signReserved({ requestId, signerDid, nonce, approvalCandidate, approvalHash, operationId }) {

@@ -2,7 +2,7 @@
 
 W2 is an optional, manual extension of an existing completed W1 Flight Record. It does not rerun W1, change the W1 artifact, create a TCLK deal, claim contribution value, or publish automatically.
 
-Implementation status: W2 is enabled only when the local signer repository is exactly the reviewed immutable commit `ca8901aed9d7430a4f7769c9bf2ba844596be859` and its relevant custody tree is clean. A missing, wrong, or dirty signer pin keeps W2 unavailable without affecting W1. No W2 action is automatic; preparation, signing, submission, and observation remain separately initiated.
+Implementation status: W2 is enabled only when the local signer repository is exactly the reviewed immutable commit `ceee25b573c9385e79b50b46ddd044204185aa3e` and its relevant custody tree is clean. A missing, wrong, or dirty signer pin keeps W2 unavailable without affecting W1. No W2 action is automatic; preparation, signing, submission, and observation remain separately initiated.
 
 ## Frozen implementation addendum
 

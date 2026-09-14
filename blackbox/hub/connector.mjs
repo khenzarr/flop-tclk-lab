@@ -28,6 +28,13 @@ const MAX_IMPORTS = 4;
 const importPage = new URL('../workloads/transcript-validation/import.html', import.meta.url);
 const importScript = new URL('../workloads/transcript-validation/import.js', import.meta.url);
 
+function w2SafeError(pathname) {
+  const action = pathname.match(/\/publication(?:\/prepare|\/w2op1-[0-9a-f]{64}(?:\/(sign|submit|observe|cancel))?)?$/)?.[1];
+  if (pathname.endsWith('/publication/prepare')) return { category: 'W2_PUBLICATION_ERROR', code: 'W2_PREPARATION_REFUSED' };
+  const codes = { sign: 'W2_SIGNING_REFUSED', submit: 'W2_SUBMISSION_REFUSED', observe: 'W2_OBSERVATION_REFUSED', cancel: 'W2_CANCELLATION_REFUSED' };
+  return { category: 'W2_PUBLICATION_ERROR', code: codes[action] ?? 'W2_PUBLICATION_REFUSED' };
+}
+
 export async function createPairing({ root = HUB_ROOT, now = () => Date.now(), random = randomBytes, port = CONNECTOR_PORT } = {}) {
   const createdAtMs = now(); const id = random(8).toString('hex'); const token = random(32).toString('base64url');
   const record = { schema: 'tclk-blackbox/connector-pairing/v1', connectorUrl: `http://${CONNECTOR_HOST}:${port}`,
@@ -191,6 +198,9 @@ export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, 
       if (dealAction === 'finalize') return json(response, 200, await engine.finalize(id));
       return json(response, 404, { error: 'ROUTE_NOT_ALLOWED' });
     } catch (error) {
+      if (/^\/workloads\/w1-[0-9a-f]{32}\/publication(?:\/|$)/.test(url.pathname)) {
+        return json(response, error.status ?? 409, w2SafeError(url.pathname));
+      }
       if (url.pathname.startsWith('/workloads/')) return error.category === 'INPUT_REJECTED'
         ? json(response, error.status ?? 400, { category: error.category, code: error.code })
         : json(response, 500, { category: 'INTERNAL_ERROR', code: 'UNEXPECTED_VERIFIER_FAILURE' });

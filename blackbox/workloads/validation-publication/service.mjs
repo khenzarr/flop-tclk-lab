@@ -34,7 +34,9 @@ export class W2PublicationService {
       || operationIdentity(state).operationId !== state.operationId) throw new Error('W2_OPERATION_BINDING_INVALID');
     const draft = { evidenceArtifactSha256: state.evidenceArtifactSha256, room: state.room, signerDid: state.signerDid,
       signedTextSha256: state.signedTextSha256, venueOrigin: state.venueOrigin };
-    if (state.reservation?.requestId !== draftId(draft) || state.reservation.nonce !== state.nonce) throw new Error('W2_RESERVATION_BINDING_INVALID');
+    const generation = state.reservation?.generation ?? 1;
+    if (state.reservation?.requestId !== draftId(draft) || state.reservation.nonce !== state.nonce
+      || !Number.isSafeInteger(generation) || generation < 1) throw new Error('W2_RESERVATION_BINDING_INVALID');
     const expectedSign = signApprovalCandidate(state, { issuedAt: state.signApproval.candidate.approvalIssuedAt,
       expiresAt: state.signApproval.candidate.approvalExpiresAt });
     if (canonicalJson(expectedSign.candidate) !== canonicalJson(state.signApproval.candidate)
@@ -48,7 +50,8 @@ export class W2PublicationService {
     const requestId = draftId(draftBinding); const reservation = await this.custody.reserve({ requestId, room, signerDid,
       venueOrigin: draftBinding.venueOrigin, signedTextSha256: draftBinding.signedTextSha256 });
     requireNonce(reservation.nonce); if (reservation.state !== 'RESERVED' || reservation.requestId !== requestId || reservation.room !== room || reservation.signerDid !== signerDid
-      || reservation.venueOrigin !== draftBinding.venueOrigin) throw new Error('CUSTODY_RESERVATION_MISMATCH');
+      || reservation.venueOrigin !== draftBinding.venueOrigin || !Number.isSafeInteger(reservation.generation ?? 1)
+      || (reservation.generation ?? 1) < 1) throw new Error('CUSTODY_RESERVATION_MISMATCH');
     const identity = operationIdentity({ ...draftBinding, nonce: reservation.nonce }); const createdAt = iso(this.now()); const expiresAt = iso(this.now() + 15 * 60 * 1000);
     const operation = { ...draftBinding, ...identity, nonce: reservation.nonce, signedText: built.signedText, assertion: built.assertion, assertionHash: built.assertionHash, w1Artifact: artifact,
       recordId: record.recordId, createdAt, reservation, binding: { requestId, ...identity.core } };
