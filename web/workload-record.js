@@ -38,18 +38,60 @@ try {
   const signerLabel = make('label', '', 'Existing signer DID'); const signer = make('input'); signer.placeholder = 'did:key:z6Mk…'; signerLabel.append(signer);
   const prepare = make('button', 'button button-quiet', 'Prepare exact publication'); prepare.type = 'button'; setup.append(venueLabel, roomLabel, signerLabel, prepare);
   const stage = make('div', 'publication-stage'); stage.hidden = true; const status = make('strong', '', 'APPROVAL PENDING');
-  const preview = make('pre', 'publication-preview'); const warning = make('p', 'tool-note', 'Signing does not submit. Any change requires a fresh approval; the reserved nonce will never be reused.');
+  const approvalLead = make('p', 'publication-approval-lead', 'You are approving exactly this publication.');
+  const preview = make('div', 'publication-preview'); const warning = make('p', 'tool-note', 'Signing does not submit. Any change requires a fresh approval; the reserved nonce will never be reused.');
   const actions = make('div', 'publication-actions');
   const sign = make('button', 'button button-primary', 'Approve exact publication · sign locally'); sign.type = 'button';
   const cancel = make('button', 'button button-quiet', 'Cancel and burn reserved nonce'); cancel.type = 'button';
   const submit = make('button', 'button button-primary', 'Submit once'); submit.type = 'button'; submit.disabled = true;
   const observe = make('button', 'button button-quiet', 'Check public evidence'); observe.type = 'button'; observe.disabled = true;
-  actions.append(sign, cancel, submit, observe); stage.append(status, preview, warning, actions); publication.append(setup, stage);
-  let operationId = null;
+  actions.append(sign, cancel, submit, observe); stage.append(status, approvalLead, preview, warning, actions); publication.append(setup, stage);
+  let operationId = null; let expiryTimer = null; let renderedPublication = null;
+  const approvalRow = (label, value) => { const row = make('div'); row.append(make('dt', '', label), make('dd', '', value)); return row; };
+  const approvalGroup = (title, rows) => { const group = make('section', 'publication-review-group'); group.append(make('h3', '', title));
+    const details = make('dl', 'publication-review-details'); for (const [label, value] of rows) details.append(approvalRow(label, value)); group.append(details); return group; };
+  const approvalBindingMatches = value => {
+    const candidate = value.signApproval?.candidate;
+    return candidate?.operationId === value.operationId && candidate?.evidenceArtifactSha256 === value.evidenceArtifactSha256
+      && candidate?.targetVenueOrigin === value.venueOrigin && candidate?.targetRoom === value.room && candidate?.signerDid === value.signerDid
+      && candidate?.nonce === value.nonce && candidate?.signedText === value.signedText && candidate?.signedTextSha256 === value.signedTextSha256;
+  };
+  const refreshApprovalExpiry = () => {
+    if (!renderedPublication) return;
+    const expiresAt = renderedPublication.signApproval?.candidate?.approvalExpiresAt;
+    const expired = typeof expiresAt !== 'string' || !Number.isFinite(Date.parse(expiresAt)) || Date.now() > Date.parse(expiresAt);
+    const bindingValid = approvalBindingMatches(renderedPublication);
+    status.textContent = !bindingValid ? 'APPROVAL BINDING INVALID' : expired && renderedPublication.state === 'APPROVAL_PENDING'
+      ? 'APPROVAL PENDING · EXPIRED' : renderedPublication.state;
+    sign.disabled = renderedPublication.state !== 'APPROVAL_PENDING' || expired || !bindingValid;
+  };
   const renderPublication = value => {
-    operationId = value.operationId; stage.hidden = false; status.textContent = value.state;
-    preview.textContent = [`Operation: ${value.operationId}`, `Venue: ${value.venueOrigin}`, `Room: ${value.room}`, `Signer: ${value.signerDid}`, `Nonce: ${value.nonce}`, '', value.signedText].join('\n');
-    sign.disabled = value.state !== 'APPROVAL_PENDING'; cancel.disabled = value.state !== 'APPROVAL_PENDING'; submit.disabled = !['SIGNED', 'SIGNED_NOT_SUBMITTED'].includes(value.state);
+    operationId = value.operationId; renderedPublication = value; stage.hidden = false;
+    const candidate = value.signApproval?.candidate ?? {};
+    const signedText = candidate.signedText ?? '';
+    const signedTextGroup = make('section', 'publication-review-group publication-signed-text');
+    const signedTextHead = make('div', 'publication-signed-text-head'); signedTextHead.append(make('h3', '', 'Exact canonical signed text'));
+    const copySignedText = make('button', 'copy-mini publication-copy', 'Copy'); copySignedText.type = 'button'; copySignedText.setAttribute('aria-label', 'Copy exact canonical signed text');
+    copySignedText.addEventListener('click', async () => { try { await navigator.clipboard.writeText(signedText); copySignedText.textContent = 'Copied'; }
+      catch { copySignedText.textContent = 'Select text to copy'; } });
+    signedTextHead.append(copySignedText); signedTextGroup.append(signedTextHead, make('pre', 'publication-canonical-text', signedText));
+    preview.replaceChildren(
+      approvalGroup('W1 validation evidence', [['Result', value.assertion?.verdict ?? 'UNAVAILABLE'], ['W1 workload ID', value.assertion?.workloadId ?? 'UNAVAILABLE'],
+        ['Evidence artifact SHA-256', candidate.evidenceArtifactSha256 ?? 'UNAVAILABLE']]),
+      approvalGroup('Publication destination', [['Venue', candidate.targetVenueOrigin ?? 'UNAVAILABLE'], ['Room', candidate.targetRoom ?? 'UNAVAILABLE']]),
+      approvalGroup('Local signer and nonce', [['Signer DID', candidate.signerDid ?? 'UNAVAILABLE'], ['Nonce', candidate.nonce ?? 'UNAVAILABLE']]),
+      approvalGroup('Assertion', [['Schema / version', value.assertion?.schema ?? 'UNAVAILABLE'], ['Signed text SHA-256', candidate.signedTextSha256 ?? 'UNAVAILABLE']]),
+      signedTextGroup,
+      approvalGroup('Operation binding', [['Operation ID', candidate.operationId ?? 'UNAVAILABLE'], ['Approval hash', value.signApproval?.approvalHash ?? 'UNAVAILABLE'],
+        ['Approval issued at', candidate.approvalIssuedAt ?? 'UNAVAILABLE'], ['Approval expires at', candidate.approvalExpiresAt ?? 'UNAVAILABLE']]),
+    );
+    if (expiryTimer !== null) window.clearTimeout(expiryTimer);
+    refreshApprovalExpiry();
+    if (value.state === 'APPROVAL_PENDING' && Number.isFinite(Date.parse(candidate.approvalExpiresAt))) {
+      const remaining = Date.parse(candidate.approvalExpiresAt) - Date.now() + 1;
+      if (remaining > 0) expiryTimer = window.setTimeout(refreshApprovalExpiry, remaining);
+    }
+    cancel.disabled = value.state !== 'APPROVAL_PENDING'; submit.disabled = !['SIGNED', 'SIGNED_NOT_SUBMITTED'].includes(value.state);
     observe.disabled = !['ACK_RECEIVED', 'SUBMISSION_UNCERTAIN', 'OBSERVED_PUBLIC', 'COMPLETE'].includes(value.state);
     if (value.state === 'SUBMISSION_UNCERTAIN') warning.textContent = 'The POST outcome is uncertain. BLACKBOX will not retry. Only read-only public observation is available.';
     if (value.duplicateMatchAnomaly === 'DUPLICATE_PUBLIC_MATCH') warning.textContent = 'Observed publicly, with a DUPLICATE_PUBLIC_MATCH replay anomaly. Duplicates do not count as extra work.';
