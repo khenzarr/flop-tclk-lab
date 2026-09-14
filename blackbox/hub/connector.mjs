@@ -8,6 +8,9 @@ import { RealExecutor } from './real-executor.mjs';
 import { createDealSession, HUB_ROOT, listSessions, readCompletedPublicRecord } from './session.mjs';
 import { IdentityManager, verifyPublicSignature } from './identity.mjs';
 import { describeInput, MAX_INPUT_BYTES, validateTranscript } from '../workloads/transcript-validation/verifier.mjs';
+import { publicSafePublication } from '../workloads/validation-publication/service.mjs';
+import { assertReviewedW2Signer } from '../workloads/validation-publication/custody-bridge.mjs';
+import { createProductionW2Service } from '../workloads/validation-publication/production.mjs';
 
 export const CONNECTOR_HOST = '127.0.0.1';
 export const CONNECTOR_PORT = 8787;
@@ -60,12 +63,16 @@ function localPage(response, body, type) {
 }
 
 export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, now = () => Date.now(),
-  origins = DEFAULT_ALLOWED_ORIGINS, mode = 'real', transport, identityManager } = {}) {
+  origins = DEFAULT_ALLOWED_ORIGINS, mode = 'real', transport, identityManager, publicationService } = {}) {
   const pairing = await createPairing({ root, now, port });
   const executor = mode === 'simulated' ? new SimulatedExecutor({ submitOutcomes: ['SUBMISSION_UNCERTAIN', 'ACK_RECEIVED'] }) : new RealExecutor({ root, ...(transport ? { transport } : {}) });
   const engine = new DealEngine({ root, executor }); const rate = new Map();
   const imports = new Map();
   const identities = identityManager ?? new IdentityManager({ root, now, ...(mode === 'simulated' ? { identityRoot: null } : {}) });
+  let activePublication = publicationService;
+  if (!activePublication && mode === 'real') {
+    try { await assertReviewedW2Signer(); activePublication = createProductionW2Service({ root, identities, now }); } catch { activePublication = null; }
+  }
   const allowedOrigins = new Set([...origins, `http://${CONNECTOR_HOST}:${port}`]);
 
   async function handler(request, response) {
@@ -108,6 +115,24 @@ export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, 
         imports.set(importId, { bytes, room, generation, createdAtMs: now(), descriptor: inspected.descriptor });
         return json(response, 201, { importId, ...inspected.descriptor });
       }
+      const publication = url.pathname.match(/^\/workloads\/(w1-[0-9a-f]{32})\/publication(?:\/(prepare|w2op1-[0-9a-f]{64})(?:\/(sign|submit|observe|cancel))?)?$/);
+      if (publication) {
+        if (!activePublication) return json(response, 503, { error: 'W2_CUSTODY_EXTENSION_REQUIRED' });
+        const [, recordId, target, action] = publication;
+        let record; try { record = JSON.parse(await readFile(resolve(root, 'workloads', 'records', `${recordId}.json`), 'utf8')); }
+        catch { return json(response, 404, { error: 'RECORD_NOT_FOUND' }); }
+        if (request.method === 'POST' && target === 'prepare') return json(response, 201, await activePublication.prepare(record, await readBody(request)));
+        if (/^w2op1-[0-9a-f]{64}$/.test(target ?? '')) {
+          const bound = await activePublication.inspect(target);
+          if (bound.recordId !== recordId) return json(response, 404, { error: 'PUBLICATION_RECORD_MISMATCH' });
+          if (request.method === 'GET' && !action) return json(response, 200, await activePublication.inspect(target));
+          if (request.method === 'POST' && action === 'sign') return json(response, 200, await activePublication.approveAndSign(target));
+          if (request.method === 'POST' && action === 'submit') return json(response, 200, await activePublication.submitOnce(target));
+          if (request.method === 'POST' && action === 'observe') return json(response, 200, await activePublication.observe(target));
+          if (request.method === 'POST' && action === 'cancel') return json(response, 200, await activePublication.cancel(target));
+        }
+        return json(response, 405, { error: 'METHOD_NOT_ALLOWED' });
+      }
       const workload = url.pathname.match(/^\/workloads\/(w1-[0-9a-f]{32})(?:\/(validate|record))?$/);
       if (workload) {
         const [, importId, action] = workload;
@@ -126,7 +151,14 @@ export async function createConnector({ root = HUB_ROOT, port = CONNECTOR_PORT, 
         if (request.method === 'GET' && action === 'record') {
           let record; try { record = JSON.parse(await readFile(resolve(root, 'workloads', 'records', `${importId}.json`), 'utf8')); }
           catch { return json(response, 404, { error: 'RECORD_NOT_FOUND' }); }
-          return json(response, 200, { source: 'LOCAL_BLACKBOX_CONNECTOR', readOnly: true, record });
+          let publicationEvidence = null;
+          const operationId = url.searchParams.get('publication');
+          if (operationId && activePublication) {
+            const state = await activePublication.inspect(operationId);
+            if (state.recordId !== importId) return json(response, 404, { error: 'PUBLICATION_RECORD_MISMATCH' });
+            publicationEvidence = publicSafePublication(state);
+          }
+          return json(response, 200, { source: 'LOCAL_BLACKBOX_CONNECTOR', readOnly: true, record, publicationEnabled: Boolean(activePublication), publicationEvidence });
         }
         return json(response, 405, { error: 'METHOD_NOT_ALLOWED' });
       }

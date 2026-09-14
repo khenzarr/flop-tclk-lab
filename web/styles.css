@@ -402,6 +402,16 @@ footer p { margin: 0; }
 .workload-result strong { font-size: clamp(1.6rem, 4vw, 2.5rem); letter-spacing: -.03em; }
 .workload-result .button { display: inline-flex; margin-top: 12px; }
 .workload-record-card { margin: 22px auto; max-width: 1040px; }
+.publication-card { border-color: rgba(112, 234, 197, .24); }
+.publication-setup { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; }
+.publication-setup label { display: grid; gap: 7px; color: var(--muted); font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; }
+.publication-setup input { min-width: 0; }
+.publication-setup button { grid-column: 1 / -1; justify-self: start; }
+.publication-stage { display: grid; gap: 14px; margin-top: 20px; }
+.publication-stage > strong { color: var(--mint); letter-spacing: .1em; }
+.publication-preview { max-height: 290px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .24); color: var(--muted); font-size: .74rem; }
+.publication-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (max-width: 720px) { .publication-setup { grid-template-columns: 1fr; } .publication-actions { display: grid; } }
 .workload-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; padding: 0; list-style: none; }
 .workload-checks li { padding: 10px 12px; border: 1px solid var(--line, #35382f); border-radius: 8px; font: .82rem ui-monospace, SFMono-Regular, Consolas, monospace; }
 @media (max-width: 640px) { .workload-descriptor dl > div, .workload-details > div { grid-template-columns: 1fr; gap: 2px; } }
